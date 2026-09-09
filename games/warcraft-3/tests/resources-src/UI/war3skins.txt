@@ -1,4 +1,6 @@
 [Default]
+LoadingProgressBar=UI\Glues\Loading\LoadBar\LoadBar.mdl
+LoadingMeleeBackground=UI\Glues\Loading\Multiplayer\Load-Multiplayer-Random.mdl
 TargetPointConfirm=UI\Feedback\Confirmation\Confirmation.mdl
 ConsoleInventoryCoverTexture=TestUI\Textures\default-inventory-cover.blp
 ConsoleInventoryNoCapacity=TestUI\Textures\default-inventory-no-capacity.blp

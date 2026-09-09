@@ -3296,24 +3296,6 @@ TEST(menu_fdf, deferred_texture_cache_tracks_theme_changes) {
     UI_ClearTheme(); mi = saved;
 }
 
-TEST(menu_fdf, loading_rows_support_roc_and_tft_schema) {
-    static const struct { LPCSTR row, model; DWORD seq; BOOL valid; } cases[] = {
-        { "WESTRING_LOADINGSCREEN_HUMAN01,0,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
-          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 0, true },
-        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl",
-          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl", 6, true },
-        { "0,WESTRING_LOADINGSCREEN_HUMAN02,1,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
-          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 1, true },
-        { NULL, "", 0, false }, { "", "", 0, false },
-        { "WESTRING_LOADINGSCREEN_HUMAN01", "", 0, false },
-        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,", "", 6, false },
-    };
-    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
-        PATHSTR model; DWORD seq;
-        T_EQ(UI_ParseLoadingRow(cases[i].row, &seq, model), cases[i].valid);
-        if (cases[i].valid) { T_STREQ(model, cases[i].model); T_EQ(seq, cases[i].seq); }
-    }
-}
 
 TEST(menu_fdf, exported_image_resolver_uses_local_player_skin) {
     menuImport_t saved = mi;

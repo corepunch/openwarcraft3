@@ -1,3 +1,4 @@
 StringList {
+    LOADING_LOADING "L O A D I N G",
     CONFIRM_EXIT_MESSAGE "Are you sure you want to exit?",
 }

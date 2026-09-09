@@ -969,6 +969,42 @@ TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
     T_EQ(client->ps.stats[UI_PLAYERSTAT_SELECTION_MANA], 21);
 }
 
+TEST(wc3_game, loading_rows_support_roc_and_tft_schema) {
+    static const struct { LPCSTR row, model; DWORD seq; BOOL valid; } cases[] = {
+        { "WESTRING_LOADINGSCREEN_HUMAN01,0,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 0, true },
+        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl", 6, true },
+        { "0,WESTRING_LOADINGSCREEN_HUMAN02,1,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 1, true },
+        { NULL, "", 0, false }, { "", "", 0, false },
+        { "WESTRING_LOADINGSCREEN_HUMAN01", "", 0, false },
+        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,", "", 6, false },
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        PATHSTR model; DWORD seq;
+        T_EQ(UI_ParseLoadingRow(cases[i].row, &seq, model), cases[i].valid);
+        if (cases[i].valid) { T_STREQ(model, cases[i].model); T_EQ(seq, cases[i].seq); }
+    }
+}
+
+/* Author native sprites through the same serializer used during the initial client handshake. */
+TEST(wc3_game, loading_layout_preserves_sprite_geometry_and_progress_binding) {
+    FRAMEDEF bar = { .Type = FT_SPRITE, .Stat = UI_STAT_LOADING_PROGRESS, .Portrait.model = 17, .Text = "#0" };
+    FRAMEDEF back = { .Type = FT_SPRITE, .Portrait.model = 18, .Text = "#!6" };
+    uiFrame_t wire = { 0 };
+    BYTE data[128];
+    char text[128];
+
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&bar, &wire, data, sizeof(data), text, sizeof(text)));
+    T_EQ(wire.flags.type, FT_SPRITE); T_EQ(wire.tex.index, 17);
+    T_EQ(wire.stat, UI_STAT_LOADING_PROGRESS); T_STREQ(wire.text, "#0");
+    T_FEQ(wire.size.width, 0, 0.00001f); T_FEQ(wire.size.height, 0, 0.00001f);
+    T_ASSERT(UI_BuildFrameForWrite(&back, &wire, data, sizeof(data), text, sizeof(text)));
+    T_EQ(wire.flags.type, FT_SPRITE); T_EQ(wire.tex.index, 18); T_STREQ(wire.text, "#!6");
+}
+
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);

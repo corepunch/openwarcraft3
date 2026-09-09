@@ -897,23 +897,12 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 
 /* Loading bars are the one client-owned layout value; their art remains server-authored. */
 void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen) {
-    if (frame->tex.index < MAX_IMAGES && cl.pics[frame->tex.index]) {
-        RECT fill = *screen;
-        RECT uv = { 0, 0, 255, 255 };
-        RECT suv;
-        fill.w *= cl.loading_progress;
-        uv.w *= cl.loading_progress;
-        suv = Rect_div(&uv, 0xff);
-        re.DrawImage(cl.pics[frame->tex.index], &fill, &suv, frame->color);
-        return;
-    }
-    UIFRAME bar = *frame;
-    char anim[16];
-
-    snprintf(anim, sizeof(anim), "#0@%.4f", cl.loading_progress);
-    bar.flags.type = FT_PORTRAIT;
-    bar.text = anim;
-    SCR_LayoutDrawPortrait(&bar, screen);
+    RECT fill = *screen, uv = { 0, 0, 255, 255 };
+    fill.w *= cl.loading_progress;
+    uv.w *= cl.loading_progress;
+    RECT suv = Rect_div(&uv, 0xff);
+    /* This frame declares an image. Model and image indices are independent namespaces. */
+    re.DrawImage(SCR_LayoutPic(frame->tex.index), &fill, &suv, frame->color);
 }
 
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
@@ -921,6 +910,7 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Stand";
     char sequence_anim[96];
     char phased_anim[96];
+    FLOAT phase = 0.0f;
 
     /* Some server-authored sprites need one replicated stat for their
      * normalized animation phase and another for the authored sequence.  The
@@ -941,13 +931,13 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
         anim = sequence_anim;
     }
 
-    /* A server-authored numeric stat on a SPRITE is a normalized animation
-     * phase. This keeps the frame tree static while snapshot state drives the
-     * model locally each render frame. The game chooses the stat and model. */
-    if (frame->stat > 0 && frame->stat < MAX_STATS) {
+    /* Sprite phase uses either a normalized snapshot stat or a generic local binding.
+     * Loading sprites previously lost their geometry when converted into portrait bars. */
+    if (SCR_LayoutContextValue(frame->stat, &phase) || (frame->stat > 0 && frame->stat < MAX_STATS)) {
         LPCSTR marker = strchr(anim, '@');
         size_t base_len = marker ? (size_t)(marker - anim) : strlen(anim);
-        FLOAT phase = (FLOAT)cl.playerstate.stats[frame->stat] / (FLOAT)UINT16_MAX;
+        if (frame->stat > 0 && frame->stat < MAX_STATS)
+            phase = (FLOAT)cl.playerstate.stats[frame->stat] / (FLOAT)UINT16_MAX;
 
         if (base_len > sizeof(phased_anim) - 16) base_len = sizeof(phased_anim) - 16;
         snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);

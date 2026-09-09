@@ -1,0 +1,3 @@
+[LoadingScreens]
+00=WESTRING_LOADINGSCREEN_HUMAN01,0,UI\Glues\Loading\Backgrounds\Campaigns\LordaeronBackground.mdl
+01=1,WESTRING_LOADINGSCREEN_HUMANX01,6,UI\Glues\Loading\Backgrounds\Campaigns\LordaeronExpansionBackground.mdl

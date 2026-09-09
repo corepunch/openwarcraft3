@@ -497,6 +497,7 @@ typedef enum {
     /* uiFrame_t.stat is NFT_BYTE on the wire. Keep generic special bindings
      * inside the reserved high-byte range and below 251 so the established
      * selection/context bindings retain their values. */
+    UI_STAT_LOADING_PROGRESS = 249, /* client-local normalized resource registration progress */
     UI_STAT_SELECTION_TIMED_STATUS = 250, /* statusbar binding; reads normalized selected-unit timer player stat */
     UI_STAT_SELECTION_HEALTH_TEXT = 251,
     UI_STAT_SELECTION_MANA_TEXT,

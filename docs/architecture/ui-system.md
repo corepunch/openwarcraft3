@@ -272,11 +272,12 @@ Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never crea
 
 ## Loading Screen
 
-The loading screen is a server-authored `svc_layout` sent after the initial configstrings and drawn by the client while `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
+The loading screen is a server-authored `svc_layout` sent before the initial configstrings and drawn by the client while `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
 
 1. Serializes the authoritative `Loading.fdf` frame tree before `begin`
 2. Includes map-authored title, subtitle, description, and background model
-3. Uses `FT_LOADING_BAR`, whose animation ratio is supplied by client-local registration progress
+3. Keeps WC3 MDX art as `FT_SPRITE` with `UI_STAT_LOADING_PROGRESS`; texture bars use `FT_LOADING_BAR`.
+   Both consume client-local registration progress without guessing resource type from a numeric index.
 
 `CL_PrepRefresh()` advances that value at real registration phase boundaries. The Quake-style plaque remains frozen for ordinary
 frame submission, but `SCR_UpdateLoadingPlaque()` explicitly repaints after a progress change. The value is local client state, not

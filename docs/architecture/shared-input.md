@@ -166,3 +166,18 @@ assessment; remaining menu/session/renderer coupling is outside this input chang
 
 See also: [client camera](client.md), [runtime config](runtime.md), and
 [control groups](../games/warcraft-3/control-groups.md).
+
+### Minimap diagnostic boundary
+
+When a click appears ineffective, trace `IN_SelectDown` → `CL_TryMinimapClick` → `clc_input/BZ_INPUT_FOCUS` →
+`G_ClientInput` → the next `vieworigin` snapshot before changing input dispatch. `Key_Event` queues the binding
+before `SCR_LayoutMouseEvent` runs, so a later layout-event return alone does not prove that `+select` was lost.
+A September 9 bounded Human02 replay on `4045cd0c` confirmed a minimap hit, `no_control=0`, and the same focus
+coordinates in the returned server snapshot. That revision's normal focused gameplay click could not reproduce
+an input-order failure. Also check window focus, modal ownership, cinematic state, and the active MOUSE1 binding.
+
+Regression coverage: `client_input.minimap_sdl_click_drag_release_over_hud` pushes SDL button/motion events
+through `CL_Input`, the MOUSE1 binding, layout handling and `Cbuf_Execute`. It checks focus packets, drag/release,
+non-minimap HUD clicks and modal blocking. `wc3_api.controller_focus_updates_camera_and_respects_control`
+checks server application, camera-target release, bounds clamping and scripted ownership. Temporarily moving
+the HUD blocker ahead of `CL_TryMinimapClick` makes the SDL regression fail.

@@ -40,6 +40,7 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutClampSelectionRect(LPRECT rect);
 BOOL SCR_LayoutModalActive(void);
 void SCR_UpdateScreen(DWORD msec);
@@ -1755,6 +1756,46 @@ TEST(client_layout, sprite_numeric_stat_drives_normalized_animation_phase) {
     T_EQ(test_sprite_draws, 1);
     T_EQ(sscanf(test_sprite_anim, "#0@%f", &ratio), 1);
     T_FEQ(ratio, 32768.0f / (FLOAT)UINT16_MAX, 0.00001f);
+}
+
+/* An image with the same numeric index must not capture a model-backed loading sprite. */
+TEST(client_layout, loading_sprite_uses_client_progress_and_model_namespace) {
+    uiFrame_t frame = { .flags = { .type = FT_SPRITE }, .tex = { .index = 1 },
+                        .stat = UI_STAT_LOADING_PROGRESS, .text = "#0" };
+    RECT screen = MAKE(RECT, 0.0f, 0.6f, 0.0f, 0.0f);
+    FLOAT ratio;
+
+    test_client_stubs_init();
+    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)2;
+    re.DrawSprite = capture_sprite;
+    FOR_LOOP(i, 3) {
+        cl.loading_progress = i * 0.5f;
+        test_sprite_draws = 0;
+        SCR_LayoutDrawSprite(&frame, &screen);
+        T_EQ(test_sprite_draws, 1);
+        T_EQ(sscanf(test_sprite_anim, "#0@%f", &ratio), 1);
+        T_FEQ(ratio, cl.loading_progress, 0.00001f);
+    }
+    frame.stat = 0; frame.text = "#!6";
+    SCR_LayoutDrawSprite(&frame, &screen);
+    T_STREQ(test_sprite_anim, "#!6");
+}
+
+/* Image loading bars retain their explicit texture contract even when a model shares the index. */
+TEST(client_layout, loading_image_uses_texture_namespace) {
+    uiFrame_t frame = { .flags = { .type = FT_LOADING_BAR }, .tex = { .index = 1 } };
+    RECT screen = MAKE(RECT, 0, 0, 0.4f, 0.1f);
+
+    test_client_stubs_init();
+    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.pics[1] = (LPTEXTURE)(uintptr_t)2;
+    cl.loading_progress = 0.25f;
+    test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
+    SCR_LayoutDrawLoadingBar(&frame, &screen);
+    T_EQ(test_scroll_draws, 1); T_ASSERT(test_scroll_tex[0] == cl.pics[1]);
+    T_FEQ(test_scroll_rects[0].w, 0.1f, 0.00001f);
+    T_FEQ(test_scroll_uvs[0].w, 0.25f, 0.00001f);
 }
 
 TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {

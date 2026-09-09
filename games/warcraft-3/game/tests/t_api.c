@@ -3103,4 +3103,24 @@ TEST(wc3_api, controller_input_preserves_scripted_ownership) {
     gc->no_control = old_ctrl;
 }
 
+/* Minimap focus must reach the server camera, clear unit tracking, and respect scripted control. */
+TEST(wc3_api, controller_focus_updates_camera_and_respects_control) {
+    LPGAMECLIENT gc = &game.clients[0];
+    INPUTCMD cmd = { .action = BZ_INPUT_FOCUS, .focus = { 300, 400 } };
+    level.camera_bounds = (BOX2){ .min = { 0, 0 }, .max = { 512, 512 } };
+    gc->camera.state.position = (VECTOR2){ 10, 20 };
+    gc->camera.target_controller = &g_edicts[2];
+    gc->no_control = true;
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_FEQ(gc->camera.state.position.x, 10, 0.001f); T_FEQ(gc->camera.state.position.y, 20, 0.001f);
+    T_NOT_NULL(gc->camera.target_controller);
+    gc->no_control = false;
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_FEQ(gc->camera.state.position.x, 300, 0.001f); T_FEQ(gc->camera.state.position.y, 400, 0.001f);
+    T_NULL(gc->camera.target_controller); T_EQ(gc->camera.start_time, gc->camera.end_time);
+    cmd.focus = (VECTOR2){ -100, 700 };
+    globals.ClientInput(&g_edicts[0], &cmd);
+    T_FEQ(gc->camera.state.position.x, 0, 0.001f); T_FEQ(gc->camera.state.position.y, 512, 0.001f);
+}
+
 #endif /* BZ_TESTS */

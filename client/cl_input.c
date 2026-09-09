@@ -868,6 +868,7 @@ void CL_InitInput(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
+void CL_ParseLayout(LPSIZEBUF msg);
 static DWORD pan_terrain, pan_plane;
 static bool CL_TestTerrain(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
     (void)view; (void)x; (void)y;
@@ -887,7 +888,7 @@ static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, LPVECTOR3
     (void)view; (void)x; (void)y; (void)point; return false;
 }
 static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
-    (void)y; *point = (VECTOR2){ 300, 400 }; return x >= 0;
+    (void)y; *point = (VECTOR2){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
@@ -981,6 +982,89 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     Cvar_SetValue("cl_selection_limit", old_limit);
     re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
     cl.playerstate.client_ui_state = old_ui;
+}
+
+/* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
+TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    SDL_Keymod old_mod = SDL_GetModState();
+    UINAME binding;
+    BYTE data[512], packet[512];
+    sizeBuf_t msg;
+    UIFRAME empty = { 0 }, frame = { .number = 1, .flags.type = FT_TEXTURE,
+        .size = { UI_BASE_WIDTH, UI_BASE_HEIGHT }, .tooltip = "Minimap" };
+    SDL_Event event = { .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 10, .y = 20 } };
+    FLOAT old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_cursor = Cvar_Value("cl_context_cursor", 0);
+    BOOL add_down = !Cmd_Exists("+select"), add_up = !Cmd_Exists("-select");
+    INPUTCMD cmd = { 0 };
+
+    memcpy(old_cl, &cl, sizeof(cl));
+    strlcpy(binding, Key_GetBinding(K_MOUSE1, 0), sizeof(binding));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    if (add_down) Cmd_AddCommand("+select", IN_SelectDown);
+    if (add_up) Cmd_AddCommand("-select", IN_SelectUp);
+    Key_SetBinding(K_MOUSE1, 0, "+select"); SDL_SetModState(KMOD_NONE);
+    Cvar_Set("cl_camera_edge_scroll", "0"); Cvar_Set("cl_context_cursor", "0");
+    memset(&cl, 0, sizeof(cl)); input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
+    SZ_Init(&msg, packet, sizeof(packet));
+    MSG_WriteByte(&msg, LAYER_CONSOLE);
+    MSG_WriteDeltaUIFrame(&msg, &empty, &frame, true); MSG_WriteByte(&msg, 0);
+    MSG_WriteLong(&msg, 0); MSG_WriteShort(&msg, 0);
+    CL_ParseLayout(&msg);
+    T_ASSERT(SCR_LayoutHitTest(10, 20));
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
+    T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd)); T_EQ(cmd.action, BZ_INPUT_FOCUS);
+    VECTOR2 expected = CL_ClampCameraPosition((VECTOR2){ 300, 400 });
+    T_FEQ(cmd.focus.x, expected.x, 0.001f); T_FEQ(cmd.focus.y, expected.y, 0.001f);
+    T_ASSERT(!input.select && !cl.selection.in_progress);
+    T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+
+    event = (SDL_Event){ .motion = { .type = SDL_MOUSEMOTION, .x = 30, .y = 40 } };
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
+    T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd)); T_EQ(cmd.action, BZ_INPUT_FOCUS);
+    T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONUP, .button = SDL_BUTTON_LEFT, .x = 30, .y = 40 } };
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    event = (SDL_Event){ .motion = { .type = SDL_MOUSEMOTION, .x = 50, .y = 60 } };
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0);
+
+    /* Other HUD pixels must not become world selection or camera focus. */
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 500, .y = 100 } };
+    T_ASSERT(SCR_LayoutHitTest(500, 100));
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    event.type = SDL_MOUSEBUTTONUP;
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0); T_ASSERT(!cl.selection.in_progress);
+
+    /* A real modal layout must still prevent the same bound click from moving the camera. */
+    SCR_SetLayoutLayer(LAYER_GAME_RESULT, cl.layout[LAYER_CONSOLE]);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 10, .y = 20 } };
+    T_ASSERT(SCR_LayoutModalActive());
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    event.type = SDL_MOUSEBUTTONUP;
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0);
+    MemFree(cl.layout[LAYER_CONSOLE]);
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; re = old_re; input = old_input; mouse = old_mouse;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+    Key_SetBinding(K_MOUSE1, 0, binding); SDL_SetModState(old_mod);
+    if (add_down) Cmd_RemoveCommand("+select");
+    if (add_up) Cmd_RemoveCommand("-select");
+    Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_context_cursor", old_cursor);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
 }
 
 TEST(client_input, pan_uses_configured_surface) {
