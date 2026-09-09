@@ -18,8 +18,21 @@ LPCSTR Key_GetBinding(keyCode_t key, DWORD mods) {
 }
 
 static LPCSTR Key_FindBinding(keyCode_t key, DWORD mods) {
-    LPCSTR kb = keybindings[mods & KEY_MOD_MASK][key];
-    return kb[0] ? kb : NULL;
+    DWORD const slot = mods & KEY_MOD_MASK;
+    LPCSTR kb = keybindings[slot][key];
+
+    if (kb[0]) return kb;
+
+    /* Mouse gameplay handlers need the held modifier state for semantics such
+     * as WC3 Shift order queuing.  An explicit modified mouse bind still wins
+     * (for example ALT+MOUSE1 pan); otherwise inherit the plain mouse-button
+     * bind so Shift+MOUSE1/MOUSE2 reaches +select/+smart.  Keyboard strokes
+     * remain exact and therefore keep control-group/hotkey modifiers isolated. */
+    if (slot && key >= K_MOUSE1 && key <= K_MOUSE3) {
+        kb = keybindings[0][key];
+        if (kb[0]) return kb;
+    }
+    return NULL;
 }
 
 static void Key_Bind_f(void) {

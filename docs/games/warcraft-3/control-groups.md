@@ -14,7 +14,7 @@ Shipped in `games/warcraft-3/share/config.cfg` and `games/starcraft-2/share/conf
 | Shift+0–9 | `bind SHIFT+N "group add N"` | Append the current selection without changing the active selection |
 | 0–9 | `bind N "group N"` | Recall the control group |
 
-Strokes match exactly in ctrl, alt, shift order (see [modifier key binds](../../architecture/runtime.md#key-bindings)). `CTRL+SHIFT+N` is a separate bind from `CTRL+N`; both assign.
+Number-key strokes match exactly in ctrl, alt, shift order (see [modifier key binds](../../architecture/runtime.md#key-bindings)). `CTRL+SHIFT+N` is a separate bind from `CTRL+N`; both assign. Mouse-button bindings have a deliberate plain-bind fallback when no explicit modified mouse bind exists, which is separate from control-group number-key handling.
 
 ## Implementation
 
@@ -134,7 +134,7 @@ Groups are client-local and last until reassignment, map reset, or process exit.
 - append-to-empty behavior;
 - existing-member priority at capacity.
 
-`games/warcraft-3/tests/test_keys.c` covers `SHIFT+1` / `CTRL+1` / `ALT+MOUSE1` bind-name parsing and Ctrl-over-Shift slot selection.
+`games/warcraft-3/tests/test_keys.c` covers `SHIFT+1` / `CTRL+1` / `ALT+MOUSE1` bind-name parsing, exact keyboard modifier selection, and modified-mouse fallback to the plain bind.
 
 The network parser has rejection coverage in `tests/test_net.c`; in-engine selection behavior is covered by `games/warcraft-3/game/tests/t_api.c`.
 
