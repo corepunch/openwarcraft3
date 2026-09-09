@@ -1,0 +1,2 @@
+[ACsp]
+TargetArt=TestUI\Models\anim_pulse.mdx
