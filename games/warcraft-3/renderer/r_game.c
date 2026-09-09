@@ -210,10 +210,6 @@ FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
 }
 
 
-static int R_W3BridgeHeightDebug(void) {
-    return atoi(ri.CvarString ? ri.CvarString("wc3_bridge_height_debug", "0") : "0");
-}
-
 static BOOL R_W3WalkableSurfaceHit(renderEntity_t const *surface, FLOAT x, FLOAT y, LPFLOAT z) {
     LINE3 line;
     VECTOR3 hit;
@@ -236,34 +232,15 @@ static BOOL R_W3WalkableSurfaceHit(renderEntity_t const *surface, FLOAT x, FLOAT
 
 /* Warsmash keeps walkable destructable height as presentation state: the
  * simulation decides whether a unit may traverse the bridge, while the model
- * collision/geoset geometry supplies the exact visual support Z.  Preserve the
+ * collision/geoset geometry supplies the exact visual support Z. Preserve the
  * explicit server-authored altitude offset (WC3 FlyHeight) and replace only the
  * coarse destructable-origin support height with the highest authored MDX hit. */
 void R_ConformGroundSurfaces(viewDef_t *viewdef) {
-    static unsigned debug_call;
-    int const debug = R_W3BridgeHeightDebug();
-    BOOL const debug_sample = debug > 0 && (++debug_call % 60u) == 1u;
-    DWORD conform_count = 0;
-    DWORD surface_count = 0;
-    DWORD hit_count = 0;
-    DWORD adjusted_count = 0;
-
     if (!viewdef || (viewdef->rdflags & RDF_NOWORLDMODEL)) return;
-
-    if (debug_sample) {
-        FOR_LOOP(k, viewdef->num_entities) {
-            renderEntity_t const *sample = &viewdef->entities[k];
-            if (sample->flags & RF_GROUND_CONFORM) conform_count++;
-            if (sample->flags & RF_GROUND_SURFACE) surface_count++;
-        }
-        fprintf(stderr,
-            "WC3_BRIDGE_HEIGHT summary entities=%u conform=%u surfaces=%u\n",
-            viewdef->num_entities, conform_count, surface_count);
-    }
 
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
-        FLOAT terrain, coarse_support = 0.0f, authored_support = 0.0f;
+        FLOAT authored_support = 0.0f;
         BOOL found_surface = false;
 
         if (!(ent->flags & RF_GROUND_CONFORM) || (ent->flags & RF_HIDDEN) ||
@@ -271,66 +248,20 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
             continue;
         }
 
-        terrain = GetAccurateHeightAtPoint(ent->origin.x, ent->origin.y);
-
         FOR_LOOP(j, viewdef->num_entities) {
             renderEntity_t const *surface = &viewdef->entities[j];
             FLOAT hit_z;
 
-            if (!(surface->flags & RF_GROUND_SURFACE)) {
-                continue;
-            }
-            if (debug_sample && debug >= 2) {
-                fprintf(stderr,
-                    "WC3_BRIDGE_HEIGHT candidate unit=%u surface=%u unit_xyz=(%.2f,%.2f,%.2f) surface_xyz=(%.2f,%.2f,%.2f) surface_flags=0x%08x model=%p hidden=%d\n",
-                    i, j,
-                    ent->origin.x, ent->origin.y, ent->origin.z,
-                    surface->origin.x, surface->origin.y, surface->origin.z,
-                    surface->flags, (void *)surface->model,
-                    !!(surface->flags & RF_HIDDEN));
-            }
-            if (!R_W3WalkableSurfaceHit(surface, ent->origin.x, ent->origin.y, &hit_z)) {
-                if (debug_sample && debug >= 2) {
-                    fprintf(stderr,
-                        "WC3_BRIDGE_HEIGHT miss unit=%u surface=%u xy=(%.2f,%.2f) trace_z=(%.2f..%.2f)\n",
-                        i, j, ent->origin.x, ent->origin.y,
-                        surface->origin.z + 4096.0f,
-                        surface->origin.z - 4096.0f);
-                }
-                continue;
-            }
-            hit_count++;
-            if (debug_sample && debug >= 2) {
-                fprintf(stderr,
-                    "WC3_BRIDGE_HEIGHT hit unit=%u surface=%u xy=(%.2f,%.2f) coarse_z=%.2f authored_z=%.2f terrain_z=%.2f\n",
-                    i, j, ent->origin.x, ent->origin.y,
-                    surface->origin.z, hit_z, terrain);
-            }
+            if (!(surface->flags & RF_GROUND_SURFACE)) continue;
+            if (!R_W3WalkableSurfaceHit(surface, ent->origin.x, ent->origin.y, &hit_z)) continue;
             if (!found_surface || hit_z > authored_support) {
-                coarse_support = surface->origin.z;
                 authored_support = hit_z;
                 found_surface = true;
             }
         }
 
-        if (found_surface) {
-            FLOAT const before_z = ent->origin.z;
+        if (found_surface)
             ent->origin.z = authored_support + ent->ground_offset;
-            adjusted_count++;
-            if (debug_sample) {
-                fprintf(stderr,
-                    "WC3_BRIDGE_HEIGHT adjust unit=%u xy=(%.2f,%.2f) before_z=%.2f terrain_z=%.2f coarse_z=%.2f authored_z=%.2f ground_offset=%.2f after_z=%.2f\n",
-                    i, ent->origin.x, ent->origin.y, before_z, terrain,
-                    coarse_support, authored_support, ent->ground_offset,
-                    ent->origin.z);
-            }
-        }
-    }
-
-    if (debug_sample) {
-        fprintf(stderr,
-            "WC3_BRIDGE_HEIGHT result hits=%u adjusted=%u\n",
-            hit_count, adjusted_count);
     }
 }
 

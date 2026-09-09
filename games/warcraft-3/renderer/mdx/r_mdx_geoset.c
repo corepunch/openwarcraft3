@@ -634,53 +634,7 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECT
 }
 
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
-    static unsigned debug_counter;
-    int const debug = atoi(ri.CvarString ? ri.CvarString("wc3_bridge_height_debug", "0") : "0");
-    BOOL const near_surface = ent && line &&
-        fabsf(line->a.x - ent->origin.x) <= 1536.0f &&
-        fabsf(line->a.y - ent->origin.y) <= 1536.0f;
-    BOOL const debug_sample = debug >= 3 && near_surface && (++debug_counter % 120u) == 1u;
-
-    if (debug_sample && ent && ent->model && ent->model->mdx) {
-        MATRIX4 invmodel, matmodel;
-        mdxModel_t const *model = ent->model->mdx;
-        R_GetEntityMatrix(ent, &matmodel);
-        Matrix4_inverse(&matmodel, &invmodel);
-        LINE3 const local = {
-            Matrix4_multiply_vector3(&invmodel, &line->a),
-            Matrix4_multiply_vector3(&invmodel, &line->b),
-        };
-        fprintf(stderr,
-            "WC3_BRIDGE_MESH begin surface=%u origin=(%.2f,%.2f,%.2f) angle=%.3f scale=%.3f world_xy=(%.2f,%.2f) local_line=(%.2f,%.2f,%.2f)->(%.2f,%.2f,%.2f)\n",
-            ent->number, ent->origin.x, ent->origin.y, ent->origin.z, ent->angle, ent->scale,
-            line->a.x, line->a.y, local.a.x, local.a.y, local.a.z, local.b.x, local.b.y, local.b.z);
-
-        unsigned geoset_index = 0;
-        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-            BOX3 const box = {
-                .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
-                .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
-            };
-            VECTOR3 bounds_hit;
-            BOOL const visible = MDLX_IsGeosetVisible(model, geoset, ent->frame);
-            BOOL const bounds = Line3_intersect_box3(&local, &box, &bounds_hit);
-            fprintf(stderr,
-                "WC3_BRIDGE_MESH geoset=%u selectable=0x%x visible=%d triangles=%u bounds_min=(%.2f,%.2f,%.2f) bounds_max=(%.2f,%.2f,%.2f) bounds_hit=%d\n",
-                geoset_index++, geoset->selectable, visible, geoset->num_triangles / 3,
-                box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z, bounds);
-        }
-    }
-
-    bool const hit = MDLX_TraceModelMesh(ent, line, intersection);
-    if (debug_sample) {
-        if (hit && intersection) {
-            fprintf(stderr, "WC3_BRIDGE_MESH end hit=1 intersection=(%.2f,%.2f,%.2f)\n",
-                intersection->x, intersection->y, intersection->z);
-        } else {
-            fprintf(stderr, "WC3_BRIDGE_MESH end hit=0\n");
-        }
-    }
-    return hit;
+    return MDLX_TraceModelMesh(ent, line, intersection);
 }
 
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
