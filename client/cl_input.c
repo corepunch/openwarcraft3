@@ -197,6 +197,7 @@ static void CL_EndPan(void) {
 static void CL_SendSmartCommand(float x, float y) {
     DWORD entnum;
     VECTOR3 point;
+    BOOL have_point;
 
     if (!CL_GameplayInputReady()) {
         return;
@@ -204,11 +205,18 @@ static void CL_SendSmartCommand(float x, float y) {
     if (CL_MouseOverGameplayUI()) {
         return;
     }
+    /* Preserve the clicked ground point with an entity hit so walkable bridge
+     * entities can fall back to their ground-move semantics on the server. */
+    have_point = re.TraceLocation(&cl.viewDef, x, y, &point);
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
-            ? "smart %d queue" : "smart %d", entnum);
-    } else if (re.TraceLocation(&cl.viewDef, x, y, &point)) {
+        if (have_point)
+            SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+                ? "smart %d %d %d queue" : "smart %d %d %d", entnum, (int)point.x, (int)point.y);
+        else
+            SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
+                ? "smart %d queue" : "smart %d", entnum);
+    } else if (have_point) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
             ? "smartpoint %d %d queue" : "smartpoint %d %d",
@@ -706,14 +714,14 @@ void IN_SelectDown(void) {
         cl.selection.in_progress = false;
         return;
     }
-    if (CL_MouseOverGameplayUI()) return;
-    input.select = true;
-    if (CL_SelectionLimit() == 1) return;
     /* A left-click on the minimap recenters the camera instead of selecting. */
     if (CL_TryMinimapClick(mouse.origin.x, mouse.origin.y)) {
         cl.selection.in_progress = false;
         return;
     }
+    if (CL_MouseOverGameplayUI()) return;
+    input.select = true;
+    if (CL_SelectionLimit() == 1) return;
     cl.selection.in_progress = true;
     cl.selection.rect.x = mouse.origin.x;
     cl.selection.rect.y = mouse.origin.y;
@@ -728,6 +736,7 @@ void IN_SelectDown(void) {
 void IN_SelectUp(void) {
     BOOL held = input.select;
     input.select = false;
+    CL_EndMinimapDrag();
     if (CL_SelectionLimit() == 1) {
         if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
         VECTOR2 delta = { mouse.origin.x - input.down.x, mouse.origin.y - input.down.y };
@@ -869,6 +878,79 @@ static bool CL_TestPlane(viewDef_t const *view, float x, float y, LPVECTOR3 poin
     (void)view; (void)x; (void)y;
     pan_plane++; *point = (VECTOR3){ 4, 5, 6 }; return true;
 }
+static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, LPDWORD number) {
+    (void)view; (void)x; (void)y; *number = 42; return true;
+}
+static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y; *point = (VECTOR3){ 123, 456, 0 }; return true;
+}
+static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y; (void)point; return false;
+}
+static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
+    (void)x; (void)y; *point = (VECTOR2){ 300, 400 }; return true;
+}
+static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
+static void CL_TestUnitUI(DWORD count, menuUnitData_t *units) { (void)count; (void)units; }
+
+TEST(client_input, smart_entity_click_preserves_ground_point) {
+    BYTE data[256];
+    BYTE old_sel[sizeof(cl.selection)];
+    sizeBuf_t old_msg = cls.netchan.message;
+    refExport_t saved = re;
+    menuExport_t old_menu = menu;
+    int old_state = cls.state, old_dest = cls.key_dest;
+    BOOL old_focus = input.focus;
+    char command[128];
+
+    re.TraceEntity = CL_TestSmartEntity; re.TraceLocation = CL_TestSmartLocation;
+    re.GetWindowSize = CL_TestWindowSize;
+    menu.UpdateUnitUI = CL_TestUnitUI;
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    memcpy(old_sel, &cl.selection, sizeof(old_sel));
+    input.focus = true; cl.selection.num_selected = 0;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_SendSmartCommand(10, 20);
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command);
+    T_STREQ(command, "smart 42 123 456");
+    SZ_Init(&cls.netchan.message, data, sizeof(data)); re.TraceLocation = CL_TestNoLocation;
+    CL_SendSmartCommand(10, 20);
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command);
+    T_STREQ(command, "smart 42");
+    memcpy(&cl.selection, old_sel, sizeof(old_sel));
+    menu = old_menu; re = saved; cls.netchan.message = old_msg;
+    cls.state = old_state; cls.key_dest = old_dest; input.focus = old_focus;
+}
+
+TEST(client_input, minimap_click_precedes_single_selection_ui_block) {
+    BYTE data[256];
+    BYTE old_sel[sizeof(cl.selection)];
+    sizeBuf_t old_msg = cls.netchan.message;
+    refExport_t saved = re;
+    int old_state = cls.state, old_dest = cls.key_dest, old_limit = Cvar_Integer("cl_selection_limit", 64);
+    BOOL old_focus = input.focus;
+    VECTOR3 old_origin = cl.viewDef.camerastate[0].origin;
+    VECTOR2 expected = CL_ClampCameraPosition((VECTOR2){ 300, 400 });
+    memcpy(old_sel, &cl.selection, sizeof(old_sel));
+    re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input.focus = true; input.select = false; cl.selection.in_progress = false;
+    Cvar_Set("cl_selection_limit", "1");
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    mouse.origin = (VECTOR2){ 10, 20 };
+    IN_SelectDown(); IN_SelectUp();
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, expected.x, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.y, expected.y, 0.001f);
+    T_ASSERT(!cl.selection.in_progress);
+    T_EQ(cls.netchan.message.cursize > 0, true);
+    cl.viewDef.camerastate[0].origin = old_origin; cl.viewDef.camerastate[1].origin = old_origin;
+    memcpy(&cl.selection, old_sel, sizeof(old_sel));
+    Cvar_SetValue("cl_selection_limit", old_limit);
+    re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest; input.focus = old_focus;
+}
+
 TEST(client_input, pan_uses_configured_surface) {
     refExport_t saved = re;
     FLOAT old = Cvar_Value("cl_camera_pan_plane", 0);
