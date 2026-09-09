@@ -122,7 +122,8 @@ static void usage(void) {
     "\n"
     "Notes:\n"
     "  --info prints model metadata and exits without creating a window.\n"
-    "  --info --dump-all samples bone translations at 2% intervals; --anim filters the sequence.\n"
+    /* Escape the literal percent so fprintf does not consume a missing argument. */
+    "  --info --dump-all samples bone translations at 2%% intervals; --anim filters the sequence.\n"
     "  --front-ortho uses a front-facing orthographic preview camera for flat UI models.\n"
     "  --dump-all prints loaded model details (nodes, bones, geosets, materials, cameras).\n"
     "  --once renders one frame and exits.\n"
