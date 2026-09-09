@@ -690,6 +690,36 @@ TEST(wc3_jass_map, objective_complete_executes_completion_trigger) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_jass_map, objc_alias_executes_objective_complete) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    char index_text[16];
+    LPCSTR command[] = { "objc", index_text };
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  quest debugQuest = null\n"
+        "endglobals\n"
+        "function Victory_Found_Medivh_Actions takes nothing returns nothing\n"
+        "  call QuestSetCompleted(debugQuest, true)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set debugQuest = CreateQuest()\n"
+        "  call TriggerAddAction(t, function Victory_Found_Medivh_Actions)\n"
+        "endfunction\n"
+    ));
+    T_ASSERT(level.num_triggers > 0);
+    snprintf(index_text, sizeof(index_text), "%u", (unsigned)(level.num_triggers - 1));
+
+    old_cvar = gi.CvarString;
+    gi.CvarString = result_cheats_cvar;
+    G_ClientCommand(&g_edicts[0], 2, command);
+    jass_runevents(level.vm);
+
+    T_ASSERT(level.quests[0].completed);
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_jass_map, cinematic_play_cheat_executes_authored_trigger_actions) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
     char index_text[16];

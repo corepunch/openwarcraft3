@@ -75,6 +75,8 @@ trigger fire <index> selected
 objective list [case-sensitive-function-filter]
 objective complete <trigger-index>
 objective complete <trigger-index> selected
+objc <trigger-index>                  # alias for objective complete <trigger-index>
+objc <trigger-index> selected         # alias preserving selected-unit context
 
 jass <zero-argument-function-name>
 
@@ -87,6 +89,8 @@ cinematic stop
 `quest list` prints the allocated quests in the same 0-based in-use order used by the existing `quest <index>` journal command. `quest complete` marks the chosen quest and every allocated objective item completed; `all` applies that state change to every allocated quest. This is intentionally a **quest-state/UI cheat only**: it does not execute map-authored completion actions, does not fire a synthetic quest-completed event, and does not alter `failed`, `discovered`, `enabled`, or `required`. Campaign scripts usually advance because their own gameplay trigger runs, not because `QuestSetCompleted` changed a journal flag.
 
 `trigger list` prints the stable `level.triggers[]` index, enabled/disabled state, and registered condition/action function names. The optional filter matches those JASS function names. `trigger fire` deliberately behaves like direct `TriggerExecute`: it executes the trigger's registered actions as coroutines without evaluating its conditions and even when the trigger is disabled. This makes it suitable for invoking campaign completion/action triggers that normal progression has not armed yet. Without `selected`, event-response unit/player context is empty. With `selected`, the current primary selected unit is supplied as the trigger unit, which also derives `GetTriggerPlayer()` from that unit's owner. Event fields that require a distinct source unit (for example `GetKillingUnit`) remain unset.
+
+`objc <trigger-index> [selected]` is a shorthand for `objective complete <trigger-index> [selected]`; it uses the same cheat gate and TriggerExecute-style path.
 
 `objective` is a convenience layer for the common campaign case where the map has a completion/victory trigger that performs the real progression work. `objective list` scans trigger **action** names for likely completion triggers. It accepts ordinary `Victory_*` actions and quest/objective names containing completion words such as `Complete`, `Finish`, or `Done`, while rejecting obvious `Cheat`, `Defeat`, cinematic, skip, intro/outro, and time-stop helpers. For the Prologue map observed during development this keeps `Trig_Victory_Found_Medivh_Actions` while rejecting `Trig_Victory_Cheat_Actions`, `Trig_Defeat_Thrall_Dies_Actions`, and `Trig_End_Cinematic_Actions`. `objective complete <trigger-index> [selected]` executes the chosen trigger through the same direct TriggerExecute-style path as `trigger fire`; the index is the stable trigger index printed by the list, not a separate objective ordinal. This remains heuristic discovery, so `trigger list [filter]` is the fallback for unusually named progression triggers.
 
@@ -137,6 +141,21 @@ kill                   # kill the player unit
 ```
 
 `give item` uses the normal item spawn and pickup path, so inventory capacity and passive item effects remain authoritative. `research <rawcode>` remains available for the existing non-cheat research/debug path.
+
+Movement/camera diagnostics use compact console command families:
+
+```
+enemiesclear [radius]
+eclear [radius]          # alias for enemiesclear
+
+camera move <x> <y>
+camera selected
+camera edge <0|1>
+```
+
+`enemiesclear` is cheat-gated by `sv_cheats 1`. It uses the primary selected friendly unit as the center and immediately removes nearby non-building enemy units; the default radius is 768 world units. The `eclear` alias runs the identical handler. Friendly units, buildings, units outside the radius, and the selected center unit are left unchanged.
+
+The `camera` family is diagnostic rather than a gameplay cheat. `camera move` moves the gameplay camera to the requested world coordinates, subject to the map's camera bounds. `camera selected` focuses and follows the primary selected unit using the same persistent target controller as portrait camera focusing. `camera edge 0` disables mouse screen-edge scrolling and `camera edge 1` restores it; keyboard camera binds and drag-pan remain available. Edge scrolling is client-local, while `move` and `selected` are forwarded through the normal authoritative WC3 game-command path.
 
 ## World of Warcraft
 
