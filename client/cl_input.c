@@ -197,7 +197,7 @@ static void CL_EndPan(void) {
 static void CL_SendSmartCommand(float x, float y) {
     DWORD entnum;
     VECTOR3 point;
-    BOOL have_point;
+    BOOL have_point = false;
 
     if (!CL_GameplayInputReady()) {
         return;
@@ -205,9 +205,11 @@ static void CL_SendSmartCommand(float x, float y) {
     if (CL_MouseOverGameplayUI()) {
         return;
     }
-    /* Send both trace results; the game owns entity-versus-point order semantics. */
-    have_point = re.TraceLocation(&cl.viewDef, x, y, &point);
     if (re.TraceEntity(&cl.viewDef, x, y, &entnum)) {
+        /* Preserve the clicked ground point for walkable bridge fallback, but
+         * keep entity picking first so repeated model clicks retain the stable
+         * pre-bridge input path. */
+        have_point = re.TraceLocation(&cl.viewDef, x, y, &point);
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         if (have_point)
             SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
@@ -215,7 +217,7 @@ static void CL_SendSmartCommand(float x, float y) {
         else
             SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
                 ? "smart %d queue" : "smart %d", entnum);
-    } else if (have_point) {
+    } else if ((have_point = re.TraceLocation(&cl.viewDef, x, y, &point))) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
             ? "smartpoint %d %d queue" : "smartpoint %d %d",
@@ -891,6 +893,14 @@ static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
 }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
+static int smart_trace_order;
+static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, LPDWORD number) {
+    (void)view; (void)x; (void)y; smart_trace_order = 1; *number = 42; return true;
+}
+static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
+    (void)view; (void)x; (void)y; T_ASSERT(smart_trace_order == 1); *point = (VECTOR3){ 123, 456, 0 }; return true;
+}
+
 /* Exercise the wire command without letting transient input state leak into later suites. */
 TEST(client_input, smart_entity_click_preserves_ground_point) {
     BYTE data[256];
@@ -924,6 +934,24 @@ TEST(client_input, smart_entity_click_preserves_ground_point) {
     cl.selection = old_sel; re = saved; cls.netchan.message = old_msg;
     cls.state = old_state; cls.key_dest = old_dest; input.focus = old_focus;
     cl.playerstate.client_ui_state = old_ui; SDL_SetModState(old_mod);
+}
+
+TEST(client_input, smart_entity_trace_precedes_ground_trace) {
+    BYTE data[256];
+    refExport_t saved = re;
+    sizeBuf_t old_msg = cls.netchan.message;
+    int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
+    BOOL old_focus = input.focus;
+
+    re.TraceEntity = CL_TestSmartEntityOrder; re.TraceLocation = CL_TestSmartLocationOrder;
+    re.GetWindowSize = CL_TestWindowSize;
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    input.focus = true; smart_trace_order = 0;
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    CL_SendSmartCommand(10, 20);
+    T_EQ(smart_trace_order, 1);
+    re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
+    cl.playerstate.client_ui_state = old_ui; input.focus = old_focus;
 }
 
 /* Minimap focus is shared input: selection capacity cannot change its packet or drag lifecycle. */
