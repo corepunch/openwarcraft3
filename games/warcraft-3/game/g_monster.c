@@ -519,6 +519,7 @@ void SP_SpawnUnit(LPEDICT self) {
     G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
+    if (!d->moveTypeName || strcmp(d->moveTypeName, "float")) self->s.flags |= EF_GROUND_CONFORM;
     G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
     G_ResetUnitAnimationProperties(self);
@@ -680,13 +681,18 @@ void G_RegisterGroundSurface(LPEDICT ent) {
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
     level.ground_surfaces = ent;
+    if (!ent->destructable.dead && ent->destructable.placement_solid)
+        ent->s.flags |= EF_GROUND_SURFACE;
 }
 
 void G_UnregisterGroundSurface(LPEDICT ent) {
     LPEDICT *link = &level.ground_surfaces;
     while (*link && *link != ent) link = &(*link)->ground_next;
     if (*link) *link = ent->ground_next;
-    if (ent) ent->ground_next = NULL;
+    if (ent) {
+        ent->ground_next = NULL;
+        ent->s.flags &= ~EF_GROUND_SURFACE;
+    }
 }
 
 void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
@@ -729,7 +735,8 @@ void M_CheckGround(LPEDICT self) {
             height = MAX(height, surface->s.origin.z);
         }
     }
-    self->s.origin.z = height + self->unitinfo.FlyHeight;
+    self->s.ground_offset = self->unitinfo.FlyHeight;
+    self->s.origin.z = height + self->s.ground_offset;
 }
 
 BOOL M_CheckAttack(LPEDICT self) {

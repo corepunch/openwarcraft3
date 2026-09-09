@@ -151,6 +151,7 @@ typedef struct {
     float scale;
     float radius;
     float splatsize;
+    float ground_offset; /* current altitude above an authored ground/support surface */
 #ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow;
     RECT shadow_rect;

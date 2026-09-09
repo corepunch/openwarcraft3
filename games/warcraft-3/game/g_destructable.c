@@ -13,6 +13,11 @@ static void G_ApplyDestructableAlivePathing(LPEDICT ent) {
         : 0.0f;
     ent->destructable.pathing_active = ent->destructable.placement_solid &&
         (ent->pathtex || ent->collision > 0.0f);
+    if (ent->data.DestructableData && ent->data.DestructableData->walkable &&
+        ent->destructable.placement_solid && !ent->destructable.dead)
+        ent->s.flags |= EF_GROUND_SURFACE;
+    else
+        ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
 static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
@@ -22,6 +27,7 @@ static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
     ent->collision = 0.0f;
     ent->destructable.pathing_active = ent->destructable.placement_solid &&
         ent->pathtex != NULL;
+    ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
 /*

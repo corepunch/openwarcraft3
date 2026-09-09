@@ -69,6 +69,7 @@ netField_t entityStateFields[] = {
     /* Collision is a world-unit radius and can exceed the packed-float range.
      * It changes rarely, so preserve the exact value rather than rounding it. */
     { NETF(entityState_t, collision), NFT_FLOAT },
+    { NETF(entityState_t, ground_offset), NFT_FLOAT },
     { NETF(entityState_t, splat), NFT_LONG },
 #ifndef USE_SHADOWMAPS
     { NETF(entityState_t, shadow), NFT_SHORT },

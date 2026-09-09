@@ -2303,6 +2303,28 @@ TEST(net, entity_delta_preserves_neutral_flag) {
     T_ASSERT(out.flags & EF_NEUTRAL);
 }
 
+/* Ground-surface presentation flags are shared snapshot state: WC3 uses them
+ * to identify actors that need model-surface Z conformance and live walkable
+ * destructables that can provide that authored surface. */
+TEST(net, entity_delta_preserves_ground_surface_flags) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1,
+        .flags = EF_GROUND_CONFORM | EF_GROUND_SURFACE, .ground_offset = 53.25f }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_GROUND_CONFORM);
+    T_FEQ(out.ground_offset, 53.25f, 0.001f);
+    T_ASSERT(out.flags & EF_GROUND_SURFACE);
+}
+
 /* WC3 building damage rendering relies on server-authored effect presentation
  * data surviving the shared entity delta unchanged. */
 TEST(net, entity_delta_preserves_effect_model) {
