@@ -94,6 +94,49 @@ BOOL G_DestructableIsAttackable(LPCEDICT ent) {
         !(ent->s.flags & EF_NOT_SELECTABLE);
 }
 
+/* Warcraft targetflag values from common.j/common.txt.  TARGTYPE is an
+ * internal enum, so its ordinal must not be used as the attack-mask bit. */
+static DWORD G_DestructableTargetFlag(TARGTYPE type) {
+    switch (type) {
+    case TARG_GROUND:     return 2u;
+    case TARG_AIR:        return 4u;
+    case TARG_STRUCTURE:  return 8u;
+    case TARG_WARD:       return 16u;
+    case TARG_ITEM:       return 32u;
+    case TARG_TREE:       return 64u;
+    case TARG_WALL:       return 128u;
+    case TARG_DEBRIS:     return 256u;
+    case TARG_DECORATION: return 512u;
+    case TARG_BRIDGE:     return 1024u;
+    default:              return 0u;
+    }
+}
+
+BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
+    DWORD flag;
+
+    if (!attacker || !G_DestructableIsAttackable(target) ||
+        attacker->attack1.type == ATK_NONE) {
+        return false;
+    }
+    /* Retail lets the explicit Attack command cut down trees even though
+     * standard UnitWeapons.slk melee target lists usually omit "tree".
+     * Smart handling is still separate and workers keep Harvest precedence. */
+    if (target->targtype == TARG_TREE) {
+        return true;
+    }
+    flag = G_DestructableTargetFlag(target->targtype);
+    return flag && (attacker->attack1.targetsAllowed & flag) != 0;
+}
+
+BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
+    /* Retail Smart/right-click only treats ordinary breakable debris as an
+     * implicit attack target. Trees retain harvest semantics for workers and
+     * tree/wall/bridge/decoration classes require the explicit Attack command. */
+    return G_DestructableCanBeAttackedBy(attacker, target) &&
+        target->targtype == TARG_DEBRIS;
+}
+
 /* Resolve one 0..99 roll against cumulative percentages. Any unused remainder
  * intentionally represents no item, matching the map editor's item-set data. */
 DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll) {

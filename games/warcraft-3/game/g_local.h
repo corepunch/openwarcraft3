@@ -591,6 +591,7 @@ typedef struct {
     FLOAT damagePoint;
     FLOAT cooldown;
     FLOAT range;
+    DWORD targetsAllowed; /* WC3 targetflag bitmask (ua1g/ua2g) */
     /* Splash (area-of-effect) attack: full/medium/small radii and the damage
      * factors applied in the medium and small rings. */
     FLOAT areaFull;
@@ -2125,6 +2126,8 @@ void G_ActivateScriptedDestructable(LPEDICT ent,
                                     DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 BOOL G_DestructableIsAttackable(LPCEDICT ent);
+BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target);
+BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);

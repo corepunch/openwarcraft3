@@ -100,12 +100,13 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
-static BOOL attack_target_is_valid(LPCEDICT target) {
+/* Building recovery must pass the attacker too, so every recheck applies the weapon target mask. */
+static BOOL attack_target_is_valid(LPCEDICT attacker, LPCEDICT target) {
     if (!target || !target->inuse) {
         return false;
     }
     if (target->destructable.initialized) {
-        return G_DestructableIsAttackable(target);
+        return G_DestructableCanBeAttackedBy(attacker, target);
     }
     return !M_IsDead((LPEDICT)target);
 }
@@ -126,7 +127,7 @@ static void attack_finish_after_combat(LPEDICT attacker) {
 }
 
 static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
-    if (attack_target_is_valid(attacker ? attacker->goalentity : NULL)) {
+    if (attack_target_is_valid(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
     if (attacker) {
@@ -276,7 +277,7 @@ static void damage_target(LPEDICT ent) {
      * leaving the attack state parked at wait==0 forever. Treat the completed
      * hit as the end of the windup when there is no finite animation to drive
      * that transition. */
-    if (attack_target_is_valid(ent->goalentity) && !attack_animation_can_finish(ent))
+    if (attack_target_is_valid(ent, ent->goalentity) && !attack_animation_can_finish(ent))
         attack_melee_cooldown(ent);
 }
 
@@ -301,7 +302,7 @@ static void throw_missile(LPEDICT ent) {
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
      * projectile launch point instead. */
-    if (attack_target_is_valid(ent->goalentity) && !attack_animation_can_finish(ent))
+    if (attack_target_is_valid(ent, ent->goalentity) && !attack_animation_can_finish(ent))
         attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
@@ -394,7 +395,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(target)) {
+    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target)) {
         return;
     }
     unit_entercombat(self, target);
