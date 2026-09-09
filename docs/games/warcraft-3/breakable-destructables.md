@@ -145,14 +145,19 @@ rebuilt from terrain plus the current footprints of live entities. This removes
 an alive footprint without erasing terrain restrictions and permits a type's
 optional death-pathing texture to replace it.
 
-Walkable destructables use a narrower contract. While alive, clear cells in the
-authored pathing texture replace terrain no-walk to form the bridge deck, while
-red cells retain its blocked edges. This surface overlay is baked before normal
-obstacles so it cannot erase an overlapping building, and the live bridge is
-not treated as a circle blocker during movement. On death it stops supplying
-bridge support, terrain pathing is restored, and its optional `pathTexDeath`
-enters the normal static-obstacle bake. This intentionally does not reinterpret,
-rotate, or widen the TGA and adds no bridge-specific collision-radius exception.
+Walkable destructables use a narrower contract. While alive, blocked cells in
+the authored pathing texture retain the bridge rails, while clear cells only
+replace terrain no-walk when they are enclosed by blocked authored pathing
+across a texture axis. Clear padding outside those rails leaves the underlying
+terrain untouched, so water beside the bridge does not become an alternate
+crossing route. This derives the live deck from the pathing texture itself; it
+does not use TGA alpha, model bounds, destructable radius, or a hard-coded
+bridge width. The surface overlay is baked before normal obstacles so it cannot
+erase an overlapping building, and the live bridge is not treated as a circle
+blocker during movement. On death it stops supplying bridge support, terrain
+pathing is restored, and its optional `pathTexDeath` enters the normal
+static-obstacle bake. This intentionally does not rotate or widen the TGA and
+adds no bridge-specific collision-radius exception.
 
 ## Phase Boundary
 

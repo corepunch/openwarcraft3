@@ -30,10 +30,20 @@ static one_cell_pathtex_t destructable_blocked_death_pathtex = {
     .map = { { 0, 0, 1, 255 } },
 };
 
-static one_cell_pathtex_t destructable_clear_alive_pathtex = {
-    .width = 1,
-    .height = 1,
-    .map = { { 0, 0, 0, 255 } },
+typedef struct {
+    WORD width, height;
+    COLOR32 map[15];
+} bridge_band_pathtex_t;
+
+/* Clear padding | blocked rail | clear deck | blocked rail | clear padding. */
+static bridge_band_pathtex_t destructable_bridge_band_pathtex = {
+    .width = 5,
+    .height = 3,
+    .map = {
+        {0,0,0,255}, {0,0,1,255}, {0,0,0,255}, {0,0,1,255}, {0,0,0,255},
+        {0,0,0,255}, {0,0,1,255}, {0,0,0,255}, {0,0,1,255}, {0,0,0,255},
+        {0,0,0,255}, {0,0,1,255}, {0,0,0,255}, {0,0,1,255}, {0,0,0,255},
+    },
 };
 
 static LPEDICT make_test_destructable(FLOAT life, FLOAT x, FLOAT y) {
@@ -280,7 +290,7 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     setup_test_pathmap(8, 8, cells);
     bridge = make_test_destructable(10.0f, center.x, center.y);
     bridge->data.DestructableData = &bridge_data;
-    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_clear_alive_pathtex;
+    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     bridge->destructable.death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
     bridge->pathtex = bridge->destructable.alive_pathtex;
     bridge->collision = bridge->destructable.alive_collision = 32.0f;
@@ -293,6 +303,31 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
 
     G_KillDestructable(bridge, NULL);
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rails) {
+    static DestructableData_t const bridge_data = { .walkable = true };
+    BYTE cells[9 * 7];
+    VECTOR2 center = { 4.0f, 3.0f };
+    VECTOR2 deck = { 4.0f, 3.0f };
+    VECTOR2 left_outside = { 2.0f, 3.0f };
+    VECTOR2 right_outside = { 6.0f, 3.0f };
+    VECTOR2 left_rail = { 3.0f, 3.0f };
+    LPEDICT bridge;
+
+    memset(cells, 2, sizeof(cells)); /* river no-walk across the whole footprint */
+    setup_test_pathmap(9, 7, cells);
+    bridge = make_test_destructable(10.0f, center.x, center.y);
+    bridge->data.DestructableData = &bridge_data;
+    bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
+    bridge->pathtex = bridge->destructable.alive_pathtex;
+
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(CM_PointIsPathableForRadius(&deck, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&left_rail, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&left_outside, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&right_outside, 0.0f));
 }
 
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
