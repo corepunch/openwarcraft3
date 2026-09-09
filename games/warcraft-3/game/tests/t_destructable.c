@@ -344,8 +344,12 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     bridge->destructable.death_pathtex = (pathTex_t *)&destructable_blocked_death_pathtex;
     bridge->pathtex = bridge->destructable.alive_pathtex;
     bridge->collision = bridge->destructable.alive_collision = 32.0f;
-    unit = make_destructable_test_attacker(2.0f, center.y);
-    unit->collision = 1.0f;
+    /* Start on the clear deck lane; approaching from x=2 would cross the
+     * authored rail at x=3 and should correctly be rejected. */
+    unit = make_destructable_test_attacker(center.x, center.y - 1.0f);
+    /* This assertion isolates bridge surface pathing; a one-cell deck cannot
+     * fit a radius-one footprint without touching its authored rails. */
+    unit->collision = 0.0f;
 
     CM_BakeStaticObstacles();
     T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
