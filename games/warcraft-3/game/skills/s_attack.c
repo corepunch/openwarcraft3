@@ -195,7 +195,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     /* Instant-kill follows the same combat path for units and attackable destructables; the old
      * SVF_MONSTER target gate accidentally excluded gates, trees, and crates from the cheat. */
     instant_kill = attacker && (attacker->svflags & SVF_MONSTER) &&
-                   ((target->svflags & SVF_MONSTER) || G_IsDestructable(target)) &&
+                   ((target->svflags & SVF_MONSTER) ||
+                    (G_IsDestructable(target) && G_DestructableCanBeAttackedBy(attacker, target))) &&
                    G_PlayerInstantKill(attacker->s.player);
     damage = S_ManaShieldDamage(target, damage);
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));

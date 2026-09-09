@@ -195,10 +195,18 @@ TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
     dest = make_test_destructable(500.0f, 0.0f, 0.0f);
     dest->class_id = MAKEFOURCC('L', 'T', 'g', '1');
     dest->s.class_id = dest->class_id;
+    dest->targtype = TARG_WALL;
     attacker = make_destructable_test_attacker(10.0f, 0.0f);
     attacker->s.player = 0;
+    attacker->attack1.targetsAllowed = 128u; /* TARGET_FLAG_WALL */
     game.clients[0].cheat_instant_kill = true;
 
+    dest->s.renderfx |= RF_HIDDEN;
+    T_Damage(dest, attacker, 1);
+    T_ASSERT(!dest->destructable.dead);
+    T_FEQ(dest->health.value, 499.0f, 0.01f);
+
+    dest->s.renderfx &= ~RF_HIDDEN;
     T_Damage(dest, attacker, 1);
 
     T_ASSERT(dest->destructable.dead);
