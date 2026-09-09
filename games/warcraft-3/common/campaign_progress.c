@@ -6,7 +6,7 @@
 #endif
 
 #define WC3_CAMPAIGN_PROGRESS_MAGIC MAKEFOURCC('O', 'R', 'C', 'P')
-#define WC3_CAMPAIGN_PROGRESS_VERSION 1u
+#define WC3_CAMPAIGN_PROGRESS_VERSION 1u // format version; identifies the current ORCP layout; used during file validation
 
 typedef struct {
     LPCSTR name;
