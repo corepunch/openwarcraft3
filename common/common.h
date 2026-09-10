@@ -301,7 +301,7 @@ typedef struct {
 
 /* Games must author fov/znear/zfar together; the client copies all three like distance. */
 static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
-    ps->fov = (DWORD)cam->fov;
+    ps->fov = cam->fov;
     ps->znear = cam->znear;
     ps->zfar = cam->zfar;
 }

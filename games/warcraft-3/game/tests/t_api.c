@@ -354,7 +354,7 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
     T_ASSERT(!gc->no_control);
     T_FEQ(gc->ps.vieworigin.x, 128, 0.001f); T_FEQ(gc->ps.vieworigin.y, 256, 0.001f);
-    T_FEQ(gc->ps.distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f); T_EQ(gc->ps.fov, (DWORD)WC3_CAMERA_DEFAULT_FOV);
+    T_FEQ(gc->ps.distance, WC3_CAMERA_DEFAULT_DISTANCE, 0.001f); T_FEQ(gc->ps.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
     T_FEQ(gc->ps.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
     T_FEQ(gc->ps.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);
     T_FEQ(gc->ps.viewangles.x, 326.0f, 0.001f); T_FEQ(gc->ps.viewangles.z, 0.0f, 0.001f);
@@ -561,6 +561,27 @@ TEST(wc3_api, camera_angle_interpolation_uses_shortest_periodic_arc) {
     T_FEQ(gc->ps.viewangles.z, 360.0f, 0.001f);
     T_FEQ(CL_GameLerpDegrees(10.0f, 350.0f, 0.5f), 0.0f, 0.001f);
     T_FEQ(CL_GameLerpDegrees(326.0f, -394.0f, 0.5f), 326.0f, 0.001f);
+}
+
+TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->ps.vieworigin = (VECTOR3){ 100.0f, 200.0f, 300.0f };
+    gc->ps.viewangles = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    gc->ps.distance = 100.0f;
+    gc->ps.fov = 50.0f;
+    gc->ps.znear = 100.0f;
+    gc->ps.zfar = 4000.0f;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(R2I(GetCameraField(CAMERA_FIELD_FARZ)) == 4000, \"farz\")\n"
+        "  call BJassAssert(R2I(GetCameraEyePositionX()) == 100, \"eye x\")\n"
+        "  call BJassAssert(R2I(GetCameraEyePositionY()) == 200, \"eye y\")\n"
+        "  call BJassAssert(R2I(GetCameraEyePositionZ()) == 400, \"eye z\")\n"
+        "endfunction\n"));
+    currentplayer = NULL;
 }
 
 TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
