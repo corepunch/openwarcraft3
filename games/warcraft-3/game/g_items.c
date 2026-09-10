@@ -424,7 +424,9 @@ static void G_DropItemThink(LPEDICT unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t item_move_drop = { "walk", G_DropItemThink, NULL, &a_inventory };
+static umove_t item_move_drop = {
+    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .ability = &a_inventory
+};
 
 BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
     if (!unit || !item || !position || (unit->aiflags & AI_IMMOBILE) ||

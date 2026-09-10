@@ -1170,8 +1170,7 @@ CLIENTCOMMAND(CancelTrain) {
     Get_Portrait_f(clent);
     Get_Commands_f(clent);
 }
-
-
+/* Keep an unsupported entity drop in target mode until the player cancels it. */
 static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
     (void)clent;
     (void)target;
@@ -1181,6 +1180,7 @@ static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
     return false;
 }
 
+/* Complete an inventory point drop using the exact item captured by the drag command. */
 static BOOL G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     LPEDICT unit;
@@ -1263,6 +1263,9 @@ static void G_PublishEndCinematicForHumans(LPEDICT clent, BOOL debug_log) {
 
 CLIENTCOMMAND(Cancel) {
     if (G_CancelBuildPlacement(clent)) {
+        return;
+    }
+    if (G_CancelTargetMode(clent)) {
         return;
     }
     G_PublishEndCinematicForHumans(clent, true);

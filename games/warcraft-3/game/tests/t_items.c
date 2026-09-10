@@ -20,6 +20,20 @@ static DWORD inventory_panel_image_count;
 static uiFrame_t inventory_panel_frame;
 static BOOL inventory_panel_frame_seen;
 
+/* Supply a valid target callback so the Cancel command exercises target-mode cleanup. */
+static BOOL item_test_target_callback(LPEDICT clent, LPEDICT target) {
+    (void)clent;
+    (void)target;
+    return false;
+}
+
+/* Supply a valid point callback for the same target-mode cleanup test. */
+static BOOL item_test_location_callback(LPEDICT clent, LPCVECTOR2 location) {
+    (void)clent;
+    (void)location;
+    return false;
+}
+
 static void item_noop_write(pfWriteType_t type, void const *value) {
     (void)type;
     (void)value;
@@ -858,6 +872,31 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
     T_NULL(unit->item_drop);
     T_NULL(unit->goalentity);
     T_STREQ(unit->currentmove->animation, "stand");
+}
+
+TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
+    LPGAMECLIENT client;
+    LPEDICT clent;
+    LPEDICT unit;
+    LPEDICT item;
+    LPCSTR command[] = { "cancel" };
+
+    setup_test_world();
+    clent = &g_edicts[0];
+    client = clent->client;
+    unit = make_item_test_inventory_unit(0, 0);
+    item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    T_ASSERT(G_PickupItem(unit, item));
+    client->menu.dragged_item = item;
+    client->menu.on_entity_selected = item_test_target_callback;
+    client->menu.on_location_selected = item_test_location_callback;
+
+    G_ClientCommand(clent, 1, command);
+
+    T_NULL(client->menu.dragged_item);
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    T_ASSERT(unit->inventory[0] == item);
 }
 
 TEST(wc3_items, removing_carried_item_clears_slot) {

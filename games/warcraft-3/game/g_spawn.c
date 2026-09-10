@@ -846,7 +846,11 @@ static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
         LPEDICT other = &globals.edicts[i];
         VECTOR2 delta;
 
-        if (other == unit || IS_HOLLOW(other) || other->collision <= 0.0f) {
+        /* A carried item is intentionally released at its carrier's feet; the
+         * carrier must not make the item appear blocked before it becomes a
+         * world entity. */
+        if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
+            IS_HOLLOW(other) || other->collision <= 0.0f) {
             continue;
         }
         if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
