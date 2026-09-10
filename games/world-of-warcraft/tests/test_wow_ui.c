@@ -189,7 +189,8 @@ static void test_draw_fill(LPCRECT rect, COLOR32 color) {
     draw_fill_count++;
 }
 
-static void test_draw_minimap(LPCRECT rect) {
+static void test_draw_minimap(LPCRECT rect, LPCSTR map) {
+    (void)map;
     (void)rect;
     draw_minimap_count++;
 }

@@ -169,7 +169,7 @@ bounded by `BZ_SIGNON_SIZE` (1400 bytes, leaving UDP/IP header room within a 150
 retains the engine message budget. `svc_mirror` asks for the next `configstrings <index>` or `baselines <index>`
 page. The final baseline reply is `precache`, which opens the client registration gate; registration then queues `begin`. Opening that
 gate at the first baseline request would let registration and gameplay overtake the remaining entity pages.
-The early loading presentation still puts its media before the two binary loading-layout configstrings.
+The early loading presentation still puts its media before the eight binary loading-layout configstrings.
 
 `SV_SetConfigString` does not queue live resynchronization while `ss_loading`: every connecting client fetches
 those values through signon. Runtime changes in `ss_game` still mark the slot for broadcast. Broadcasting the
@@ -211,7 +211,7 @@ world models, sound sets and UI, but is not a minimal dependency list:
   require distinct entries. The figures above describe this map/edition, not a fixed protocol budget.
 
 To repeat the audit, temporarily log nonempty entries and `SV_ConfigStringWireSize` at the first
-`SV_Configstrings_f` request, excluding `CS_LOADINGSCREEN1/2`, then run the bounded paired reproduction below.
+`SV_Configstrings_f` request, excluding `CS_LOADINGSCREEN1` through `CS_LOADINGSCREEN_LAST`, then run the bounded paired reproduction below.
 Inspect raw keys as well as `ge->GetThemeValue` output to distinguish aliases from duplicate registration;
 remove the instrumentation and rebuild afterward.
 
@@ -236,6 +236,16 @@ without its path-data consumer still reaches `G_WorldMemAlloc` through `CM_ReadP
 In-engine input tests must set client collision bounds explicitly: game test-world bounds are not the client world.
 The `client_world` regression checks terrain-cell lookup, replacement, and teardown. `nm build/bin/openwarcraft3`
 should show defined text symbols for `CM_LoadMapFormat`, `CM_SetupPathMap`, and `CM_GetPathingFlagsAt`.
+
+Keep the implementations included by `games/warcraft-3/game/g_world.c` under hidden symbol visibility.
+The executable and game deliberately own separate `world` records, map readers, and path buffers. ELF symbol
+interposition otherwise redirects game calls to identically named executable functions. Linux CI diagnostics
+confirmed `CM_SetupTestPathmap(64, 64, ...)` entered the client initializer and left game routing at `0x0` with
+NULL storage, causing movement/footprint failures and a crash; macOS's normal symbol binding masked the error.
+Hide the whole game world implementation, including its state, rather than only the two pathmap functions.
+`wc3_pathfinding.terrain_flags_and_routing_share_game_storage` checks blocked/open replacement through both
+flag and routing queries; the existing client-world tests independently exercise the engine copy. On Linux,
+`readelf -Ws build/lib/libgame-wc3-test.so` should show game `CM_*` implementations and `world` as local symbols.
 
 For a bounded two-terminal reproduction, write a host script and start the second terminal during its wait:
 

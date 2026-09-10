@@ -106,6 +106,17 @@ static void capture_sky_configstring(DWORD index, LPCSTR value) {
 
 static void capture_pause(BOOL paused) { captured_pause = paused; }
 
+/* Retail common.ai passes VERSION_FROZEN_THRONE as a version handle during hero selection. */
+TEST(wc3_api, version_queries_accept_typed_handles) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(VersionCompatible(ConvertVersion(0)), \"ROC compatible\")\n"
+        "  call BJassAssert(VersionSupported(ConvertVersion(0)), \"ROC supported\")\n"
+        "  call BJassAssert(not VersionCompatible(ConvertVersion(1)), \"current compatibility policy\")\n"
+        "  call BJassAssert(not VersionSupported(ConvertVersion(1)), \"current support policy\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
     void (*old_set_paused)(BOOL) = gi.SetPaused;
 
@@ -1076,6 +1087,34 @@ TEST(wc3_time, game_state_event_fires_on_false_to_true_transition) {
     T_EQ(level.events.write, writes);
     G_UpdateTimeOfDay();
     T_EQ(level.events.write, writes);
+}
+
+/* The retail cripple timer broadcasts with a direct local-player argument after its local IF. */
+TEST(wc3_api, direct_local_player_text_call_reaches_each_player_once) {
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function announce takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call DisplayTimedTextToPlayer(GetLocalPlayer(), 0, 0, 5, \"local\")\n"
+        "  endif\n"
+        "  call DisplayTimedTextToPlayer(GetLocalPlayer(), 0, 0, 10, \"revealed\")\n"
+        "  call DisplayTextToPlayer(Player(1), 0, 0, \"targeted\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call ExecuteFunc(\"announce\")\n"
+        "endfunction\n"));
+    jass_runevents(level.vm);
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT gc = &game.clients[i];
+        if (i >= MAX_PLAYERS) {
+            T_EQ(gc->message_log.count, 0);
+            continue;
+        }
+        T_EQ(gc->message_log.count, i < 2 ? 2 : 1);
+        T_STREQ(gc->message_log.entries[i == 0 ? 1 : 0], "revealed");
+        T_STREQ(gc->message.text, i == 1 ? "targeted" : "revealed");
+    }
+    T_NULL(currentplayer);
 }
 
 TEST(wc3_api, display_text_tracks_lifetime_and_clear) {

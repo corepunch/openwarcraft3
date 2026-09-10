@@ -22,6 +22,7 @@ static char building_command_number_text[16];
 static BOOL building_command_number_seen;
 static BOOL building_cursor_opcode_seen;
 static BOOL building_cursor_clear_seen;
+static PATHSTR building_image_path;
 
 static void building_test_stand(LPEDICT ent) {
     (void)ent;
@@ -29,7 +30,7 @@ static void building_test_stand(LPEDICT ent) {
 }
 
 static int building_test_image_index(LPCSTR name) {
-    (void)name;
+    snprintf(building_image_path, sizeof(building_image_path), "%s", name);
     return 1;
 }
 
@@ -768,7 +769,7 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
 
     memset(&button, 0, sizeof(button));
     snprintf(button.command, sizeof(button.command), "CmdBuild");
-    snprintf(button.art, sizeof(button.art), "test");
+    snprintf(button.art, sizeof(button.art), "ReplaceableTextures\\CommandButtons\\BTNWorkshop.blp");
     button.hotkey = 'B';
     button.x = 0;
     button.y = 0;
@@ -783,9 +784,11 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
     T_EQ(building_command_frame.flags.type, FT_COMMANDBUTTON);
     T_EQ(building_command_frame.hotkey, 0);
     T_NULL(building_command_frame.onclick);
-    T_EQ(building_command_frame.color.r, 128);
-    T_EQ(building_command_frame.color.g, 128);
-    T_EQ(building_command_frame.color.b, 128);
+    T_EQ(building_command_frame.color.r, 255);
+    T_EQ(building_command_frame.color.g, 255);
+    T_EQ(building_command_frame.color.b, 255);
+    T_EQ(building_command_frame.tex.index, 1);
+    T_STREQ(building_image_path, "ReplaceableTextures\\CommandButtonsDisabled\\DISBTNWorkshop.blp");
 
     building_command_frame_seen = false;
     button.disabled = 0;
@@ -793,6 +796,38 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
     T_ASSERT(building_command_frame_seen);
     T_EQ(building_command_frame.hotkey, 'B');
     T_NOT_NULL(building_command_frame.onclick);
+    T_STREQ(building_image_path, button.art);
+
+    /* Warsmash also accepts a basename without a directory. */
+    snprintf(button.art, sizeof(button.art), "BTNWorkshop.blp");
+    button.disabled = 1;
+    UI_WriteCommandButtonFrame(&button);
+    T_STREQ(building_image_path, "ReplaceableTextures\\CommandButtonsDisabled\\DISBTNWorkshop.blp");
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, disabled_command_button_rejects_missing_skin_and_overlong_path) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    stbIniCache_t theme = game.config.theme;
+    gameCommandButton_t button = { .disabled = 1, .art = "BTNWorkshop.blp" };
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    game.config.theme = (stbIniCache_t){ 0 };
+    building_image_path[0] = '\0';
+    UI_WriteCommandButtonFrame(&button);
+    T_EQ(building_command_frame.tex.index, 0);
+    T_STREQ(building_image_path, "");
+
+    game.config.theme = theme;
+    memset(button.art, 'x', sizeof(button.art) - 1);
+    button.art[sizeof(button.art) - 1] = '\0';
+    UI_WriteCommandButtonFrame(&button);
+    T_EQ(building_command_frame.tex.index, 0);
+    T_STREQ(building_image_path, "");
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;

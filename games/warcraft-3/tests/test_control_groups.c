@@ -4,6 +4,40 @@
 
 void test_client_stubs_set_window_size(DWORD width, DWORD height);
 
+void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen);
+static BOOL button_glow;
+static void capture_button_glow(LPCDRAWIMAGE draw) { button_glow = draw->uActiveGlow; }
+
+/* Test the renderer submission, including the shared sentinel and independent autocast flag. */
+TEST(client_layout, command_glow_requires_an_ability_or_autocast) {
+    void (*saved_draw)(LPCDRAWIMAGE) = re.DrawImageEx;
+    DWORD saved_count = cl.num_entities;
+    entityState_t saved_ent = cl.ents[0].current;
+    uiFrame_t frame = { .flags.type = FT_COMMANDBUTTON, .stat = UINT8_MAX };
+    RECT screen = { .w = 0.039f, .h = 0.039f };
+    re.DrawImageEx = capture_button_glow;
+    cl.num_entities = 1;
+    cl.ents[0].current = (entityState_t){ .renderfx = RF_SELECTED, .ability = UINT8_MAX };
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_ASSERT(!button_glow);
+    frame.stat = cl.ents[0].current.ability = 0;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_ASSERT(button_glow);
+    frame.stat = 1;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_ASSERT(!button_glow);
+    frame.flagsvalue = UIFLAG_ALTERNATE_ACTIVE;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_ASSERT(button_glow);
+    cl.num_entities = 0;
+    frame.flagsvalue = 0;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_ASSERT(!button_glow);
+    re.DrawImageEx = saved_draw;
+    cl.num_entities = saved_count;
+    cl.ents[0].current = saved_ent;
+}
+
 TEST(client_groups, append_preserves_existing_order_and_deduplicates) {
     DWORD group[6] = { 10, 20 };
     DWORD incoming[] = { 20, 30, 10, 40 };

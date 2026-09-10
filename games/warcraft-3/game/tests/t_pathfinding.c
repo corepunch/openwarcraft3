@@ -158,6 +158,20 @@ static LPEDICT make_unit_at(float x, float y) {
  * Cache tests
  * --------------------------------------------------------------------- */
 
+/* The game initializer and flag/radius queries must share routing storage, never the executable's client cells. */
+TEST(wc3_pathfinding, terrain_flags_and_routing_share_game_storage) {
+    BYTE cells[] = { 2, 0, 0, 0 }, flags = 0;
+    VECTOR2 point = { 0.5f, 0.5f };
+    setup_test_pathmap(2, 2, cells);
+    T_ASSERT(CM_GetPathingFlagsAt(&point, &flags)); T_EQ(flags, 2);
+    T_ASSERT(!CM_PointIsPathableForRadius(&point, 0));
+    cells[0] = 0;
+    setup_test_pathmap(2, 2, cells);
+    T_ASSERT(CM_GetPathingFlagsAt(&point, &flags)); T_EQ(flags, 0);
+    T_ASSERT(CM_PointIsPathableForRadius(&point, 0));
+    setup_test_world();
+}
+
 TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

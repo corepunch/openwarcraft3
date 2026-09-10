@@ -183,7 +183,7 @@ static int UIWow_LuaDrawMinimap(lua_State *L) {
 
     UIWow_EnsureRenderer();
     if (wow_ui.renderer && wow_ui.renderer->DrawMinimap) {
-        wow_ui.renderer->DrawMinimap(&screen);
+        wow_ui.renderer->DrawMinimap(&screen, NULL);
     }
     return 0;
 }

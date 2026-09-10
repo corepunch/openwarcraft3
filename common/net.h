@@ -12,7 +12,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 2 // version; typed controller input requires matching clients and servers
+#define BZ_PROTOCOL_VERSION 3 // version; expanded binary loading slots require matching clients and servers
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

@@ -91,6 +91,25 @@ static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWOR
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
+/* Disabled icons use the skin's authored DIS artwork, not a tint of the enabled icon. */
+static DWORD UI_CommandButtonImage(gameCommandButton_t const *button) {
+    LPCSTR prefix, base;
+    PATHSTR path;
+
+    if (!button->disabled) return gi.ImageIndex(button->art);
+    prefix = Theme_PlayerString(ui_current_client, "CommandButtonDisabledArtPath", NULL);
+    if (!prefix || !*prefix) {
+        fprintf(stderr, "UI_CommandButtonImage: missing CommandButtonDisabledArtPath for %s\n", button->art);
+        return 0;
+    }
+    base = strrchr(button->art, '\\');
+    if (snprintf(path, sizeof(path), "%sDIS%s", prefix, base ? base + 1 : button->art) >= sizeof(path)) {
+        fprintf(stderr, "UI_CommandButtonImage: disabled art path too long: %sDIS%s\n", prefix, base ? base + 1 : button->art);
+        return 0;
+    }
+    return gi.ImageIndex(path);
+}
+
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     uiFrame_t frame;
     char onclick[320];
@@ -103,8 +122,8 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     FLOAT const y = 0.4660f + (FLOAT)button->y * 0.0440f;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
-    frame.color = button->disabled ? (COLOR32){ 128, 128, 128, 255 } : COLOR32_WHITE;
-    frame.tex.index = gi.ImageIndex(button->art);
+    frame.color = COLOR32_WHITE;
+    frame.tex.index = UI_CommandButtonImage(button);
     frame.stat = button->active;
     frame.value = button->cooldown;
     frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;

@@ -12,6 +12,18 @@ void _W3M_DrawAlphaSurfaces(void);
 bool _W3M_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
+/* MMP v0 is a fixed little-endian header followed by 16-byte icon records. */
+typedef struct { DWORD kind, x, y; COLOR32 bgra; } MMPICON;
+typedef struct { DWORD version, count; MMPICON icons[]; } MMP;
+static struct { PATHSTR map; LPCTEXTURE image, icons[3]; MMP *mmp; } preview;
+static LPCSTR const preview_art[] = {
+    "UI\\Minimap\\minimap-gold.blp",
+    "UI\\Minimap\\minimap-neutralbuilding.blp",
+    "UI\\Minimap\\MinimapIconCircleOfPower.blp",
+};
+#define BZ_MMP_CANVAS 256.0f // pixels; World Editor MMP coordinates use this square; projects preview markers
+#define BZ_MMP_ICON_SIZE 16.0f // pixels; native minimap marker footprint in the 256-pixel preview
+
 static LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
     "ReplaceableTextures\\Selection\\SelectionCircleSmall.blp",
     "ReplaceableTextures\\Selection\\SelectionCircleMed.blp",
@@ -106,6 +118,8 @@ void R_Init(void) {
 
 void R_Shutdown(void) {
     _W3M_ClearMap();
+    if (preview.mmp) ri.FS_FreeFile(preview.mmp);
+    memset(&preview, 0, sizeof(preview));
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
     FS_SLKFreeIndex(&g_terrain_idx);
@@ -140,7 +154,69 @@ void R_SetupTextureMatrix(void) {
     }
 }
 
-void R_DrawMinimap(LPCRECT screen) {
+/* Loading cannot depend on terrain registration; cache only the destination archive's authored preview assets. */
+static void load_preview(LPCSTR map) {
+    PATHSTR path;
+    void *blob = NULL;
+    int size;
+    if (!strcmp(preview.map, map)) return;
+    if (preview.mmp) ri.FS_FreeFile(preview.mmp);
+    memset(&preview, 0, sizeof(preview));
+    strlcpy(preview.map, map, sizeof(preview.map));
+    static LPCSTR const images[] = { "war3mapMap.blp", "war3mapMap.tga" };
+    FOR_LOOP(i, sizeof(images) / sizeof(images[0])) {
+        snprintf(path, sizeof(path), "%s\\%s", map, images[i]);
+        if (ri.FS_ReadFile(path, &blob) < 0 || !blob) continue;
+        ri.FS_FreeFile(blob); blob = NULL;
+        preview.image = R_LoadTexture(path);
+        if (!preview.image) fprintf(stderr, "Minimap preview: failed to load %s\n", path);
+        break;
+    }
+    if (!preview.image) fprintf(stderr, "Minimap preview: %s has no readable war3mapMap image\n", map);
+    snprintf(path, sizeof(path), "%s\\war3map.mmp", map);
+    size = ri.FS_ReadFile(path, &blob);
+    if (size < 0 || !blob) {
+        fprintf(stderr, "Minimap preview: %s has no icon data\n", map);
+        return;
+    }
+    MMP *mmp = blob;
+    if (size < sizeof(MMP) || mmp->version != 0 || mmp->count > (size - sizeof(MMP)) / sizeof(MMPICON)) {
+        fprintf(stderr, "Minimap preview: invalid MMP header/length in %s\n", path);
+        ri.FS_FreeFile(blob);
+        return;
+    }
+    preview.mmp = mmp;
+    FOR_LOOP(i, mmp->count) {
+        DWORD kind = mmp->icons[i].kind;
+        if (kind >= sizeof(preview_art) / sizeof(preview_art[0])) {
+            fprintf(stderr, "Minimap preview: unknown icon %u in %s\n", kind, path);
+            continue;
+        }
+        if (!preview.icons[kind]) {
+            preview.icons[kind] = R_LoadTexture(preview_art[kind]);
+            if (!preview.icons[kind]) fprintf(stderr, "Minimap preview: missing %s\n", preview_art[kind]);
+        }
+    }
+}
+
+/* MMP positions include the thumbnail's letterboxing, so project in image space, without world/fog state. */
+static void draw_preview(LPCRECT screen, LPCSTR map) {
+    load_preview(map);
+    if (preview.image) R_DrawImage(preview.image, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+    if (!preview.mmp) return;
+    FOR_LOOP(i, preview.mmp->count) {
+        MMPICON const *icon = &preview.mmp->icons[i];
+        if (icon->kind >= sizeof(preview_art) / sizeof(preview_art[0]) || !preview.icons[icon->kind]) continue;
+        RECT rect = { screen->x + (icon->x - BZ_MMP_ICON_SIZE / 2) / BZ_MMP_CANVAS * screen->w,
+                      screen->y + (icon->y - BZ_MMP_ICON_SIZE / 2) / BZ_MMP_CANVAS * screen->h,
+                      BZ_MMP_ICON_SIZE / BZ_MMP_CANVAS * screen->w, BZ_MMP_ICON_SIZE / BZ_MMP_CANVAS * screen->h };
+        COLOR32 color = { icon->bgra.b, icon->bgra.g, icon->bgra.r, icon->bgra.a };
+        R_DrawImage(preview.icons[icon->kind], &rect, &MAKE(RECT, 0, 0, 1, 1), color);
+    }
+}
+
+void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
+    if (map) { draw_preview(screen, map); return; }
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     VECTOR2 const map_size = R_WorldSize();
     RECT const content = WC3_MinimapContentRect(screen, &map_size);

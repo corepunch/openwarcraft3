@@ -75,7 +75,7 @@ static void test_draw_image_ex(LPCDRAWIMAGE i) {
     snprintf(last_draw_image_name, sizeof(last_draw_image_name), "%s", i && i->texture ? i->texture->name : "");
 }
 static void     test_draw_fill(LPCRECT r, COLOR32 c) { (void)r;(void)c; }
-static void     test_draw_minimap(LPCRECT r) { (void)r; }
+static void     test_draw_minimap(LPCRECT r, LPCSTR map) { (void)r; (void)map; }
 static VECTOR2  test_get_text_size(LPCDRAWTEXT dt) { return MAKE(VECTOR2, dt&&dt->text?(FLOAT)strlen(dt->text)*0.01f:0.0f, 0.012f); }
 static void test_draw_text(LPCDRAWTEXT dt) {
     draw_text_calls++;

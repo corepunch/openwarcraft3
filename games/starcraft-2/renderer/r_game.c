@@ -202,7 +202,8 @@ void R_SetupTextureMatrix(void) {
     }
 }
 
-void R_DrawMinimap(LPCRECT screen) {
+void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
+    if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 }

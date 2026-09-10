@@ -1803,7 +1803,15 @@ TOKENFUNC(FUNCTION) {
 }
 
 TOKENFUNC(CALL) {
-    jass_discard(j, jass_dotoken(j, token));
+    /* Blizzard's melee reveal timer passes GetLocalPlayer() directly, outside an IF.
+     * Evaluate the whole call per player; a null selector used to reach the text native. */
+    if (!currentplayer && uses_localplayer(token)) {
+        FOR_LOOP(i, MAX_PLAYERS) {
+            currentplayer = jass_getplayerbyindex(i);
+            jass_discard(j, jass_dotoken(j, token));
+        }
+        currentplayer = NULL;
+    } else jass_discard(j, jass_dotoken(j, token));
 }
 
 TOKENFUNC(LOOP) {

@@ -119,9 +119,10 @@ void CL_UpdateMinimapModel(void) {
 
 /* Draw the server-authored minimap frame and all transient attention markers. */
 void CL_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen) {
-    (void)frame;
-    re.DrawMinimap(screen);
-    CL_DrawMinimapPings();
+    /* BOOL is a byte and truncated bit 15 to zero, selecting the unloaded gameplay texture. */
+    bool preview = frame->flagsvalue & UIFLAG_MINIMAP_PREVIEW;
+    re.DrawMinimap(screen, preview ? frame->text : NULL);
+    if (!preview) CL_DrawMinimapPings();
 }
 
 /* Left-click (or click-drag) on the minimap recenters the camera there. */

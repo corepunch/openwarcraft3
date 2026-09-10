@@ -105,7 +105,8 @@ void R_SetupTextureMatrix(void) {
     Matrix4_identity(&tr.viewDef.textureMatrix);
 }
 
-void R_DrawMinimap(LPCRECT screen) {
+void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
+    if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
     Wow_DrawMinimap(screen);
 }
 

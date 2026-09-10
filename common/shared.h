@@ -268,7 +268,8 @@ enum {
     CS_ORDER_MARKER = 11, // model path; server-authored point-order confirmation
     CS_ASSET_SCOPE = 12, // archive/directory scope for map-owned media, available before world registration
     CS_LOADINGSCREEN1 = 13, // first 256 bytes of the compressed loading frame tree
-    CS_LOADINGSCREEN2 = 14, // final 256 bytes; sent after loading media to commit the screen
+    CS_LOADINGSCREEN2 = 14, // second binary loading slot
+    CS_LOADINGSCREEN_LAST = 20, // final binary slot; commits the screen after loading media and preceding slots
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,
@@ -281,8 +282,11 @@ enum {
     MAX_CONFIGSTRINGS = (CS_GENERAL+MAX_GENERAL),
 };
 
-#define BZ_LOADING_SCREEN_SLOTS 2 // configstrings; two fixed binary slots bound loading layout and text storage
-#define BZ_LOADING_SCREEN_SIZE (BZ_LOADING_SCREEN_SLOTS * MAX_PATHLEN) // bytes; 512-byte compressed loading layout budget
+#define BZ_LOADING_SCREEN_SLOTS (CS_LOADINGSCREEN_LAST - CS_LOADINGSCREEN1 + 1) // slots; twelve-player FDF roster needs more than two
+#define BZ_LOADING_SCREEN_SIZE (BZ_LOADING_SCREEN_SLOTS * MAX_PATHLEN) // bytes; 2 KiB fits the measured 789-byte roster plus twelve lobby names
+
+#define BZ_IS_LOADING_CONFIGSTRING(i) ((i) >= CS_LOADINGSCREEN1 && (i) <= CS_LOADINGSCREEN_LAST)
+_Static_assert(CS_LOADINGSCREEN_LAST < CS_MAXCLIENTS, "loading slots overlap server metadata");
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')
@@ -907,6 +911,7 @@ typedef enum {
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
 #define UIFLAG_EXTEND_WIDESCREEN_X (1 << 13) // flag bit; client expands this frame horizontally across the full UI canvas
+#define UIFLAG_MINIMAP_PREVIEW (1 << 15) // flag bit; frame text names a static map preview; excludes fog, camera and input
 #define UIFLAG_ALERT_RED_PULSE (1 << 14) // flag bit; command-button art pulses red until frame.value absolute milliseconds; used for transient alerts
 
 typedef enum {

@@ -435,3 +435,18 @@ bundled declarations with observable map/editor behavior:
 - [JASS-driven player/controller setup](https://www.hiveworkshop.com/threads/map-script-independent-jass-driven-ai-experiment.370776/post-3713000)
 - [Fixed player settings and color behavior](https://www.hiveworkshop.com/threads/preparing-menu-color-bug.312129/)
 - [Start-location priority behavior](https://www.hiveworkshop.com/threads/start-location.273991/post-2770678)
+
+## Version handle crash in computer-player startup
+
+`common.j` declares `VersionCompatible` and `VersionSupported` with a `version` parameter. `ConvertVersion`
+allocates that typed handle; it is not an integer argument. Retail TFT `common.ai` calls
+`VersionCompatible(VERSION_FROZEN_THRONE)` while selecting heroes. The old integer check asserted from
+`G_BotRunFrame`; a bounded local lobby reproduced a valid version handle containing 1 immediately before the
+assertion. Both natives now consume `jass_checkhandle(..., "version")`.
+
+`wc3_api.version_queries_accept_typed_handles` exercises both converted versions through both native callbacks.
+This correction preserves the existing RoC-only version-reporting policy (`VersionGet` returns 0); expansion-aware
+version reporting remains a separate conformance gap.
+
+After the handle correction, the bounded Twisted Meadows lobby reached gameplay. Its Orc AI then stopped with
+the existing `MeleeDifficulty` unimplemented-native diagnostic; that separate API gap does not abort the process.

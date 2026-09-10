@@ -433,7 +433,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
-void R_DrawMinimapScene(LPCRECT screen);
+void R_DrawMinimapScene(LPCRECT screen, LPCSTR map);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
 bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen);
 void R_DrawMinimapCameraRect(LPCRECT screen);

@@ -18,26 +18,26 @@ decorated `LoadingMeleeBackground` skin entry.
 The initial transport order is:
 
 1. Loading-phase configstrings: destination, asset scope, models, images, and fonts.
-2. `CS_LOADINGSCREEN1`, then `CS_LOADINGSCREEN2`: receiving the second slot decodes the frame tree, registers
+2. `CS_LOADINGSCREEN1` through `CS_LOADINGSCREEN_LAST`: receiving the final slot decodes the frame tree, registers
    the preceding media, and repaints immediately.
 3. Full configstring pages (excluding the already-sent loading slots), then baseline pages.
 4. The final `svc_mirror "precache"` permits world/model/image/sound registration; completion queues `begin`,
    then the first usable frame activates gameplay.
 
-`SV_BuildLoadingConfigstrings` stores the presentation in two consecutive 256-byte **binary** configstrings,
-using the same fixed-size transport convention as `CS_STATUSBAR`. All 512 bytes survive, including embedded NULs
+`SV_BuildLoadingConfigstrings` stores the presentation in eight consecutive 256-byte **binary** configstrings,
+using the same fixed-size transport convention as `CS_STATUSBAR`. All 2,048 bytes survive, including embedded NULs
 and the last byte of each slot; these slots never pass through theme lookup or C-string length functions.
 Concatenating the slots yields one zlib stream padded with zeros. Its decoded payload is the existing layer byte,
 delta-encoded UI frames (including their text and type-specific buffers), and frame terminator. There is no new
 layout grammar, game-specific client layout, or loading-specific packet opcode. Decode is bounded by `MAX_MSGLEN`
 and accepts only `LAYER_LOADING`, not a nested server-message stream.
 
-The server first tries the complete authored text. If it exceeds the compressed 512-byte budget, it retries with
+The server first tries the complete authored text. If it exceeds the compressed 2,048-byte budget, it retries with
 per-display-string byte caps of 255, 127, 63, 31, 15, 7, 3, and 1, stopping at the first fit. UTF-8 characters are
 not split; `#` animation directives and frame geometry remain intact. Shortening emits a warning. If even that
 layout cannot fit, map startup fails with a diagnostic rather than dropping frames or inventing replacement art.
 The fixed limit applies to **layout plus text**; referenced model/image/font asset files remain in their normal
-resource tables and do not count toward the 512 bytes.
+resource tables and do not count toward the 2,048 bytes.
 
 Only three resource-pool endpoints are retained in `sv.loading_end` before gameplay adds resources. Media indices
 remain stable as `LoadMap` extends the pools. `SV_New_f` reconstructs the early transmission from the authoritative
@@ -58,6 +58,53 @@ Both background and progress bar retain the FDF's `FT_SPRITE` type. The backgrou
 screen-space geometry. The zero-size bar uses `#0` plus `UI_STAT_LOADING_PROGRESS`, a client-local normalized
 binding, so `SCR_LayoutDrawSprite` supplies `#0@ratio`. No player-state field or network layout size changes.
 `FT_LOADING_BAR` is the image-bar contract used by WoW; an image and a model may have the same numeric index.
+
+### Melee loading panels, minimap, and roster
+
+`Loading.fdf` has distinct custom/campaign and melee panels. `LoadingTitleText` intentionally lives on the
+right; `LoadingMeleeMapName` is anchored above `MinimapImage`. The old code always hid `LoadingMeleePanel`,
+even for melee artwork. Choose the melee panel when W3I supplies neither a custom model nor a campaign background.
+The border around the minimap is part of the background MDX, so an empty border does not prove a minimap frame drew.
+No authored title/minimap geometry needs overriding.
+
+`G_PrepareMap` applies the same `gi.ApplyLobbySettings` used by `G_LoadMap` to its temporary W3I metadata before
+serializing loading. Native `LoadingPlayerSlot` clones show participating human/computer names and selected races;
+empty/closed slots and neutral players are excluded. Names resolve WTS for direct launches and use lobby names
+for configured games. Columns repeat the FDF container width and row height. Team headings, player-name colors,
+and synchronized per-player ready highlights are still separate presentation work; no ready state is fabricated.
+
+`FT_MINIMAP` plus `UIFLAG_MINIMAP_PREVIEW` uses frame text as the destination archive reference. The game renderer
+loads `war3mapMap.blp` (or an authored TGA) and `war3map.mmp` directly, before terrain registration. This static path
+never samples fog, draws the camera outline or live pings, or registers a clickable gameplay minimap. W3I's
+`hide_minimap_in_preview_screens` flag is respected. MMP v0 consists of two 32-bit header words and 16-byte records
+(type, X, Y, BGRA). Coordinates refer to the full 256-pixel thumbnail, including letterboxing. Types 0/1/2 use the
+stock gold, neutral-building, and Circle of Power textures. Start-marker colors are the authored MMP colors,
+not lobby-remapped colors or final randomized spawn positions. Missing/corrupt assets are logged.
+
+The first implementation stored the preview-bit result in `BOOL`, an unsigned byte. A bounded Bandit Ridge trace
+showed flags `0x802a` arriving intact but the narrowed preview value becoming zero, drawing the unloaded gameplay
+minimap's white texture. Use C `bool` for this high-bit membership result. The network test covers delta decoding
+through the actual minimap draw dispatch, as server-only frame inspection cannot catch this narrowing.
+
+A twelve-player Emerald Gardens layout measured 3,610 bytes before compression and 789 bytes compressed, exceeding
+the original 512-byte limit even with text shortening. Eight binary slots now reserve 2 KiB for the native rows and
+lobby names; the final slot commits presentation. Protocol version 3 requires matching client/server binaries.
+The existing signon pager bounds each network packet. Display-string shortening must never shorten a minimap
+archive reference. The core, loading-FDF, and server signon tests cover these contracts.
+
+The local `data/WarsmashModEngine` checkout's `MenuUI.java` binds `LoadingMeleePanel` but keeps it hidden;
+`internalStartMap` populates the custom panel. It is not a complete retail melee-loading implementation.
+
+For an early framebuffer capture, queue `screenshot 2` before `map` in an exec script, then run bounded:
+
+```sh
+printf 'screenshot 2\nmap "Maps/FrozenThrone/(2)BanditRidge.w3x"\n' > /tmp/loading-check.cfg
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +vid_hidden 1 +com_frame_limit 30 +exec /tmp/loading-check.cfg
+```
+
+Unlike startup `+map` processing, the script orders the screenshot request before synchronous map preparation.
+Screenshots are written under `screenshots/`. Bandit Ridge, a configured Twisted Meadows lobby, and twelve-player Emerald Gardens were visually
+checked with visible, unfogged terrain and authored markers.
 
 ### September 7 initial-layout regression
 
@@ -250,10 +297,10 @@ TFT row schemas, custom-model precedence, and default skin decoration. Restoring
 between model and image indices.
 
 The shared `net.loading_batch_registers_media_before_full_precache` test verifies that the first binary slot alone
-cannot publish the screen, initial model/image handles become available after the second slot, later world media
+cannot publish the screen, initial model/image handles become available after the final slot, later world media
 remains deferred, and only the final `precache` reply opens the registration gate. Corrupt compressed data and partial
 binary slots are rejected. `server_net.loading_batch_precedes_world_and_retains_resource_indices` exercises a later
-connection against the retained resource endpoints. Additional server tests verify all 512 binary bytes survive and
+connection against the retained resource endpoints. Additional server tests verify all 2,048 binary bytes survive and
 oversized display text shrinks without changing geometry, texture coordinates, or animation directives.
 The WoW game test verifies that `PrepareMap` resolves and writes loading art before clearing/spawning the world.
 
@@ -261,7 +308,7 @@ The September 9 configstring refactor was checked with `make test` (2,855 tests)
 binaries, bounded Human01/Human02 runs, Human02 → Human02 → Human01 reloads, and WoW Azeroth map entry. The Human02
 source layout measured 560 bytes (including its original opcode), and compressed to 303 bytes before removing that
 opcode. Both chapters retained their complete text and native artwork in early engine screenshots. Neither needed
-text shortening. The prior opcode-based transport is superseded by the two-slot contract above.
+text shortening. The prior opcode-based transport is superseded by the binary-slot contract above.
 
 A bounded console-script run also exercised Human02 → Human02 → Human01, with 100 `wait` commands between map
 commands. All three reached `G_ClientBegin`, and early screenshots showed the correct chapter/sequence at zero
