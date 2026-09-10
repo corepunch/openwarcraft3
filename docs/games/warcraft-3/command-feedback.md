@@ -48,4 +48,4 @@ When validating manually:
 9. Unit-target feedback should follow the target and must not spawn `Confirmation.mdx` at a fixed point.
 10. Item/destructable Smart clicks retain their existing behavior until their retail indicator rules are verified.
 
-This implementation change was prepared without compiling or running tests, per the caller constraint.
+Focused WC3 API and movement tests cover the relationship palette, fallback colors, accepted Smart target indicators, and rejected target orders.
