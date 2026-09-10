@@ -213,6 +213,37 @@ TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT hero;
+    LPCSTR command[] = { "hero", "max" };
+    DWORD max_level;
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    hero->hero.level = 1;
+    hero->hero.xp = 0;
+    hero->hero.skillpoints = 0;
+    hero->heroabilities[0].code = MAKEFOURCC('A','H','h','b');
+    hero->heroabilities[0].level = 1;
+    G_SelectEntity(client, hero);
+
+    G_ClientCommand(&g_edicts[0], 2, command);
+
+    max_level = G_MaxHeroLevel();
+    T_EQ((int)hero->hero.level, (int)max_level);
+    T_EQ((int)hero->hero.xp, (int)G_HeroXPForLevel(max_level));
+    T_EQ((int)hero->hero.skillpoints, (int)(max_level - 1));
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPCSTR toggle[] = { "instantbuild" };

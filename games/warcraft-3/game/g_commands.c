@@ -949,6 +949,39 @@ CLIENTCOMMAND(Kill) {
     G_CheatPrintf(clent, "WC3: selected unit killed");
 }
 
+CLIENTCOMMAND(Hero) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    LPEDICT hero;
+    DWORD max_level, spent_points = 0, expected_points;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc != 2 || strcasecmp(argv[1], "max")) {
+        G_CheatPrintf(clent, "WC3: usage: hero max");
+        return;
+    }
+    hero = client ? G_GetMainSelectedUnit(client) : NULL;
+    if (!hero || !G_UnitCanControl(client, hero) || !G_UnitIsHero(hero)) {
+        G_CheatPrintf(clent, "WC3: hero max requires a selected friendly hero");
+        return;
+    }
+
+    max_level = G_MaxHeroLevel();
+    G_HeroSetXP(hero, G_HeroXPForLevel(max_level));
+    FOR_LOOP(i, MAX_HERO_ABILITIES) spent_points += hero->heroabilities[i].level;
+    expected_points = max_level > spent_points ? max_level - spent_points : 0;
+    if (hero->hero.skillpoints < expected_points) {
+        G_HeroModifySkillPoints(hero, (LONG)(expected_points - hero->hero.skillpoints));
+    }
+
+    G_CheatPrintf(clent, "WC3: selected hero set to level %u with %u skill points",
+            (unsigned)hero->hero.level, (unsigned)hero->hero.skillpoints);
+    Get_Commands_f(clent);
+    Get_Portrait_f(clent);
+}
+
 /* Keep the instant-build cheat scoped to the issuing player's live client state. */
 BOOL G_PlayerInstantBuild(DWORD player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
@@ -2068,6 +2101,7 @@ clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
     { "kill", CMD_Kill },
+    { "hero", CMD_Hero },
     { "win", CMD_Win },
     { "lose", CMD_Lose },
     { "day", CMD_Day },
