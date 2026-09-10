@@ -28,11 +28,13 @@
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
+#define BZ_JASS_REQUIRE_STACK(j) if (j->num_stack >= MAX_JASS_STACK) jass_rterror(j, "stack overflow")
 
 static void jass_setnull(LPJASSVAR var);
 static void jass_deletedict(LPJASSDICT dict);
 
 #define JASS_ADD_STACK(j, VAR, TYPE) \
+BZ_JASS_REQUIRE_STACK(j); \
 LPJASSVAR VAR = &j->stack[j->num_stack++]; \
 memset(VAR, 0, sizeof(*VAR)); \
 VAR->type = &jass_types[TYPE];
@@ -410,8 +412,12 @@ static LPJASSCOROUTINEFRAME jass_coroutine_pushframe(LPJASSCOROUTINE co,
 static void jass_coroutine_popframe(LPJASSCOROUTINE co) {
     LPJASSCOROUTINEFRAME frame = co->frames;
     if (frame) {
+        JASSFRAMETYPE type = frame->type;
         co->frames = frame->next;
         jass_free_frame(co, frame);
+        /* Coroutine calls used as statements discard returned values.  The old path retained one value per return. */
+        if (type == JASS_FRAME_FUNCTION && co->state->num_stack > 1)
+            jass_discard(co->state, co->state->num_stack - 1);
     }
 }
 
@@ -1409,6 +1415,7 @@ DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
 
 DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
     LPCJASSTYPE type = other->type;
+    BZ_JASS_REQUIRE_STACK(j);
     LPJASSVAR var = &j->stack[j->num_stack++];
     memset(var, 0, sizeof(*var));
     var->type = type;
