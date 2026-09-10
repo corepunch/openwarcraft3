@@ -2252,6 +2252,43 @@ TEST(wc3_api, unit_color_set) {
     T_EQ((int)ent->unit_color, 7);
 }
 
+TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
+    LPEDICT unit = NULL;
+    DWORD encoded;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(4), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call SetUnitColor(u, PLAYER_COLOR_LIGHT_GRAY)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') && g_edicts[i].s.player == 4) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
+    T_EQ(unit->s.player, 4);
+    T_EQ(unit->unit_color, 8);
+    T_EQ(encoded, 9);
+}
+
+TEST(wc3_api, set_unit_color_can_override_owner_with_red) {
+    LPEDICT unit = NULL;
+    DWORD encoded;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(4), 'hfoo', 96.0, 96.0, 0.0)\n"
+        "  call SetUnitColor(u, PLAYER_COLOR_RED)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o') &&
+            g_edicts[i].s.player == 4 && g_edicts[i].s.origin.x == 96.0f) unit = &g_edicts[i];
+    T_NOT_NULL(unit);
+    encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
+    T_EQ(encoded, 1);
+}
+
 /* =========================================================================
  * Unit — hidden flag (RF_HIDDEN)
  * ========================================================================= */

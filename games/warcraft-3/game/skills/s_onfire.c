@@ -62,7 +62,7 @@ static DWORD onfire_level(LPCEDICT ent) {
 
 static void onfire_disabled(LPEDICT ent) {
     ent->s.effect = 0;
-    ent->s.effect_flags = 0;
+    ent->s.effect_flags &= EFX_TEAM_COLOR_MASK;
 }
 
 /* Apply one of four fire levels: off, small, medium, or severe. */
@@ -91,7 +91,8 @@ static void onfire_level_changed(LPEDICT ent, DWORD level) {
         fprintf(stderr, "onfire_level_changed: failed to register %s\n", path);
         return;
     }
-    ent->s.effect_flags = EFX_MODEL | EFX_ATTACH_SLOTS | stage->slots;
+    ent->s.effect_flags = (ent->s.effect_flags & EFX_TEAM_COLOR_MASK) |
+        EFX_MODEL | EFX_ATTACH_SLOTS | stage->slots;
 }
 
 static void onfire_enabled(LPEDICT ent) { onfire_level_changed(ent, onfire_level(ent)); }

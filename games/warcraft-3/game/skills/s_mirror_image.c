@@ -29,6 +29,8 @@ static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT d
     image->health = caster->health;
     image->mana = caster->mana;
     image->unit_color = caster->unit_color;
+    image->s.effect_flags = (image->s.effect_flags & ~EFX_TEAM_COLOR_MASK) |
+        (caster->s.effect_flags & EFX_TEAM_COLOR_MASK);
     image->s.angle = caster->s.angle;
     if (image->stand) image->stand(image);
     if (duration > 0.0f) unit_addtimedstatus(image, ID_TIMED_LIFE, 1, duration);
