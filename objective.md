@@ -40,6 +40,15 @@ These are measurements from Warcraft III ROC 1.29.2 for
 
 - During the transition, target Z and Z offset change together while their
   difference remains approximately `454.106`.
+- The newer boundary trace sampled the same low camera at `t=0.200`, immediately
+  after the `TowerLow` setup, and again at `t=2.200`, after the two-second wait.
+  Both samples reported `targetZ - zoff = 454.106`. The reference height is
+  therefore established by the destination setup, not gradually corrected
+  during the wait or introduced by the later `TowerHigh` setup.
+- At the tower, the retail reference height is `198.106` units above the
+  direct retail terrain query of `256.000`. This is evidence that the camera
+  uses a separate terrain-derived height function near the cliff, rather than
+  simply adding `CAMERA_FIELD_ZOFFSET` to `GetLocationZ(targetXY)`.
 - OpenRealm's corresponding target reference is approximately `459.000`,
   leaving a measured vertical discrepancy of about `4.894` units.
 - OpenRealm's target XY, distance, angle-of-attack, rotation, FOV, and Z-offset
@@ -54,13 +63,18 @@ These are measurements from Warcraft III ROC 1.29.2 for
 - The current OpenRealm camera trace has a separate trace-reconstruction fix
   for realized eye state during transitions. It must not be confused with the
   unresolved target-height behavior.
+- `screenshots/onlineinfo.md` describes secondary reverse-engineering evidence
+  for a retail camera-height map that averages terrain over approximately
+  512-unit regions and interpolates between those values. That information is
+  not authoritative, but it is now consistent with the boundary trace and is
+  a useful algorithm hypothesis to test against the map data.
 
 ## What we are trying to find
 
 We need to establish which retail quantity produces the approximately
 `454.106` target reference:
 
-1. Is it the retail location height at the target point?
+1. Is it a smoothed/averaged terrain height sampled around the destination?
 2. Is it a terrain/cliff-derived height with a fixed engine offset?
 3. Is it authored camera/setup state independent of terrain?
 4. Is it the previous camera target height carried into the setup?
@@ -98,18 +112,23 @@ The generated file can be located with:
 find "$HOME/.wine/drive_c/users" -type f -name 'camtrace-terrain.txt' -print
 ```
 
-The useful samples are `before-towerhigh` and the first `towerlow-tick`.
+The useful samples are `towerlow-after-0.10`, `towerlow-after-2.00`,
+`before-towerhigh`, and the first `towerlow-tick`. The boundary samples show
+when the reference height is selected; the transition sample confirms that it
+remains constant while Z offset and the other camera fields interpolate.
 Extract the `CAMTRACE` lines from the generated preload wrapper before parsing
 them as CSV. The on-screen `BJDebugMsg` output remains a fallback if the file
 is not generated.
 
 ## Decision rule
 
-Do not change `CM_GetCameraHeightOffset()`, `target_height`, or the camera
-composition formula until the retail terrain probe is available. If the
-retail location height does not account for `454.106`, add the next diagnostic
-at the exact camera/setup application boundary rather than guessing a numeric
-offset.
+Do not replace the direct terrain query with a hardcoded `454.106` value or a
+Human02-specific correction. The retail terrain probe is now available and
+shows that direct terrain does not account for the reference height. The next
+diagnostic must compare candidate smoothed terrain calculations against the
+exact `TowerLow` destination at the camera-setup boundary. Do not change
+`target_height` or the camera composition formula until that calculation is
+identified.
 
 The eventual fix must:
 
