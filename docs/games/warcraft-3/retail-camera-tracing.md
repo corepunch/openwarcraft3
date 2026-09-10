@@ -525,6 +525,54 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' \
 Mode `2` is intentionally opt-in because it writes one diagnostic line per
 sample. Return to mode `1` for compact event-only traces.
 
+## Full-cinematic event trace
+
+The generated full-event probe records the entire Human02 cinematic without a
+periodic timer. It snapshots before and after each of the ten camera setup
+applications, around dialogue transmissions, at the Scene 1/Scene 2 boundary,
+and at the final victory path. The map preserves the known-good 18-file MPQ
+layout and writes `camtrace-full.txt` under the Wine Documents
+`Warcraft III/CustomMapData` directory.
+
+Launch the prepared probe with:
+
+```sh
+map="$PWD/build/retail-camera-trace/Human02Interlude-instrumented/Human02Interlude-CAMTRACE-full-events.w3m"
+wine "$PWD/data/Warcraft III/Warcraft III.exe" \
+  -window -graphicsapi OpenGL2 \
+  -loadfile "$(winepath -w "$map")"
+```
+
+Extract the machine-readable lines after the cinematic reaches victory:
+
+```sh
+trace_file="$(find "$HOME/.wine/drive_c/users" -type f -name 'camtrace-full.txt' -print -quit)"
+grep 'call Preload( "CAMTRACE ' "$trace_file" \
+  | sed -E 's/^.*Preload\( "([^"]+)" \).*$/\1/' > retail-full-camtrace.txt
+```
+
+Run OpenRealm long enough to finish Human02, then stop it before the automatic
+Human03 load if necessary:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' \
+  +set vid_hidden 1 +set wc3_camera_trace 1 \
+  +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 5000 \
+  > openrealm-full-camtrace.log 2>&1
+```
+
+The comparator aligns retail `cinematic-camera-01-after` through
+`cinematic-camera-10-after` with OpenRealm's ten camera-setup events:
+
+```sh
+python3 tools/compare_wc3_camera_trace.py \
+  retail-full-camtrace.txt openrealm-full-camtrace.log
+```
+
+The OpenRealm log may contain the first camera events from the next campaign
+map after Human02 victory. Ignore rows after the Human02 tenth camera event;
+the comparator uses the first aligned camera sequence.
+
 ## Verified reference observations
 
 For the Human02 opening shot, retail kept target X/Y at approximately
