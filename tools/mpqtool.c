@@ -39,6 +39,7 @@ static void usage(void) {
         "  mpqtool -data <dir> cat <file>\n"
         "  mpqtool -mpq <archive.mpq> create [max-files]\n"
         "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
+        "  mpqtool -mpq <archive.mpq> pack-legacy <src> <archive-file> [<src> <archive-file> ...]\n"
         "  mpqtool wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
         "\n"
         "Notes:\n"
@@ -526,7 +527,7 @@ static int cmd_create(const char *mpq_path, const char *arg)
     return 0;
 }
 
-static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
+static int cmd_pack(const char *mpq_path, int pair_count, char **pairs, DWORD flags)
 {
     HANDLE archive;
     int i;
@@ -536,7 +537,7 @@ static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
         return 1;
     }
 
-    if (!SFileCreateArchive(mpq_path, 0, (DWORD)(pair_count / 2 + 1), &archive)) {
+    if (!SFileCreateArchive(mpq_path, flags, (DWORD)(pair_count / 2 + 1), &archive)) {
         fprintf(stderr, "Cannot create archive: %s\n", mpq_path);
         return 1;
     }
@@ -1169,7 +1170,7 @@ int main(int argc, char **argv) {
 
     if (strcmp(cmd, "create") == 0) {
         return cmd_create(mpq, arg);
-    } else if (strcmp(cmd, "pack") == 0) {
+    } else if (strcmp(cmd, "pack") == 0 || strcmp(cmd, "pack-legacy") == 0) {
         if (!arg) {
             usage();
             return 1;
@@ -1185,7 +1186,7 @@ int main(int argc, char **argv) {
             for (int i = 0; i < extra_count && pair_count < (int)(sizeof(pairs) / sizeof(pairs[0])); i++) {
                 pairs[pair_count++] = extra[i];
             }
-            return cmd_pack(mpq, pair_count, pairs);
+            return cmd_pack(mpq, pair_count, pairs, !strcmp(cmd, "pack-legacy") ? MPQ_CREATE_LEGACY : 0);
         }
     }
 
