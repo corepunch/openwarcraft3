@@ -280,6 +280,9 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
     if (!apply_position) {
         gc->camera.state.position = gc->camera.old_state.position;
     }
+    if (apply_position && !override_z)
+        /* Warsmash keeps custom setup height separate from target Z; only the WithZ variants override it. */
+        gc->camera.state.z_offset = gc->camera.old_state.z_offset;
     if (override_z) {
         gc->camera.state.z_offset = z_offset;
     }
