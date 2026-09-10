@@ -63,6 +63,10 @@ static LPCSTR group_debug_cvar(LPCSTR name, LPCSTR fallback) {
 
 static DWORD presentation_write_count;
 static DWORD presentation_unicast_count;
+static pfWriteType_t indicator_types[4];
+static LONG indicator_values[4];
+static DWORD indicator_write_count;
+static LPEDICT indicator_recipient;
 static BOOL captured_pause;
 static DWORD dnc_model_index_calls;
 static DWORD dnc_configstring_calls;
@@ -152,6 +156,55 @@ static void capture_presentation_write(pfWriteType_t type, void const *data) {
 static void capture_presentation_unicast(LPEDICT ent) {
     (void)ent;
     presentation_unicast_count++;
+}
+
+static void capture_indicator_write(pfWriteType_t type, void const *data) {
+    DWORD const slot = indicator_write_count++;
+    if (slot >= 4) return;
+    indicator_types[slot] = type;
+    if (data) indicator_values[slot] = *(LONG const *)data;
+}
+
+static void capture_indicator_unicast(LPEDICT ent) {
+    indicator_recipient = ent;
+}
+
+TEST(wc3_api, add_indicator_accepts_unit_widget_and_sends_local_tinted_ring) {
+    LPGAMECLIENT gc = &game.clients[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+
+    memset(indicator_types, 0, sizeof(indicator_types));
+    memset(indicator_values, 0, sizeof(indicator_values));
+    indicator_write_count = 0;
+    indicator_recipient = NULL;
+    gc->ps.number = 0;
+    G_SetClientConnected(&g_edicts[0], true);
+    currentplayer = &gc->ps;
+    gi.Write = capture_indicator_write;
+    gi.unicast = capture_indicator_unicast;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 64.0, 96.0, 0.0)\n"
+        "  call AddIndicator(u, 255, 128, 64, 200)\n"
+        "endfunction\n"));
+
+    T_EQ(indicator_write_count, 4);
+    T_EQ(indicator_types[0], PF_BYTE);
+    T_EQ(indicator_values[0], svc_temp_entity);
+    T_EQ(indicator_types[1], PF_BYTE);
+    T_EQ(indicator_values[1], TE_ENTITY_INDICATOR);
+    T_EQ(indicator_types[2], PF_LONG);
+    T_ASSERT(indicator_values[2] > 0);
+    T_EQ(indicator_types[3], PF_LONG);
+    T_EQ((DWORD)indicator_values[3], 0xc84080ffu);
+    T_EQ(indicator_recipient, &g_edicts[0]);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    currentplayer = NULL;
+    G_SetClientConnected(&g_edicts[0], false);
 }
 
 TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {

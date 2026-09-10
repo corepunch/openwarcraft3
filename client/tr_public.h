@@ -157,6 +157,7 @@ typedef struct {
     RECT shadow_rect;
 #endif
     COLOR32 tint;  /* optional per-instance model RGBA; alpha 0 = unmodified/white */
+    COLOR32 indicator; /* optional transient entity ground-ring RGBA; alpha 0 = none */
 } renderEntity_t;
 
 typedef struct {

@@ -170,8 +170,10 @@ The following transmission limitations remain:
   projection and the WC3 `MinimapIndicator` overlay. `PingMinimapEx` currently
   transports RGB/`extraEffects` but the overlay does not yet apply those extended
   visual parameters. See [alerts-and-minimap-pings.md](alerts-and-minimap-pings.md).
-- `UnitAddIndicator` / `AddIndicator` are still stubs. A speaking-unit marker
-  needs per-client lifetime/color state and must not reveal a fogged unit.
+- `AddIndicator` and `UnitAddIndicator` now emit a temporary selection-circle-style indicator. The supplied
+  RGBA tint flashes twice using a fixed one-second client lifetime, follows the widget while it is rendered, and
+  does not change authoritative selection membership. Blizzard.j's `UnitAddIndicatorBJ` calls `AddIndicator`, so
+  both native entry points share this path. Hidden/fogged widgets do not gain visibility merely from an indicator.
 - `SetCinematicScene` now applies player colors supported by the renderer to both gameplay and full-cinematic portraits. The wire frame carries the color through `uiFrame_t.stat`, and `SCR_LayoutDrawPortrait` assigns it to the portrait render entity. The renderer still has 16 replaceable team-color textures; extended common.j colors are deliberately normalized to color slot 0 instead of wrapping through the renderer mask.
 - Ordinary on-screen text uses one active-message slot rather than Warcraft's
   full multi-message stack. Historical `DisplayText*` entries are retained

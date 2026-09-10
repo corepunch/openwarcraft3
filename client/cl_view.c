@@ -253,6 +253,7 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.attached_model = cl.models[ent->current.model2];
 #endif
 
+    CL_ApplyIndicator(&re);
     view_state.entities[view_state.num_entities++] = re;
 
     if (ent->current.model2 > 0) {
@@ -271,6 +272,7 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.name = NULL;
         re.number = 0;
         re.health = 0;
+        re.indicator = (COLOR32){ 0 };
         re.flags &= ~RF_BUILDING;
         re.flags |= RF_NO_SHADOW;
         if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
