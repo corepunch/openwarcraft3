@@ -11,7 +11,7 @@
 #define MAP_VERTEX_FILE_SIZE 7
 #define MAX_SHEET_LINE 1024
 #define MAX_COMMAND_ENTITIES 64
-#define HEIGHT_COR (TILE_SIZE * 2 + 5)
+#define HEIGHT_COR (TILE_SIZE * 2) // world units; W3E layerHeight - 2 correction; used for decoded WC3 terrain vertices
 #define WATER_HEIGHT_COR 80
 #define DECODE_HEIGHT(x) (((x) - 0x2000) / 4)
 #define CMDARG_LEN 64

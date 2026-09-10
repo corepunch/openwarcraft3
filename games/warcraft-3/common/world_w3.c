@@ -254,12 +254,26 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
     FLOAT fx = floorf(x);
     FLOAT fy = floorf(y);
-    FLOAT a = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy));
-    FLOAT b = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy));
-    FLOAT c = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx, fy + 1));
-    FLOAT d = CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
+    LPCWAR3MAPVERTEX va = CM_GetWar3MapVertex(fx, fy);
+    LPCWAR3MAPVERTEX vb = CM_GetWar3MapVertex(fx + 1, fy);
+    LPCWAR3MAPVERTEX vc = CM_GetWar3MapVertex(fx, fy + 1);
+    LPCWAR3MAPVERTEX vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
+    FLOAT a = CM_GetWar3MapVertexHeight(va);
+    FLOAT b = CM_GetWar3MapVertexHeight(vb);
+    FLOAT c = CM_GetWar3MapVertexHeight(vc);
+    FLOAT d = CM_GetWar3MapVertexHeight(vd);
     FLOAT ab = LerpNumber(a, b, x - fx);
     FLOAT cd = LerpNumber(c, d, x - fx);
+    static BOOL logged;
+    if (!logged && fabsf(sx + 4909.3f) < 0.1f && fabsf(sy - 2474.5f) < 0.1f) {
+        fprintf(stderr, "CAMHEIGHT terrain x=%.3f y=%.3f center=(%.3f,%.3f) grid=(%.6f,%.6f) cell=(%.0f,%.0f) heights=(%.3f,%.3f,%.3f,%.3f) raw=(%u,%u,%u,%u) levels=(%u,%u,%u,%u) result=%.3f\n",
+                sx, sy, world.map->center.x, world.map->center.y, x, y, fx, fy, a, b, c, d,
+                va ? va->accurate_height : 0, vb ? vb->accurate_height : 0,
+                vc ? vc->accurate_height : 0, vd ? vd->accurate_height : 0,
+                va ? va->level : 0, vb ? vb->level : 0, vc ? vc->level : 0, vd ? vd->level : 0,
+                LerpNumber(ab, cd, y - fy));
+        logged = true;
+    }
     return LerpNumber(ab, cd, y - fy);
 }
 
