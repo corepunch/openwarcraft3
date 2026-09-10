@@ -1,8 +1,5 @@
 # Retail Warcraft III camera tracing
 
-The current measurement target and unresolved questions are tracked in
-[`objective.md`](../../../objective.md).
-
 This documents the repeatable retail-reference workflow used for the
 `Human02Interlude.w3m` opening cinematic. The reference was Warcraft III ROC
 1.29.2 running under Wine. The original campaign map was never modified.
@@ -67,12 +64,6 @@ extracted control does not load, stop debugging JASS or repacking; the
 installation, Wine launch, or map path is the problem. The successful control
 run differed from the earlier `Human02Interlude-original` build artifact,
 proving that artifact was not the untouched retail source.
-
-`mpqtool pack-legacy` is not an in-place update operation. It creates a new
-MPQ containing only the files passed to that command, so using it against a
-copied payload discards the rest of the map. It also produced anonymous
-`File000000*.xxx` names when inspected by StormLib in this experiment. Do not
-use it to produce the retail trace map.
 
 The confirmed working method preserves the original MPQ layout and replaces
 only `war3map.j` with the same archived name:
@@ -405,12 +396,11 @@ workflow was accepted by retail.
 
 An untouched map extracted from `War3Local.mpq` also loaded successfully. The
 exact end-to-end `smpq` rebuild above loaded successfully as well. Several
-other independently rebuilt MPQs—including builds from derived payloads and
-the project `mpqtool pack-legacy` output—loaded the loading screen and then
-crashed or returned to the menu. A derived copy going to the menu therefore
-does not prove that the retail installation or launch command is wrong.
-Preserve the known-good archive and use either the exact end-to-end procedure
-or the script-only replacement method.
+other independently rebuilt MPQs built from derived payloads loaded the
+loading screen and then crashed or returned to the menu. A derived copy going
+to the menu therefore does not prove that the retail installation or launch
+command is wrong. Preserve the known-good archive and use either the exact
+end-to-end procedure or the script-only replacement method.
 
 Do not overwrite the campaign map in `data/Warcraft III`. Pack into a separate
 file with a distinct name and preserve the original extracted files for binary
@@ -428,8 +418,6 @@ the packer/package is the problem, not JASS instrumentation.
 - Passing a renamed script directly to `smpq -a -f` added a second JASS member
   instead of replacing `war3map.j`; stage the file under the exact archive
   basename first.
-- `mpqtool pack-legacy` produced an archive with anonymous names when checked
-  by StormLib and is not the working retail-map path.
 - The original retail executable sometimes showed a black screen under Wine;
   `-window -graphicsapi OpenGL2` made the client usable for this test.
 - Wine's NTLM warnings (`ntlm_auth`/winbind) were startup noise, not the cause
