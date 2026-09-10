@@ -495,10 +495,24 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' \
 ```
 
 The trace is emitted by the `CameraSetupApply*` camera natives after they
-assign runtime state. It is event-only, disabled by default, and reports the
-same logical fields and reconstructed eye/target geometry as the JASS getters.
-It does not sample every frame, and it does not depend on `BJDebugMsg` or the
+assign runtime state. It is disabled by default. Mode `1` is event-only;
+mode `2` additionally samples the realized camera at up to 20 Hz, subject to
+the simulation frame cadence, which is useful for comparing interpolation.
+Both modes report the same logical fields and reconstructed eye/target geometry
+as the JASS getters. The engine trace does not depend on `BJDebugMsg` or the
 instrumented retail map.
+
+Use mode `2` for a bounded transition capture:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' \
+  +set vid_hidden 1 +set wc3_camera_trace 2 \
+  +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 500 \
+  > openrealm-camtrace-fine.log 2>&1
+```
+
+Mode `2` is intentionally opt-in because it writes one diagnostic line per
+sample. Return to mode `1` for compact event-only traces.
 
 ## Verified reference observations
 
