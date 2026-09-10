@@ -267,9 +267,6 @@ enum {
     CS_ENTITY_LIGHT_MODEL = 10, // decimal CS_MODELS index; optional entity environment light model
     CS_ORDER_MARKER = 11, // model path; server-authored point-order confirmation
     CS_ASSET_SCOPE = 12, // archive/directory scope for map-owned media, available before world registration
-    CS_LOADINGSCREEN1 = 13, // first 256 bytes of the compressed loading frame tree
-    CS_LOADINGSCREEN2 = 14, // second binary loading slot
-    CS_LOADINGSCREEN_LAST = 20, // final binary slot; commits the screen after loading media and preceding slots
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,
@@ -281,12 +278,6 @@ enum {
     CS_GENERAL = (CS_PLAYERSKINS+MAX_CLIENTS),
     MAX_CONFIGSTRINGS = (CS_GENERAL+MAX_GENERAL),
 };
-
-#define BZ_LOADING_SCREEN_SLOTS (CS_LOADINGSCREEN_LAST - CS_LOADINGSCREEN1 + 1) // slots; twelve-player FDF roster needs more than two
-#define BZ_LOADING_SCREEN_SIZE (BZ_LOADING_SCREEN_SLOTS * MAX_PATHLEN) // bytes; 2 KiB fits the measured 789-byte roster plus twelve lobby names
-
-#define BZ_IS_LOADING_CONFIGSTRING(i) ((i) >= CS_LOADINGSCREEN1 && (i) <= CS_LOADINGSCREEN_LAST)
-_Static_assert(CS_LOADINGSCREEN_LAST < CS_MAXCLIENTS, "loading slots overlap server metadata");
 
 #define ID_MDLX MAKEFOURCC('M','D','L','X')
 #define ID_43DM MAKEFOURCC('4','3','D','M')

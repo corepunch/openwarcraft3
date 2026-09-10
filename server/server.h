@@ -104,6 +104,7 @@ extern struct server {
     DWORD pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
     DWORD keepalive; /* real-time deadline for connected clients without gameplay snapshots */
     LPENTITYSTATE baselines;
+    sizeBuf_t loading; /* retained compressed loading layout for initial and late connections */
     WORD loading_end[3]; /* first gameplay index in each loading media pool: models, images, fonts */
     sizeBuf_t multicast;
     BYTE multicast_buf[MAX_MSGLEN];
@@ -133,8 +134,8 @@ DWORD SV_PlayerCreateMap(void);
 #endif
 void SV_ClientConnect(void);
 void SV_InitGame(void);
-BOOL SV_BuildLoadingConfigstrings(void);
-void SV_SendLoadingConfigstrings(LPCLIENT cl);
+BOOL SV_BuildLoadingScreen(void);
+void SV_SendLoadingScreen(LPCLIENT cl);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);
 void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo);
 void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg);

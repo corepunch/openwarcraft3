@@ -66,6 +66,7 @@ struct frame {
 
 struct client_state {
     BOOL refresh_prepped;
+    sizeBuf_t loading;        /* compressed loading-screen chunks; released after decode or disconnect */
     FLOAT loading_progress;   /* client-owned normalized loading progress [0,1] */
     BOOL precache_ready;       /* complete media table received after the loading-only batch */
     LPMODEL models[MAX_MODELS];

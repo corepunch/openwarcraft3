@@ -24,7 +24,7 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     if (cl->state != cs_connected || start < 0) return;
     if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
     for (; start < MAX_CONFIGSTRINGS; start++) {
-        if (BZ_IS_LOADING_CONFIGSTRING(start) || !*sv.configstrings[start]) continue;
+        if (!*sv.configstrings[start]) continue;
         /* The engine buffer is much larger than a UDP datagram; reserve room for the next request too. */
         if (cl->netchan.message.cursize + SV_ConfigStringWireSize(start) + 32 > limit) break;
         SV_WriteConfigString(&cl->netchan.message, start);
@@ -97,7 +97,7 @@ void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
         Netchan_Transmit(NS_SERVER, &cl->netchan);
         return;
     }
-    SV_SendLoadingConfigstrings(cl);
+    SV_SendLoadingScreen(cl);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
     MSG_WriteString(&cl->netchan.message, "configstrings");
     Netchan_Transmit(NS_SERVER, &cl->netchan);

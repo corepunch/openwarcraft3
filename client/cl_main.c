@@ -76,6 +76,7 @@ void CL_ClearState(void) {
     CL_WindowClear();
     CL_ClearMinimap();
 
+    SAFE_DELETE(cl.loading.data, MemFree);
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);

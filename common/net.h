@@ -3,6 +3,8 @@
 
 #define MAX_MSGLEN 256 * 1024
 
+#define BZ_LOADING_HEADER_SIZE 13 // bytes; opcode and three 32-bit lengths; bounds loading-screen chunks
+
 #define BZ_XSTR(x) BZ_STR(x)
 #define BZ_STR(x) #x
 
@@ -12,7 +14,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 3 // version; expanded binary loading slots require matching clients and servers
+#define BZ_PROTOCOL_VERSION 4 // version; svc_loading_screen replaces binary loading configstrings
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;

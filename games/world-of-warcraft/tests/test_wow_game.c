@@ -1187,7 +1187,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_FEQ(test_ui_frames[0].w, 1.0f, 0.0001f);
     T_FEQ(test_ui_frames[0].h, 1.0f, 0.0001f);
     T_STREQ(test_images[1].name, "Interface\\Glues\\LoadingBar\\Loading-BarFill.blp");
-    /* SV_BuildLoadingConfigstrings packs and consumes this initial multicast before LoadMap. */
+    /* SV_BuildLoadingScreen packs and consumes this initial multicast before LoadMap. */
     test_multicast_size = 0;
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];

@@ -138,7 +138,7 @@ static bool test_prepare_map(LPCSTR filename) {
 }
 
 static bool test_load_map(LPCSTR mapFilename) {
-    T_ASSERT(*sv.configstrings[CS_LOADINGSCREEN1]);
+    T_ASSERT(sv.loading.cursize);
     SV_ModelIndex("World.mdx");
     if (!CM_LoadMap(mapFilename)) {
         return false;
@@ -164,6 +164,7 @@ static DWORD test_write_client_datagram(LPEDICT ent, LPBYTE data, DWORD size) {
 }
 
 static void reset_server_state(int max_players) {
+    SAFE_DELETE(sv.loading.data, MemFree);
     memset(&sv, 0, sizeof(sv));
     memset(&svs, 0, sizeof(svs));
     memset(&test_ge, 0, sizeof(test_ge));
@@ -970,7 +971,7 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
 TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     MAPINFO info = { 0 };
     BOOL model = false, image = false, font = false;
-    BYTE buf[MAX_MSGLEN], packed[BZ_LOADING_SCREEN_SIZE] = { 0 }, layout[256];
+    BYTE buf[MAX_MSGLEN], packed[4096] = { 0 }, layout[256];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     netadr_t from;
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
@@ -979,35 +980,39 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     T_EQ(map_defer_count, before + 1);
     drain_client_packets();
     /* A connection after world loading must still receive only the original loading dependencies. */
-    SV_SendLoadingConfigstrings(&svs.clients[0]);
+    SV_SendLoadingScreen(&svs.clients[0]);
     T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-    DWORD slots = 0;
+    DWORD bytes = 0;
     while (msg.readcount < msg.cursize) {
-        T_EQ(MSG_ReadByte(&msg), svc_configstring);
-        int index = MSG_ReadShort(&msg);
-        if (BZ_IS_LOADING_CONFIGSTRING(index)) {
+        int op = MSG_ReadByte(&msg);
+        if (op == svc_loading_screen) {
             T_ASSERT(model && image && font);
-            T_EQ(index, CS_LOADINGSCREEN1 + slots++);
-            MSG_Read(&msg, packed + (index - CS_LOADINGSCREEN1) * MAX_PATHLEN, MAX_PATHLEN);
+            T_EQ(MSG_ReadLong(&msg), sv.loading.cursize);
+            T_EQ(MSG_ReadLong(&msg), 0);
+            bytes = MSG_ReadLong(&msg);
+            T_EQ(bytes, sv.loading.cursize);
+            T_ASSERT(MSG_Read(&msg, packed, bytes));
         } else {
+            T_EQ(op, svc_configstring);
+            int index = MSG_ReadShort(&msg);
             LPCSTR name = MSG_ReadString2(&msg);
-            T_EQ(slots, 0);
+            T_EQ(bytes, 0);
             if (index == CS_MODELS + 1) { T_STREQ(name, "Loading.mdx"); model = true; }
             if (index == CS_IMAGES + 1) { T_STREQ(name, "Loading.blp"); image = true; }
             if (index == CS_FONTS + 1) { T_STREQ(name, "Loading.ttf,18"); font = true; }
             T_ASSERT(index != CS_MODELS + 2);
         }
     }
-    T_EQ(slots, BZ_LOADING_SCREEN_SLOTS);
+    T_EQ(bytes, sv.loading.cursize);
     uLongf size = sizeof(layout);
-    T_EQ(uncompress(layout, &size, packed, sizeof(packed)), Z_OK);
+    T_EQ(uncompress(layout, &size, packed, bytes), Z_OK);
     T_EQ(size, 7); T_EQ(layout[0], LAYER_LOADING);
-    T_EQ(memcmp(packed, sv.configstrings + CS_LOADINGSCREEN1, sizeof(packed)), 0);
+    T_EQ(memcmp(packed, sv.loading.data, bytes), 0);
     T_STREQ(sv.configstrings[CS_MODELS + 2], "World.mdx");
     SV_Shutdown(); test_mapinfo = NULL;
 }
 
-/* Binary slots preserve embedded NULs and the final byte; ordinary paths remain terminated. */
+/* Dedicated startup must not defer commands on behalf of a nonexistent local client. */
 TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_client) {
     MAPINFO info = { 0 };
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
@@ -1019,20 +1024,86 @@ TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_clie
     test_client_stubs_set_cvar("dedicated", "0");
 }
 
-TEST(server_net, loading_configstrings_preserve_all_binary_slots) {
-    BYTE data[BZ_LOADING_SCREEN_SIZE];
+/* Chunk framing preserves binary bytes while respecting the real UDP signon budget. */
+TEST(server_net, loading_screen_chunks_fit_udp) {
+    BYTE buf[MAX_MSGLEN], data[4096];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    DWORD bytes = 0, chunks = 0;
+    NET_Shutdown(); reset_server_state(1);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 22));
+    int sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    struct timeval timeout = { .tv_sec = 1 };
+    T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    send_connect_oob(sock, PORT_SERVER + 22); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
     FOR_LOOP(i, sizeof(data)) data[i] = (BYTE)i;
-    reset_server_state(1);
-    FOR_LOOP(i, BZ_LOADING_SCREEN_SLOTS) {
-        SV_SetConfigString(CS_LOADINGSCREEN1 + i, (LPCSTR)data + i * MAX_PATHLEN, MAX_PATHLEN);
-        T_EQ(SV_ConfigStringWireSize(CS_LOADINGSCREEN1 + i), MAX_PATHLEN + 3);
+    SZ_Init(&sv.loading, MemAlloc(sizeof(data)), sizeof(data));
+    MSG_Write(&sv.loading, data, sizeof(data));
+    SV_SendLoadingScreen(&svs.clients[0]);
+    while (bytes < sizeof(data)) {
+        int size = recv(sock, buf, sizeof(buf), 0);
+        T_ASSERT(size > 0 && size <= BZ_SIGNON_SIZE);
+        if (size <= 0 || size > BZ_SIGNON_SIZE) break;
+        msg.cursize = size; msg.readcount = 0;
+        while (msg.readcount < msg.cursize) {
+            int op = MSG_ReadByte(&msg);
+            if (op == svc_configstring) {
+                T_EQ(bytes, 0);
+                MSG_ReadShort(&msg); MSG_ReadString2(&msg);
+                continue;
+            }
+            T_EQ(op, svc_loading_screen);
+            T_EQ(MSG_ReadLong(&msg), sizeof(data));
+            T_EQ(MSG_ReadLong(&msg), bytes);
+            DWORD len = MSG_ReadLong(&msg);
+            T_ASSERT(len && len <= sizeof(data) - bytes && len <= msg.cursize - msg.readcount);
+            T_EQ(memcmp(msg.data + msg.readcount, data + bytes, len), 0);
+            msg.readcount += len; bytes += len; chunks++;
+        }
     }
-    T_EQ(memcmp(data, sv.configstrings + CS_LOADINGSCREEN1, sizeof(data)), 0);
+    T_EQ(bytes, sizeof(data)); T_ASSERT(chunks > 1);
+    SAFE_DELETE(sv.loading.data, MemFree);
+    close(sock); NET_Shutdown();
 }
 
-/* Excess presentation text can shrink, but frame geometry and sprite animation directives survive. */
-TEST(server_net, loading_configstrings_bound_text_without_changing_geometry) {
-    BYTE raw[MAX_MSGLEN], packed[BZ_LOADING_SCREEN_SIZE];
+/* Even the maximum compressed stream must leave room for framing below the loopback reader's limit. */
+TEST(server_net, loading_screen_maximum_stream_splits_loopback) {
+    BYTE buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    netadr_t from;
+    DWORD bytes = 0, chunks = 0;
+    NET_Shutdown(); reset_server_state(1);
+    SV_ClientConnect(); drain_client_packets();
+    SZ_Init(&sv.loading, MemAlloc(MAX_MSGLEN), MAX_MSGLEN);
+    sv.loading.cursize = MAX_MSGLEN;
+    FOR_LOOP(i, MAX_MSGLEN) sv.loading.data[i] = (BYTE)i;
+    SV_SendLoadingScreen(&svs.clients[0]);
+    while (NET_GetPacket(NS_CLIENT, &from, &msg)) {
+        T_ASSERT(msg.cursize < MAX_MSGLEN);
+        while (msg.readcount < msg.cursize) {
+            int op = MSG_ReadByte(&msg);
+            if (op == svc_configstring) {
+                MSG_ReadShort(&msg); MSG_ReadString2(&msg);
+                continue;
+            }
+            T_EQ(op, svc_loading_screen);
+            T_EQ(MSG_ReadLong(&msg), MAX_MSGLEN); T_EQ(MSG_ReadLong(&msg), bytes);
+            DWORD len = MSG_ReadLong(&msg);
+            T_ASSERT(len && len <= MAX_MSGLEN - bytes && len <= msg.cursize - msg.readcount);
+            T_EQ(memcmp(msg.data + msg.readcount, sv.loading.data + bytes, len), 0);
+            msg.readcount += len; bytes += len; chunks++;
+        }
+    }
+    T_EQ(bytes, MAX_MSGLEN); T_EQ(chunks, 2);
+    SAFE_DELETE(sv.loading.data, MemFree);
+    NET_Shutdown();
+}
+
+/* Layouts larger than the old slot budget retain every authored text byte and animation directive. */
+TEST(server_net, loading_screen_preserves_full_text_and_geometry) {
+    BYTE raw[MAX_MSGLEN];
     char text[4096];
     DWORD seed = 1;
     UIFRAME empty = { .tex.coord = { 0, 255, 0, 255 } };
@@ -1049,22 +1120,23 @@ TEST(server_net, loading_configstrings_bound_text_without_changing_geometry) {
     frame.number = 2; frame.flags.type = FT_SPRITE; frame.text = "#!123";
     MSG_WriteDeltaUIFrame(&sv.multicast, &empty, &frame, true); MSG_WriteByte(&sv.multicast, 0);
     MSG_WriteLong(&sv.multicast, 0); MSG_WriteShort(&sv.multicast, 0);
-    T_ASSERT(SV_BuildLoadingConfigstrings());
-    memcpy(packed, sv.configstrings + CS_LOADINGSCREEN1, sizeof(packed));
+    T_ASSERT(SV_BuildLoadingScreen());
+    T_ASSERT(sv.loading.cursize > 2048);
     uLongf size = sizeof(raw);
-    T_EQ(uncompress(raw, &size, packed, sizeof(packed)), Z_OK);
+    T_EQ(uncompress(raw, &size, sv.loading.data, sv.loading.cursize), Z_OK);
     sizeBuf_t msg = { .data = raw, .cursize = size, .maxsize = sizeof(raw) };
     T_EQ(MSG_ReadByte(&msg), LAYER_LOADING);
     DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
     frame = empty;
     MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
     T_EQ(frame.tex.coord[1], 255); T_EQ(frame.tex.coord[3], 255);
-    T_ASSERT(strlen(frame.text) < strlen(text)); T_EQ(strncmp(frame.text, text, strlen(frame.text)), 0);
+    T_STREQ(frame.text, text);
     T_FEQ(frame.size.width, 321, 0.001f); T_FEQ(frame.size.height, 123, 0.001f);
     T_EQ(MSG_ReadByte(&msg), 0);
     number = MSG_ReadEntityBits(&msg, &bits);
     MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
     T_EQ(frame.flags.type, FT_SPRITE); T_STREQ(frame.text, "#!123");
+    SAFE_DELETE(sv.loading.data, MemFree);
 }
 
 /* An idle lobby must keep both loopback and UDP peers alive without advancing simulation or rebuilding UI. */

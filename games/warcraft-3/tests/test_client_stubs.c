@@ -146,6 +146,7 @@ int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) { (void)code; (void)fmt; }
 
 void test_client_stubs_init(void) {
+    SAFE_DELETE(cl.loading.data, MemFree);
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
     memset(&re, 0, sizeof(re));

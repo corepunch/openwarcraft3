@@ -16,8 +16,6 @@
 #include "sound/s_local.h"
 #include "ui_layout.h"
 
-static void CL_ParseLoadingScreen(void);
-
 /* Keep predicted camera targets inside the loaded map. Scripted WC3 camera
  * rectangles stay server-side; the client does not get a per-player copy. */
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
@@ -196,7 +194,7 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         return;
     }
     olds[0] = '\0';
-    if (index == CS_STATUSBAR || BZ_IS_LOADING_CONFIGSTRING(index)) {
+    if (index == CS_STATUSBAR) {
         if (!MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings))) {
             Com_Error(ERR_DROP, "Truncated binary configstring %d", index);
             return;
@@ -205,7 +203,6 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         snprintf(olds, sizeof(olds), "%s", cl.configstrings[index]);
         MSG_ReadString(msg, cl.configstrings[index]);
     }
-    if (index == CS_LOADINGSCREEN_LAST && !cl.refresh_prepped) CL_ParseLoadingScreen();
     if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
         entity_name_pool_decode(cl.configstrings[index]);
     if (cl.refresh_prepped)
@@ -646,15 +643,27 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     return true;
 }
 
-/* Decode only a loading layer, never an arbitrary server message stream from persistent configstrings. */
-static void CL_ParseLoadingScreen(void) {
-    BYTE data[BZ_LOADING_SCREEN_SIZE], buf[MAX_MSGLEN];
+/* Publish only a complete loading layout; offsets reject missing, reordered, or mismatched chunks. */
+static void CL_ParseLoadingScreen(LPSIZEBUF netmsg) {
+    BYTE buf[MAX_MSGLEN];
     uLongf size = sizeof(buf);
-    memcpy(data, cl.configstrings + CS_LOADINGSCREEN1, sizeof(data));
-    if (uncompress(buf, &size, data, sizeof(data)) != Z_OK || size < 7 || buf[0] != LAYER_LOADING) {
-        Com_Error(ERR_DROP, "Invalid loading screen configstrings");
-        return;
+    if (netmsg->cursize - netmsg->readcount < BZ_LOADING_HEADER_SIZE - 1) goto invalid;
+    DWORD total = MSG_ReadLong(netmsg), pos = MSG_ReadLong(netmsg), len = MSG_ReadLong(netmsg);
+    if (!total || total > MAX_MSGLEN || pos >= total || !len || len > total - pos ||
+        len > netmsg->cursize - netmsg->readcount) goto invalid;
+    if (!pos) {
+        SAFE_DELETE(cl.loading.data, MemFree);
+        SZ_Init(&cl.loading, MemAlloc(total), total);
     }
+    if (!cl.loading.data || cl.loading.maxsize != total || cl.loading.cursize != pos) goto invalid;
+    MSG_Read(netmsg, cl.loading.data + pos, len);
+    cl.loading.cursize += len;
+    if (cl.loading.cursize < total) return;
+    int err = uncompress(buf, &size, cl.loading.data, total);
+    SAFE_DELETE(cl.loading.data, MemFree);
+    SZ_Clear(&cl.loading);
+    if (err != Z_OK || size < 7 || buf[0] != LAYER_LOADING) goto invalid;
+    if (cl.refresh_prepped) return;
     sizeBuf_t msg = { .data = buf, .cursize = size, .maxsize = sizeof(buf) };
     CL_ParseLayout(&msg);
     if (!cl.layout[LAYER_LOADING] || msg.readcount != msg.cursize) {
@@ -662,6 +671,12 @@ static void CL_ParseLoadingScreen(void) {
         return;
     }
     CL_PrepLoading();
+    return;
+invalid:
+    SAFE_DELETE(cl.loading.data, MemFree);
+    SZ_Clear(&cl.loading);
+    netmsg->readcount = netmsg->cursize;
+    Com_Error(ERR_DROP, "Invalid loading screen payload");
 }
 
 void CL_MirrorMessage(LPSIZEBUF msg) {
@@ -973,6 +988,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_packetentities:
                 CL_ReadPacketEntities(msg);
+                break;
+            case svc_loading_screen:
+                CL_ParseLoadingScreen(msg);
                 break;
             case svc_configstring:
                 CL_ParseConfigString(msg);

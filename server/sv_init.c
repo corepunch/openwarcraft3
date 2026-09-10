@@ -244,66 +244,24 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
     SV_LobbyBroadcastSetup();
 }
 
-/* Re-encode the existing frame schema with a bounded display string; animation directives are not text. */
-static DWORD SV_LoadingText(LPSIZEBUF out, DWORD limit) {
-    sizeBuf_t src = sv.multicast;
-    UIFRAME empty = { .tex.coord = { 0, 255, 0, 255 } };
-    DWORD trimmed = 0;
-    src.readcount = 2;
-    SZ_Clear(out);
-    MSG_WriteByte(out, LAYER_LOADING);
-    while (src.readcount < src.cursize) {
-        UIFRAME frame = empty;
-        PATHSTR text;
-        DWORD bits, number = MSG_ReadEntityBits(&src, &bits);
-        if (!number && !bits) break;
-        MSG_ReadDeltaUIFrame(&src, &frame, number, bits);
-        frame.buffer.size = (BYTE)MSG_ReadByte(&src);
-        frame.buffer.data = src.data + src.readcount;
-        src.readcount += frame.buffer.size;
-        if (frame.text && frame.text[0] != '#' && !(frame.flagsvalue & UIFLAG_MINIMAP_PREVIEW) && strlen(frame.text) > limit) {
-            /* Static minimap text is an archive reference, not display text; never shorten its path. */
-            DWORD len = limit;
-            /* Do not end a displayed string inside a UTF-8 character. */
-            while (len && ((BYTE)frame.text[len] & 0xc0) == 0x80) len--;
-            memcpy(text, frame.text, len); text[len] = 0;
-            frame.text = text; trimmed++;
-        }
-        MSG_WriteDeltaUIFrame(out, &empty, &frame, true);
-        MSG_WriteByte(out, frame.buffer.size);
-        MSG_Write(out, frame.buffer.data, frame.buffer.size);
-    }
-    MSG_WriteLong(out, 0); MSG_WriteShort(out, 0);
-    return trimmed;
-}
-
-/* The persistent loading layout occupies a fixed range of binary configstrings, including its text. */
-BOOL SV_BuildLoadingConfigstrings(void) {
-    BYTE data[BZ_LOADING_SCREEN_SIZE], buf[MAX_MSGLEN];
-    sizeBuf_t msg = { .data = sv.multicast.data + 1, .cursize = sv.multicast.cursize - 1 };
-    DWORD limit = MAX_PATHLEN - 1, trimmed = 0;
+/* Retain the authored layout for late joiners without a configstring-slot budget or lossy text rewrite. */
+BOOL SV_BuildLoadingScreen(void) {
     if (sv.multicast.overflowed || sv.multicast.cursize < 8 ||
         sv.multicast.data[0] != svc_layout || sv.multicast.data[1] != LAYER_LOADING) {
-        fprintf(stderr, "SV_BuildLoadingConfigstrings: missing loading layout\n");
+        fprintf(stderr, "SV_BuildLoadingScreen: missing loading layout\n");
         return false;
     }
-    for (;;) {
-        uLongf size = sizeof(data);
-        memset(data, 0, sizeof(data));
-        int err = compress2(data, &size, msg.data, msg.cursize, Z_BEST_COMPRESSION);
-        if (err == Z_OK) break;
-        if (err != Z_BUF_ERROR || !limit) {
-            fprintf(stderr, "SV_BuildLoadingConfigstrings: layout exceeds %u bytes or compression failed (%d)\n", (unsigned)sizeof(data), err);
-            return false;
-        }
-        SZ_Init(&msg, buf, sizeof(buf));
-        trimmed = SV_LoadingText(&msg, limit);
-        limit /= 2;
+    SAFE_DELETE(sv.loading.data, MemFree);
+    uLongf size = compressBound(sv.multicast.cursize - 1);
+    SZ_Init(&sv.loading, MemAlloc(size), size);
+    int err = compress2(sv.loading.data, &size, sv.multicast.data + 1, sv.multicast.cursize - 1, Z_BEST_COMPRESSION);
+    if (err != Z_OK || size > MAX_MSGLEN) {
+        fprintf(stderr, "SV_BuildLoadingScreen: layout exceeds message limit or compression failed (%d)\n", err);
+        SAFE_DELETE(sv.loading.data, MemFree);
+        sv.loading.cursize = 0;
+        return false;
     }
-    if (trimmed)
-        fprintf(stderr, "SV_BuildLoadingConfigstrings: shortened %u loading strings to fit %u bytes\n", trimmed, (unsigned)sizeof(data));
-    FOR_LOOP(i, BZ_LOADING_SCREEN_SLOTS)
-        SV_SetConfigString(CS_LOADINGSCREEN1 + i, (LPCSTR)data + i * MAX_PATHLEN, MAX_PATHLEN);
+    sv.loading.cursize = size;
     /* Retain only resource boundaries; later clients use the same authoritative configstring table. */
     FOR_LOOP(i, sizeof(loading_pools) / sizeof(*loading_pools)) {
         sv.loading_end[i] = 1;
@@ -314,9 +272,9 @@ BOOL SV_BuildLoadingConfigstrings(void) {
     return true;
 }
 
-/* Loading dependencies precede the final slot, which commits the complete screen on the client. */
-void SV_SendLoadingConfigstrings(LPCLIENT cl) {
-    if (!*sv.configstrings[CS_LOADINGSCREEN1]) {
+/* Dependencies precede the screen; explicit chunks keep each UDP signon packet within its MTU budget. */
+void SV_SendLoadingScreen(LPCLIENT cl) {
+    if (!sv.loading.cursize) {
         Com_Error(ERR_DROP, "Missing initial loading presentation");
         return;
     }
@@ -331,12 +289,20 @@ void SV_SendLoadingConfigstrings(LPCLIENT cl) {
                 Netchan_Transmit(NS_SERVER, &cl->netchan);
             SV_WriteConfigString(&cl->netchan.message, index);
         }
-    FOR_LOOP(i, BZ_LOADING_SCREEN_SLOTS) {
-        if (cl->netchan.message.cursize + SV_ConfigStringWireSize(CS_LOADINGSCREEN1 + i) > SV_SignonLimit(&cl->netchan))
+    for (DWORD pos = 0; pos < sv.loading.cursize;) {
+        /* The loopback reader requires packets strictly smaller than MAX_MSGLEN. */
+        DWORD limit = MIN(SV_SignonLimit(&cl->netchan), MAX_MSGLEN - 1);
+        if (cl->netchan.message.cursize + BZ_LOADING_HEADER_SIZE >= limit)
             Netchan_Transmit(NS_SERVER, &cl->netchan);
-        SV_WriteConfigString(&cl->netchan.message, CS_LOADINGSCREEN1 + i);
+        DWORD size = MIN(sv.loading.cursize - pos, limit - cl->netchan.message.cursize - BZ_LOADING_HEADER_SIZE);
+        MSG_WriteByte(&cl->netchan.message, svc_loading_screen);
+        MSG_WriteLong(&cl->netchan.message, sv.loading.cursize);
+        MSG_WriteLong(&cl->netchan.message, pos);
+        MSG_WriteLong(&cl->netchan.message, size);
+        MSG_Write(&cl->netchan.message, sv.loading.data + pos, size);
+        pos += size;
+        Netchan_Transmit(NS_SERVER, &cl->netchan);
     }
-    Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
 void SV_Map(LPCSTR mapFilename) {
@@ -349,6 +315,7 @@ void SV_Map(LPCSTR mapFilename) {
     num_lobby_clients = SV_SaveLobbyClients(lobby_clients, MAX_CLIENTS);
     SV_ClearLobbyClients();
     SV_InitGame();
+    SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
@@ -363,8 +330,8 @@ void SV_Map(LPCSTR mapFilename) {
         CL_LoadingFrame();
         return;
     }
-    if (!SV_BuildLoadingConfigstrings()) { SV_Shutdown(); CL_LoadingFrame(); return; }
-    FOR_LOOP(i, svs.num_clients) SV_SendLoadingConfigstrings(&svs.clients[i]);
+    if (!SV_BuildLoadingScreen()) { SV_Shutdown(); CL_LoadingFrame(); return; }
+    FOR_LOOP(i, svs.num_clients) SV_SendLoadingScreen(&svs.clients[i]);
     CL_LoadingFrame();
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");
@@ -403,6 +370,7 @@ void SV_StartLobby(LPCSTR mapFilename) {
             return;
         }
     }
+    SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     SV_ClearLobbyClients();
     memset(&sv, 0, sizeof(struct server));
@@ -466,6 +434,7 @@ void SV_Shutdown(void) {
         MSG_WriteByte(&client->netchan.message, svc_disconnect);
         Netchan_Transmit(NS_SERVER, &client->netchan);
     }
+    SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     sv.state = ss_dead;
     SAFE_DELETE(svs.client_entities, MemFree);

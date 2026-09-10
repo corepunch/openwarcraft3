@@ -18,34 +18,43 @@ decorated `LoadingMeleeBackground` skin entry.
 The initial transport order is:
 
 1. Loading-phase configstrings: destination, asset scope, models, images, and fonts.
-2. `CS_LOADINGSCREEN1` through `CS_LOADINGSCREEN_LAST`: receiving the final slot decodes the frame tree, registers
+2. `svc_loading_screen` chunks: receiving the complete compressed layout decodes the frame tree, registers
    the preceding media, and repaints immediately.
-3. Full configstring pages (excluding the already-sent loading slots), then baseline pages.
+3. Full configstring pages, then baseline pages.
 4. The final `svc_mirror "precache"` permits world/model/image/sound registration; completion queues `begin`,
    then the first usable frame activates gameplay.
 
-`SV_BuildLoadingConfigstrings` stores the presentation in eight consecutive 256-byte **binary** configstrings,
-using the same fixed-size transport convention as `CS_STATUSBAR`. All 2,048 bytes survive, including embedded NULs
-and the last byte of each slot; these slots never pass through theme lookup or C-string length functions.
-Concatenating the slots yields one zlib stream padded with zeros. Its decoded payload is the existing layer byte,
-delta-encoded UI frames (including their text and type-specific buffers), and frame terminator. There is no new
-layout grammar, game-specific client layout, or loading-specific packet opcode. Decode is bounded by `MAX_MSGLEN`
-and accepts only `LAYER_LOADING`, not a nested server-message stream.
+`SV_BuildLoadingScreen` compresses the complete authored layout into map-owned `sv.loading`. The payload is the
+existing layer byte, delta-encoded UI frames (including text and type-specific buffers), and frame terminator.
+It accepts only `LAYER_LOADING`, not a nested server-message stream. Compression and decode are bounded by
+`MAX_MSGLEN`; there is no configstring-slot budget, zero padding, or text shortening. Failure to fit or compress
+fails map startup with a diagnostic. Referenced media remain in the normal model/image/font configstring pools.
 
-The server first tries the complete authored text. If it exceeds the compressed 2,048-byte budget, it retries with
-per-display-string byte caps of 255, 127, 63, 31, 15, 7, 3, and 1, stopping at the first fit. UTF-8 characters are
-not split; `#` animation directives and frame geometry remain intact. Shortening emits a warning. If even that
-layout cannot fit, map startup fails with a diagnostic rather than dropping frames or inventing replacement art.
-The fixed limit applies to **layout plus text**; referenced model/image/font asset files remain in their normal
-resource tables and do not count toward the 2,048 bytes.
+Protocol version 4 replaces the binary loading configstrings with this explicit message:
 
-Only three resource-pool endpoints are retained in `sv.loading_end` before gameplay adds resources. Media indices
-remain stable as `LoadMap` extends the pools. `SV_New_f` reconstructs the early transmission from the authoritative
-configstrings using those endpoints; there is no cached loading packet or duplicate layout allocation on the server.
+| Field | Wire type | Meaning |
+|---|---|---|
+| Opcode | byte | `svc_loading_screen` |
+| Total | 32-bit integer | Complete compressed byte count, positive and at most `MAX_MSGLEN` |
+| Offset | 32-bit integer | Chunk offset in that stream; zero starts/restarts assembly |
+| Size | 32-bit integer | Positive chunk byte count, bounded by the remaining stream and packet |
+| Data | `Size` bytes | The corresponding compressed bytes |
+
+`SV_SendLoadingScreen` accounts for the 13-byte header and preceding media when splitting at `SV_SignonLimit`.
+UDP packets stay within `BZ_SIGNON_SIZE` (1,400 bytes); loopback uses the engine buffer limit. The client allocates
+only the declared total, requires contiguous offsets and a consistent total, and releases the assembly buffer
+on completion, error, or disconnect. Corrupt compressed data, truncated packets, and missing/out-of-order chunks
+are rejected. This framing does not add retransmission or sequencing to the existing raw UDP transport.
+Client and server must both use protocol version 4.
+
+Three resource-pool endpoints are retained in `sv.loading_end` before gameplay adds resources. Media indices
+remain stable as `LoadMap` extends the pools. `SV_New_f` replays the retained compressed layout and reconstructs
+its media dependencies from the authoritative configstrings using those endpoints. The server releases the
+compressed layout on map replacement, lobby entry, or shutdown.
 The batch includes inherited Loading.fdf template media declarations, but excludes later world/gameplay media.
 WC3's background/bar are models, so moving only images earlier is insufficient.
 
-For a listen server, `SV_Map` establishes the connection and sends these configstrings before `ge->LoadMap`, then
+For a listen server, `SV_Map` establishes the connection and sends this loading batch before `ge->LoadMap`, then
 calls `CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
 callback. `cl.precache_ready` prevents the early layout/`CS_WORLD` from starting bulk registration until the full
 configstring/baseline handshake reaches `precache`. Dedicated servers skip the presentation pump.
@@ -87,10 +96,10 @@ minimap's white texture. Use C `bool` for this high-bit membership result. The n
 through the actual minimap draw dispatch, as server-only frame inspection cannot catch this narrowing.
 
 A twelve-player Emerald Gardens layout measured 3,610 bytes before compression and 789 bytes compressed, exceeding
-the original 512-byte limit even with text shortening. Eight binary slots now reserve 2 KiB for the native rows and
-lobby names; the final slot commits presentation. Protocol version 3 requires matching client/server binaries.
-The existing signon pager bounds each network packet. Display-string shortening must never shorten a minimap
-archive reference. The core, loading-FDF, and server signon tests cover these contracts.
+the original 512-byte limit even with text shortening. Protocol version 3 expanded that allocation to eight binary
+slots. Protocol version 4 removes the slots and their text budget entirely: `svc_loading_screen` carries complete
+native rows, lobby names, and minimap archive references within the engine message limit. Chunking bounds each
+network packet. The core, loading-FDF, and server signon tests cover these contracts.
 
 The local `data/WarsmashModEngine` checkout's `MenuUI.java` binds `LoadingMeleePanel` but keeps it hidden;
 `internalStartMap` populates the custom panel. It is not a complete retail melee-loading implementation.
@@ -133,7 +142,7 @@ build/bin/openwow -data data/world-of-warcraft +screenshot 2 +map 0 +vid_hidden 
 ```
 
 `run-map` does not forward `ARGS`, so use the binary for bounded diagnostics. To measure, temporarily probe
-`SV_BuildLoadingConfigstrings`, `CL_PrepLoading` after its swap, `ge->LoadMap` entry/return, and `SCR_EndLoadingPlaque`
+`SV_BuildLoadingScreen`, `CL_PrepLoading` after its swap, `ge->LoadMap` entry/return, and `SCR_EndLoadingPlaque`
 with `SDL_GetTicks()` / `fprintf(stderr, ...)`; remove the probes afterward. Hidden-window rendering still needs
 the Mac display server; a sandbox without displays fails before map loading and gives no useful timing.
 
@@ -296,19 +305,24 @@ TFT row schemas, custom-model precedence, and default skin decoration. Restoring
 `hud_loading.c` makes this test fail. The client drawing tests additionally check progress 0/0.5/1 and collisions
 between model and image indices.
 
-The shared `net.loading_batch_registers_media_before_full_precache` test verifies that the first binary slot alone
-cannot publish the screen, initial model/image handles become available after the final slot, later world media
-remains deferred, and only the final `precache` reply opens the registration gate. Corrupt compressed data and partial
-binary slots are rejected. `server_net.loading_batch_precedes_world_and_retains_resource_indices` exercises a later
-connection against the retained resource endpoints. Additional server tests verify all 2,048 binary bytes survive and
-oversized display text shrinks without changing geometry, texture coordinates, or animation directives.
+The shared `net.loading_batch_registers_media_before_full_precache` test verifies that a partial chunk cannot
+publish the screen, initial model/image handles become available after complete assembly, later world media
+remains deferred, and only the final `precache` reply opens the registration gate. Other client tests reject
+corrupt/truncated/oversized payloads, missing chunks, and changed totals.
+`server_net.loading_batch_precedes_world_and_retains_resource_indices` exercises a later connection against the
+retained layout and resource endpoints. `make test-server-net` also covers complete text above the former 2 KiB
+limit, binary preservation over real UDP within the signon budget, and maximum-size loopback chunking.
 The WoW game test verifies that `PrepareMap` resolves and writes loading art before clearing/spawning the world.
+The version-4 change passed the 156-test core suite, 32-test server network suite, and 59-test WoW game suite,
+plus WC3/WoW/SC2 builds. A bounded Human02 launch with `-roc +vid_hidden 1 +com_frame_limit 100` reached
+`CL_SendBegin` and `G_ClientBegin`; this confirms registration and gameplay entry, not visual asset completeness.
 
 The September 9 configstring refactor was checked with `make test` (2,855 tests), builds of all three game
 binaries, bounded Human01/Human02 runs, Human02 → Human02 → Human01 reloads, and WoW Azeroth map entry. The Human02
 source layout measured 560 bytes (including its original opcode), and compressed to 303 bytes before removing that
 opcode. Both chapters retained their complete text and native artwork in early engine screenshots. Neither needed
-text shortening. The prior opcode-based transport is superseded by the binary-slot contract above.
+text shortening. Those measurements describe the historical binary-slot transport; the current transport uses
+`svc_loading_screen` as specified above.
 
 A bounded console-script run also exercised Human02 → Human02 → Human01, with 100 `wait` commands between map
 commands. All three reached `G_ClientBegin`, and early screenshots showed the correct chapter/sequence at zero

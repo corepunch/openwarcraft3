@@ -3022,6 +3022,7 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     UIFRAME empty = { 0 };
     BOOL old_init = scr_initialized;
     test_client_stubs_init(); scr_initialized = false;
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, sizeof(cls.netchan.message_buf));
     test_model_loads = test_tex_loads = 0;
     re.SetAssetScope = capture_asset_scope;
     re.LoadModel = capture_load_model; re.LoadTexture = capture_load_texture;
@@ -3029,25 +3030,28 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     snprintf(cl.configstrings[CS_ASSET_SCOPE], sizeof(PATHSTR), "Test.w3m");
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 1); MSG_WriteString(&msg, "Loading.mdx");
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_IMAGES + 1); MSG_WriteString(&msg, "Loading.blp");
-    BYTE packed[BZ_LOADING_SCREEN_SIZE] = { 0 }, layout[256];
+    BYTE packed[512] = { 0 }, layout[256];
     sizeBuf_t screen = make_msg_buf(layout, sizeof(layout));
     MSG_WriteByte(&screen, LAYER_LOADING);
     MSG_WriteDeltaUIFrame(&screen, &empty, &frame, true); MSG_WriteByte(&screen, 0);
     MSG_WriteLong(&screen, 0); MSG_WriteShort(&screen, 0);
     uLongf size = sizeof(packed);
     T_EQ(compress2(packed, &size, layout, screen.cursize, Z_BEST_COMPRESSION), Z_OK);
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1);
-    MSG_Write(&msg, packed, MAX_PATHLEN);
+    MSG_WriteByte(&msg, svc_loading_screen);
+    MSG_WriteLong(&msg, size); MSG_WriteLong(&msg, 0); MSG_WriteLong(&msg, size / 2);
+    MSG_Write(&msg, packed, size / 2);
     CL_ParseServerMessage(&msg);
     T_NULL(cl.layout[LAYER_LOADING]); T_EQ(test_model_loads, 0); T_EQ(test_tex_loads, 0);
+    T_NOT_NULL(cl.loading.data);
     SZ_Clear(&msg); msg.readcount = 0;
-    for (DWORD i = 1; i < BZ_LOADING_SCREEN_SLOTS; i++) {
-        MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1 + i);
-        MSG_Write(&msg, packed + i * MAX_PATHLEN, MAX_PATHLEN);
-        CL_ParseServerMessage(&msg);
-        SZ_Clear(&msg); msg.readcount = 0;
-    }
+    MSG_WriteByte(&msg, svc_loading_screen);
+    MSG_WriteLong(&msg, size); MSG_WriteLong(&msg, size / 2); MSG_WriteLong(&msg, size - size / 2);
+    MSG_Write(&msg, packed + size / 2, size - size / 2);
+    MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "baselines 25");
     CL_ParseServerMessage(&msg);
+    T_NULL(cl.loading.data); T_EQ(cl.loading.cursize, 0);
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&cls.netchan.message), "baselines 25");
     T_EQ(test_model_loads, 1); T_EQ(test_tex_loads, 1);
     T_NOT_NULL(cl.models[1]); T_NOT_NULL(cl.pics[1]); T_ASSERT(!cl.precache_ready);
     SZ_Clear(&msg); msg.readcount = 0;
@@ -3067,26 +3071,53 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     SCR_ClearLayoutLayer(LAYER_LOADING); scr_initialized = old_init;
 }
 
-/* Neither corrupt compressed data nor a partial final slot can publish a loading screen. */
-TEST(net, loading_configstrings_reject_corrupt_and_partial_payloads) {
-    BYTE buf[1024], packed[BZ_LOADING_SCREEN_SIZE] = { 0 };
+/* Corruption, truncation, oversized lengths, and missing chunks must never publish a screen. */
+TEST(net, loading_screen_rejects_invalid_payloads) {
+    BYTE buf[1024], packed[32] = { 0 };
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+    static const struct { DWORD total, pos, len, bytes; } cases[] = {
+        { 32, 0, 32, 32 },
+        { 32, 0, 32, 31 },
+        { MAX_MSGLEN + 1, 0, 1, 1 },
+        { 32, 0, 33, 32 },
+        { 32, 16, 16, 16 },
+        { 0, 0, 0, 0 },
+        { 32, 0, 0, 0 },
+        { 32, 0xffffffff, 1, 1 },
+    };
+    test_client_stubs_init();
+    FOR_LOOP(i, sizeof(cases) / sizeof(*cases)) {
+        SZ_Clear(&msg); msg.readcount = 0;
+        MSG_WriteByte(&msg, svc_loading_screen);
+        MSG_WriteLong(&msg, cases[i].total); MSG_WriteLong(&msg, cases[i].pos); MSG_WriteLong(&msg, cases[i].len);
+        MSG_Write(&msg, packed, cases[i].bytes);
+        CL_ParseServerMessage(&msg);
+        T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready); T_NULL(cl.loading.data);
+    }
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_loading_screen); MSG_WriteLong(&msg, 32);
+    CL_ParseServerMessage(&msg);
+    T_NULL(cl.layout[LAYER_LOADING]); T_NULL(cl.loading.data);
+}
+
+/* A continuation must match the initial allocation and the exact next offset. */
+TEST(net, loading_screen_rejects_chunk_gaps_and_changed_total) {
+    BYTE buf[64];
     sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
     test_client_stubs_init();
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1);
-    MSG_Write(&msg, packed, MAX_PATHLEN);
-    for (DWORD i = 1; i < BZ_LOADING_SCREEN_SLOTS; i++) {
-        MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1 + i);
-        MSG_Write(&msg, packed + i * MAX_PATHLEN, MAX_PATHLEN);
-        CL_ParseServerMessage(&msg);
+    FOR_LOOP(i, 2) {
         SZ_Clear(&msg); msg.readcount = 0;
+        MSG_WriteByte(&msg, svc_loading_screen);
+        MSG_WriteLong(&msg, 32); MSG_WriteLong(&msg, 0); MSG_WriteLong(&msg, 1); MSG_WriteByte(&msg, 0);
+        CL_ParseServerMessage(&msg);
+        T_NOT_NULL(cl.loading.data); T_EQ(cl.loading.cursize, 1);
+        SZ_Clear(&msg); msg.readcount = 0;
+        MSG_WriteByte(&msg, svc_loading_screen);
+        MSG_WriteLong(&msg, i ? 33 : 32); MSG_WriteLong(&msg, i ? 1 : 2);
+        MSG_WriteLong(&msg, 1); MSG_WriteByte(&msg, 0);
+        CL_ParseServerMessage(&msg);
+        T_NULL(cl.layout[LAYER_LOADING]); T_NULL(cl.loading.data); T_EQ(cl.loading.cursize, 0);
     }
-    CL_ParseServerMessage(&msg);
-    T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
-    SZ_Clear(&msg); msg.readcount = 0;
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN_LAST);
-    MSG_Write(&msg, packed, MAX_PATHLEN - 1);
-    CL_ParseServerMessage(&msg);
-    T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
 }
 
 /* Transport keepalives must not replace lobby presentation or stop parsing the next message. */

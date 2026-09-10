@@ -44,10 +44,10 @@ The WoW target reads files through the engine filesystem/archive layer. Keep tes
 ## Map Entry
 
 `Wow_PrepareMap` resolves the destination's Map.dbc/LoadingScreens.dbc background and title and writes the initial
-loading layout before WDT/ADT loading or entity spawning. The shared server packs it into the 512-byte
-`CS_LOADINGSCREEN1/2` pair and sends its image/font configstrings before those slots. Receiving the second slot
-registers the resources and presents immediately. The existing `svc_mirror "baselines"` transition after the full
-configstring table permits world registration. `UIWow_DrawLoadingScreenC` remains
+loading layout before WDT/ADT loading or entity spawning. The shared server retains its compressed layout and
+sends its image/font configstrings before `svc_loading_screen` chunks. Complete assembly registers the resources
+and presents immediately. The final `svc_mirror "precache"` after the full configstring and baseline pages permits
+world registration. `UIWow_DrawLoadingScreenC` remains
 an unused legacy menu helper. See the [shared loading lifecycle and WC3 investigation](../warcraft-3/loading-and-assets.md).
 
 The September 9 visual check also found two defects introduced with the initial-layout move (`df68693c1`):

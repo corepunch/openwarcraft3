@@ -32,8 +32,7 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
         value = "";
         len = 1;
     }
-    /* Reserving a C-string terminator would discard the last compressed byte of each binary loading slot. */
-    DWORD max = sizeof(sv.configstrings[index]) - (!BZ_IS_LOADING_CONFIGSTRING(index));
+    DWORD max = sizeof(sv.configstrings[index]) - 1;
     if (len > max) len = max;
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
@@ -43,7 +42,7 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
 
 /* Batch bounds must account for fixed binary slots as well as theme-decorated strings. */
 DWORD SV_ConfigStringWireSize(DWORD index) {
-    if (index == CS_STATUSBAR || BZ_IS_LOADING_CONFIGSTRING(index)) {
+    if (index == CS_STATUSBAR) {
         return 1 + 2 + sizeof(*sv.configstrings);
     }
     return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
@@ -52,7 +51,7 @@ DWORD SV_ConfigStringWireSize(DWORD index) {
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
-    if (i == CS_STATUSBAR || BZ_IS_LOADING_CONFIGSTRING(i)) {
+    if (i == CS_STATUSBAR) {
         MSG_Write(msg, sv.configstrings[i], sizeof(*sv.configstrings));
     } else {
         MSG_WriteString(msg, ge->GetThemeValue(sv.configstrings[i]));
