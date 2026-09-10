@@ -512,6 +512,7 @@ static void ai_move_walk(LPEDICT ent) {
 
 static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 
+/* Identify the ordinary walk move so spell approach orders can detect replacement. */
 BOOL move_is_active_order_walk(LPCEDICT ent) {
     return ent && ent->currentmove == &move_move_walk;
 }

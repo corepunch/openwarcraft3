@@ -929,7 +929,7 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     slkTestData_t *old;
     LPEDICT caster = make_hero(MAKEFOURCC('O','f','a','r'), 500, 300, 0, 0);
     LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
+    LPGAMECLIENT client;
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
     LPEDICT thinker;
     DWORD thinker_slot;
@@ -937,6 +937,8 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     LPCSTR button[] = { "button", "AOcl" };
     LPCSTR select_target[] = { "select", target_number };
 
+    /* make_hero resets edicts, so restore the player-slot client for commands. */
+    clent->client = client = &game.clients[0];
     old = G_SetSLKRows("AbilityData", rows);
     caster->data.UnitAbilities = &abilities;
     caster->s.player = client->ps.number;
@@ -945,7 +947,7 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     target->svflags |= SVF_MONSTER;
     target->targtype = TARG_GROUND;
     target->health.value = target->health.max_value = 500.0f;
-    ((LPMAPINFO)level.mapinfo)->players[caster->s.player].playerType = kPlayerTypeOrc;
+    ((LPMAPINFO)level.mapinfo)->players[caster->s.player].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[target->s.player].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     G_SelectEntity(client, caster);

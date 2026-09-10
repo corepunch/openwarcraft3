@@ -4,6 +4,13 @@
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
 
+typedef struct {
+    LPEDICT caster;
+    DWORD code, level;
+    spell_info_t const *spell;
+    LPEDICT target;
+} spellUnitTargetParams_t;
+
 /* ---- Unified Spell Pipeline ----
 
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
@@ -415,14 +422,14 @@ static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
 
 /* ---- Per-target-type unified callbacks ---- */
 
-static void spell_execute_unit_target(LPEDICT caster, DWORD code, DWORD level,
-                                      spell_info_t const *spell, LPEDICT target) {
-    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+/* Commit a validated unit-target spell at the point where its cast range is reached. */
+static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
 
-    spell_commit(caster, code, level);
-    if (spell->flags & SPELL_CHANNEL)
-        spell_begin_channel(caster, code);
-    spell->execute(caster, st, spell);
+    spell_commit(params->caster, params->code, params->level);
+    if (params->spell->flags & SPELL_CHANNEL)
+        spell_begin_channel(params->caster, params->code);
+    params->spell->execute(params->caster, st, params->spell);
 }
 
 /* Ranged target spells are accepted before the caster is in range. Warsmash's
@@ -479,11 +486,15 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
         return;
     }
 
+    spellUnitTargetParams_t params = {
+        .caster = caster, .code = code, .level = level, .spell = spell, .target = target
+    };
     unit_stand(caster);
-    spell_execute_unit_target(caster, code, level, spell, target);
+    spell_execute_unit_target(&params);
     G_FreeEdict(thinker);
 }
 
+/* Start the ordinary walk order used to bring an out-of-range spell target into range. */
 static BOOL spell_begin_unit_target_approach(LPEDICT caster, DWORD code, LPEDICT target) {
     LPEDICT thinker;
 
@@ -524,7 +535,10 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     if (!S_SpellTargetInRange(caster, target, range))
         return spell_begin_unit_target_approach(caster, code, target);
 
-    spell_execute_unit_target(caster, code, level, spell, target);
+    spellUnitTargetParams_t params = {
+        .caster = caster, .code = code, .level = level, .spell = spell, .target = target
+    };
+    spell_execute_unit_target(&params);
     return true;
 }
 
