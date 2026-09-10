@@ -1047,26 +1047,54 @@ static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
     return false;
 }
 
-CLIENTCOMMAND(InstantBuild) {
+static BOOL G_CheatInstantBuild(LPEDICT clent, LPCSTR value, LPCSTR usage) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     BOOL enabled;
 
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
-        return;
+        return false;
     }
-    if (!client) return;
-    if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
-                                       client->cheat_instant_build, &enabled)) {
-        G_CheatPrintf(clent, "WC3: usage: instantbuild [on|off]");
-        return;
+    if (!client) return false;
+    if (!G_ParseCheatToggle(value, client->cheat_instant_build, &enabled)) {
+        G_CheatPrintf(clent, "WC3: usage: %s [on|off]", usage);
+        return false;
     }
     client->cheat_instant_build = enabled;
     G_CheatPrintf(clent, "WC3: instant build %s for player %u",
             enabled ? "on" : "off", (unsigned)client->ps.number);
+    return true;
 }
 
-CLIENTCOMMAND(InstantKill) {
+static BOOL G_CheatInstantKill(LPEDICT clent, LPCSTR value) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    BOOL enabled;
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return false;
+    }
+    if (!client) return false;
+    if (!G_ParseCheatToggle(value, client->cheat_instant_kill, &enabled)) {
+        G_CheatPrintf(clent, "WC3: usage: instant kill [on|off]");
+        return false;
+    }
+    client->cheat_instant_kill = enabled;
+    G_CheatPrintf(clent, "WC3: instant kill %s for player %u",
+            enabled ? "on" : "off", (unsigned)client->ps.number);
+    return true;
+}
+
+/* Warcraft-style single-token alias retained for instant build. */
+CLIENTCOMMAND(InstantBuild) {
+    if (argc > 2) {
+        G_CheatPrintf(clent, "WC3: usage: warpten [on|off]");
+        return;
+    }
+    G_CheatInstantBuild(clent, argc == 2 ? argv[1] : NULL, "warpten");
+}
+
+CLIENTCOMMAND(Instant) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     BOOL enabled;
 
@@ -1075,14 +1103,31 @@ CLIENTCOMMAND(InstantKill) {
         return;
     }
     if (!client) return;
-    if (argc > 2 || !G_ParseCheatToggle(argc >= 2 ? argv[1] : NULL,
-                                       client->cheat_instant_kill, &enabled)) {
-        G_CheatPrintf(clent, "WC3: usage: instantkill [on|off]");
+    if (argc < 2 || argc > 3) {
+        G_CheatPrintf(clent, "WC3: usage: instant <build|kill|all> [on|off]");
         return;
     }
-    client->cheat_instant_kill = enabled;
-    G_CheatPrintf(clent, "WC3: instant kill %s for player %u",
-            enabled ? "on" : "off", (unsigned)client->ps.number);
+    if (!strcasecmp(argv[1], "build")) {
+        G_CheatInstantBuild(clent, argc == 3 ? argv[2] : NULL, "instant build");
+        return;
+    }
+    if (!strcasecmp(argv[1], "kill")) {
+        G_CheatInstantKill(clent, argc == 3 ? argv[2] : NULL);
+        return;
+    }
+    if (!strcasecmp(argv[1], "all")) {
+        BOOL const all_enabled = client->cheat_instant_build && client->cheat_instant_kill;
+        if (!G_ParseCheatToggle(argc == 3 ? argv[2] : NULL, all_enabled, &enabled)) {
+            G_CheatPrintf(clent, "WC3: usage: instant all [on|off]");
+            return;
+        }
+        client->cheat_instant_build = enabled;
+        client->cheat_instant_kill = enabled;
+        G_CheatPrintf(clent, "WC3: instant all %s for player %u",
+                enabled ? "on" : "off", (unsigned)client->ps.number);
+        return;
+    }
+    G_CheatPrintf(clent, "WC3: usage: instant <build|kill|all> [on|off]");
 }
 
 static void G_CheatGameResult(LPEDICT clent, DWORD game_result) {
@@ -2196,9 +2241,8 @@ clientCommand_t clientCommands[] = {
     { "lose", CMD_Lose },
     { "day", CMD_Day },
     { "night", CMD_Night },
-    { "instantbuild", CMD_InstantBuild },
+    { "instant", CMD_Instant },
     { "warpten", CMD_InstantBuild },
-    { "instantkill", CMD_InstantKill },
     { "button", CMD_Button },
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
