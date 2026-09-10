@@ -323,7 +323,6 @@ typedef struct {
     DWORD sector_size;
     BYTE *sector_buffer;
     BOOL write_mode;
-    BOOL write_legacy;
     DWORD write_hash_table_size;
     struct mpq_write_entry *write_entries;
     DWORD write_count;
@@ -768,17 +767,9 @@ static BOOL WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
     return FALSE;
 }
 
-static void WriterPutLE32(BYTE *dst, DWORD value) {
-    dst[0] = (BYTE)value;
-    dst[1] = (BYTE)(value >> 8);
-    dst[2] = (BYTE)(value >> 16);
-    dst[3] = (BYTE)(value >> 24);
-}
-
-static BOOL WriterCompressData(MPQ_ARCHIVE *mpq, const BYTE *data, DWORD size, BYTE **out_data, DWORD *out_size, DWORD *out_flags)
+static BOOL WriterCompressData(const BYTE *data, DWORD size, BYTE **out_data, DWORD *out_size, DWORD *out_flags)
 {
-    BYTE *compressed, *tmp;
-    DWORD sectors, table_size, pos, i;
+    BYTE *compressed;
     uLongf compressed_bound;
 
     if (!out_data || !out_size || !out_flags) {
@@ -789,56 +780,10 @@ static BOOL WriterCompressData(MPQ_ARCHIVE *mpq, const BYTE *data, DWORD size, B
     *out_size = size;
     *out_flags = MPQ_FILE_EXISTS;
 
-    if (!mpq->write_legacy)
-        goto single_unit;
-
-    if (!data || size == 0)
-        return TRUE;
-
-    sectors = (size + MPQ_SECTOR_SIZE_DEFAULT - 1) / MPQ_SECTOR_SIZE_DEFAULT;
-    table_size = (sectors + 1) * sizeof(DWORD);
-    compressed_bound = table_size;
-    for (i = 0; i < sectors; i++) {
-        DWORD chunk = MIN(MPQ_SECTOR_SIZE_DEFAULT, size - i * MPQ_SECTOR_SIZE_DEFAULT);
-        compressed_bound += (uLongf)compressBound(chunk) + 1;
-    }
-
-    compressed = (BYTE *)malloc(compressed_bound);
-    if (!compressed)
-        return FALSE;
-    tmp = (BYTE *)malloc(compressBound(MPQ_SECTOR_SIZE_DEFAULT));
-    if (!tmp) {
-        free(compressed);
-        return FALSE;
-    }
-
-    pos = table_size;
-    for (i = 0; i < sectors; i++) {
-        DWORD chunk = MIN(MPQ_SECTOR_SIZE_DEFAULT, size - i * MPQ_SECTOR_SIZE_DEFAULT);
-        uLongf chunk_size = compressBound(chunk);
-        WriterPutLE32(compressed + i * sizeof(DWORD), pos);
-        if (compress2(tmp, &chunk_size, data + i * MPQ_SECTOR_SIZE_DEFAULT, chunk, Z_DEFAULT_COMPRESSION) == Z_OK &&
-            chunk_size + 1 < chunk) {
-            compressed[pos++] = MPQ_COMPRESSION_ZLIB;
-            memcpy(compressed + pos, tmp, chunk_size);
-            pos += (DWORD)chunk_size;
-        } else {
-            memcpy(compressed + pos, data + i * MPQ_SECTOR_SIZE_DEFAULT, chunk);
-            pos += chunk;
-        }
-    }
-    WriterPutLE32(compressed + sectors * sizeof(DWORD), pos);
-    free(tmp);
-    if (pos >= size) {
-        free(compressed);
+    if (!data || size == 0) {
         return TRUE;
     }
-    *out_data = compressed;
-    *out_size = pos;
-    *out_flags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS;
-    return TRUE;
 
-single_unit:
     compressed_bound = compressBound(size);
     if (compressed_bound + 1 > 0xFFFFFFFFu) {
         return TRUE;
@@ -884,7 +829,7 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
         return FALSE;
     }
 
-    if (!WriterCompressData(mpq, data, size, &compressed, &write_size, &flags)) {
+    if (!WriterCompressData(data, size, &compressed, &write_size, &flags)) {
         return FALSE;
     }
     if (compressed) {
@@ -953,7 +898,7 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     }
     block_size += (DWORD)strlen("(listfile)") + 1;
 
-    if (!WriterHasEntry(mpq, "(listfile)")) {
+    {
         BYTE *listfile_data = (BYTE *)malloc(block_size ? block_size : 1);
         if (!listfile_data) {
             goto done;
@@ -1315,6 +1260,7 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
 
     (void)priority;
     (void)flags;
+
     if (!filename || !archive) {
         return FALSE;
     }
@@ -1388,7 +1334,6 @@ BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *ar
 
     mpq->fp = fp;
     mpq->write_mode = TRUE;
-    mpq->write_legacy = flags & MPQ_CREATE_LEGACY;
     mpq->write_hash_table_size = NextPowerOfTwo(MAX(maxFiles * 2, 16));
     strncpy(mpq->filename, filename, sizeof(mpq->filename) - 1);
     *archive = (HANDLE)mpq;

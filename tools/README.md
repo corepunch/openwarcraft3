@@ -25,7 +25,6 @@ Commands:
 - `grep <text> [path]` search file contents for a string (case-insensitive, skips binary files, prints `file:line:content`)
 - `create [max-files]` create a new archive
 - `pack <src> <archive-file> [<src> <archive-file> ...]` add files to an archive
-- `pack-legacy <src> <archive-file> [<src> <archive-file> ...]` add sector-compressed files for legacy Warcraft III clients
 - `wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>` rebuild vanilla WoW runtime MPQ archives from installer tomes; `-strip-data-prefix` writes manifest containers such as `Data\terrain.MPQ` directly as `<output-dir>/terrain.MPQ`
 
 Examples:
