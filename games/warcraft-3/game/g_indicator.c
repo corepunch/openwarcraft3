@@ -1,5 +1,6 @@
 #include "g_local.h"
 
+/* Serialize one indicator to a target client's temporary-entity stream. */
 static void G_SendWidgetIndicatorClient(LPGAMECLIENT client, LPCEDICT widget, COLOR32 color) {
     LPEDICT clent;
     DWORD packed;

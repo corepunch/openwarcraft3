@@ -1520,8 +1520,12 @@ DWORD SetDoodadAnimation(LPJASS j) {
     BOOL nearestOnly = jass_checkboolean(j, 5);
     LPCSTR animName = jass_checkstring(j, 6);
     BOOL animRandom = jass_checkboolean(j, 7);
+    doodadAnimationRadiusParams_t const params = {
+        .x = x, .y = y, .radius = radius, .doodad_id = (DWORD)doodadID,
+        .nearest_only = nearestOnly, .anim_name = animName, .random_animation = animRandom
+    };
 
-    G_SetDoodadAnimationRadius(x, y, radius, (DWORD)doodadID, nearestOnly, animName, animRandom);
+    G_SetDoodadAnimationRadius(&params);
     return 0;
 }
 DWORD SetDoodadAnimationRect(LPJASS j) {

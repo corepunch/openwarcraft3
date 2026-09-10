@@ -271,6 +271,7 @@ LPEDICT G_Spawn(void) {
     return edict;
 }
 
+/* Confirm a candidate variation resolves through the authoritative VFS. */
 static BOOL SP_DoodadModelExists(LPCSTR filename) {
     DWORD size = 0;
     HANDLE data;
@@ -282,6 +283,7 @@ static BOOL SP_DoodadModelExists(LPCSTR filename) {
     return true;
 }
 
+/* Resolve an authored doodad model and only use a variation file that exists. */
 static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
                                    LPSTR out, size_t out_size) {
     PATHSTR stem = { 0 };
@@ -305,7 +307,15 @@ static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
 
     if (row->numVar > 1) {
         DWORD const max_variation = (DWORD)row->numVar - 1;
-        snprintf(varied, sizeof(varied), "%s%u.mdx", stem, MIN(variation, max_variation));
+        char suffix[16];
+        snprintf(suffix, sizeof(suffix), "%u.mdx", MIN(variation, max_variation));
+        if (strlen(stem) + strlen(suffix) >= sizeof(varied)) {
+            fprintf(stderr, "WC3 doodad model path is too long for '%.4s': %s%s\n",
+                    (LPCSTR)&row->id, stem, suffix);
+            return;
+        }
+        strlcpy(varied, stem, sizeof(varied));
+        strlcat(varied, suffix, sizeof(varied));
         if (SP_DoodadModelExists(varied)) {
             strlcpy(out, varied, out_size);
             return;

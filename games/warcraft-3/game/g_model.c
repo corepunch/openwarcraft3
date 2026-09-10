@@ -481,6 +481,7 @@ LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCS
     return G_GetAnimation(modelindex, animname);
 }
 
+/* Select an authored animation variant while preserving the ordinary selector's fallback. */
 LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize) {
     g_cmodel_t *model = GetModel(modelindex);
     LPCANIMATION selected;

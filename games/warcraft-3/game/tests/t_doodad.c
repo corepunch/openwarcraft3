@@ -37,8 +37,12 @@ TEST(wc3_doodad, rect_special_hide_only_changes_matching_doodads) {
 TEST(wc3_doodad, radius_nearest_only_changes_one_doodad) {
     LPEDICT near = make_test_doodad(32, 0);
     LPEDICT far = make_test_doodad(96, 0);
+    doodadAnimationRadiusParams_t const params = {
+        .x = 0, .y = 0, .radius = 128, .doodad_id = doodad_row.id,
+        .nearest_only = true, .anim_name = "hide", .random_animation = false
+    };
 
-    T_EQ(G_SetDoodadAnimationRadius(0, 0, 128, doodad_row.id, true, "hide", false), 1);
+    T_EQ(G_SetDoodadAnimationRadius(&params), 1);
     T_ASSERT(near->s.renderfx & RF_HIDDEN);
     T_ASSERT(!(far->s.renderfx & RF_HIDDEN));
 }

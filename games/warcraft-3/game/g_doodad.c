@@ -10,13 +10,15 @@
 #include "g_local.h"
 #include <float.h>
 
-static umove_t doodad_scripted_move = { "stand", NULL, G_DoodadAnimationEnd };
+static umove_t doodad_scripted_move = { .animation = "stand", .think = NULL, .endfunc = G_DoodadAnimationEnd };
 
+/* Identify static scenery that has an authored doodad row for scripted animation. */
 BOOL G_IsDoodad(LPCEDICT ent) {
     return ent && ent->inuse && ent->class_id && (ent->svflags & SVF_STATIC_SCENERY) &&
         ent->data.Doodads && ent->data.Doodads->id == ent->class_id;
 }
 
+/* Hold a non-looping scripted doodad animation on its authored final frame. */
 void G_DoodadAnimationEnd(LPEDICT ent) {
     LPCANIMATION anim;
 
@@ -31,6 +33,7 @@ void G_DoodadAnimationEnd(LPEDICT ent) {
     ent->aiflags |= AI_HOLD_FRAME;
 }
 
+/* Apply a named scripted animation without changing the doodad footprint. */
 static BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation) {
     LPCANIMATION anim;
 
@@ -60,35 +63,36 @@ static BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_anim
     return true;
 }
 
-DWORD G_SetDoodadAnimationRadius(FLOAT x, FLOAT y, FLOAT radius, DWORD doodad_id,
-                                 BOOL nearest_only, LPCSTR anim_name, BOOL random_animation) {
+/* Apply a scripted doodad animation to matching scenery in a circular area. */
+DWORD G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params) {
     LPEDICT nearest = NULL;
     FLOAT nearest_distance_sq = FLT_MAX;
     DWORD changed = 0;
 
-    if (radius < 0.0f || !doodad_id || !anim_name || !*anim_name) return 0;
+    if (!params || params->radius < 0.0f || !params->doodad_id || !params->anim_name || !*params->anim_name)
+        return 0;
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = g_edicts + i;
         FLOAT dx, dy, distance_sq;
 
-        if (!G_IsDoodad(ent) || ent->class_id != doodad_id) continue;
-        dx = ent->s.origin.x - x;
-        dy = ent->s.origin.y - y;
+        if (!G_IsDoodad(ent) || ent->class_id != params->doodad_id) continue;
+        dx = ent->s.origin.x - params->x;
+        dy = ent->s.origin.y - params->y;
         distance_sq = dx * dx + dy * dy;
-        if (distance_sq > radius * radius) continue;
+        if (distance_sq > params->radius * params->radius) continue;
 
-        if (nearest_only) {
+        if (params->nearest_only) {
             if (!nearest || distance_sq < nearest_distance_sq) {
                 nearest = ent;
                 nearest_distance_sq = distance_sq;
             }
             continue;
         }
-        if (G_DoodadSetAnimation(ent, anim_name, random_animation)) changed++;
+        if (G_DoodadSetAnimation(ent, params->anim_name, params->random_animation)) changed++;
     }
 
-    if (nearest && G_DoodadSetAnimation(nearest, anim_name, random_animation)) changed++;
+    if (nearest && G_DoodadSetAnimation(nearest, params->anim_name, params->random_animation)) changed++;
     return changed;
 }
 

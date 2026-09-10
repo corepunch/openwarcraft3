@@ -2172,8 +2172,13 @@ void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
 
 BOOL G_IsDoodad(LPCEDICT ent);
 void G_DoodadAnimationEnd(LPEDICT ent);
-DWORD G_SetDoodadAnimationRadius(FLOAT x, FLOAT y, FLOAT radius, DWORD doodad_id,
-                                 BOOL nearest_only, LPCSTR anim_name, BOOL random_animation);
+typedef struct {
+    FLOAT x, y, radius;
+    DWORD doodad_id;
+    BOOL nearest_only, random_animation;
+    LPCSTR anim_name;
+} doodadAnimationRadiusParams_t;
+DWORD G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params);
 DWORD G_SetDoodadAnimationRect(LPCBOX2 rect, DWORD doodad_id,
                                LPCSTR anim_name, BOOL random_animation);
 void tree_die(LPEDICT ent, LPEDICT attacker);
