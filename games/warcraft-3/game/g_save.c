@@ -404,6 +404,7 @@ field_t edict_fields[] = {
     F(edict_s, ground_next, F_EDICT, 0, FIELD_NONE),
     F(edict_s, movement, F_STRUCT, 1, movement_fields),
     F(edict_s, goalentity, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, item_drop, F_EDICT, 0, FIELD_NONE),
     F(edict_s, combatentity, F_EDICT, 0, FIELD_NONE),
     F(edict_s, secondarygoal, F_EDICT, 0, FIELD_NONE),
     F(edict_s, owner, F_EDICT, 0, FIELD_NONE),

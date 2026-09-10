@@ -806,6 +806,60 @@ TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
+TEST(wc3_items, point_drop_waits_for_simulation_tick) {
+    setup_test_world();
+    LPEDICT unit = make_item_test_inventory_unit(0, 0);
+    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    VECTOR2 destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
+
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
+    T_ASSERT(unit->inventory[0] == item);
+    T_ASSERT(!item->item.in_world);
+
+    unit->currentmove->think(unit);
+
+    T_NULL(unit->inventory[0]);
+    T_ASSERT(item->item.in_world);
+    T_FEQ(item->s.origin2.x, destination.x, 0.001f);
+    T_FEQ(item->s.origin2.y, destination.y, 0.001f);
+    T_NULL(unit->item_drop);
+    T_NULL(unit->goalentity);
+}
+
+TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
+    setup_test_world();
+    LPEDICT unit = make_item_test_inventory_unit(0, 0);
+    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    VECTOR2 destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
+    unit->currentmove->think(unit);
+
+    T_ASSERT(unit->inventory[0] == item);
+    T_ASSERT(!item->item.in_world);
+    T_ASSERT(unit->s.origin2.x > 0.0f);
+    T_ASSERT(unit->item_drop == item);
+    T_NOT_NULL(unit->goalentity);
+}
+
+TEST(wc3_items, point_drop_revalidates_carried_item) {
+    setup_test_world();
+    LPEDICT unit = make_item_test_inventory_unit(0, 0);
+    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    VECTOR2 destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
+    item->item.carrier = NULL;
+    unit->currentmove->think(unit);
+
+    T_NULL(unit->item_drop);
+    T_NULL(unit->goalentity);
+    T_STREQ(unit->currentmove->animation, "stand");
+}
+
 TEST(wc3_items, removing_carried_item_clears_slot) {
     setup_test_world();
     LPEDICT unit = make_item_test_inventory_unit(0, 0);

@@ -680,6 +680,13 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         move->ability != &a_militia) {
         S_CancelMilitiaPairing(self);
     }
+    /* A point-drop keeps the exact carried item separately from its waypoint.
+     * Replacing that behavior must abandon the pending drop just like replacing
+     * any other unit order; otherwise a stale item pointer would survive while
+     * an unrelated move/attack is active. */
+    if (self->item_drop && self->currentmove && self->currentmove != move) {
+        self->item_drop = NULL;
+    }
     /* A replaced pre-spawn Build order used to leave build_project set after
      * Stop/Move, so later code could mistake an idle worker for an active build. */
     if (self->currentmove && self->currentmove->ability == &a_build &&

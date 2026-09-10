@@ -1171,6 +1171,55 @@ CLIENTCOMMAND(CancelTrain) {
     Get_Commands_f(clent);
 }
 
+
+static BOOL G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
+    (void)clent;
+    (void)target;
+    /* Warsmash uses an entity-target drop for allied item handoff. OpenRealm
+     * does not yet have that transfer behavior, but keep the drag target mode
+     * authoritative instead of letting a unit click fall through to selection. */
+    return false;
+}
+
+static BOOL G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+    LPEDICT unit;
+    LPEDICT item;
+
+    if (!client || !location) return false;
+    unit = G_GetMainSelectedUnit(client);
+    item = client->menu.dragged_item;
+    if (!G_UnitCanControl(client, unit) || !G_IsItem(item) || item->item.carrier != unit)
+        return false;
+    if (!G_OrderDropItemAt(unit, item, location)) return false;
+    G_SendPointConfirmation(clent, location, false);
+    return true;
+}
+
+CLIENTCOMMAND(ItemDrag) {
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    LPEDICT item;
+    LONG slot;
+
+    if (!clent || !(client = clent->client) || argc < 2) return;
+    unit = G_GetMainSelectedUnit(client);
+    slot = atoi(argv[1]);
+    if (!G_UnitCanControl(client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) return;
+    item = unit->inventory[slot];
+    if (!G_IsItem(item) || item->item.carrier != unit || item->item.in_world) return;
+
+    /* Right-clicking an occupied inventory button enters the same server-owned
+     * target-mode lifecycle used by WC3 point abilities. A following left-click
+     * on terrain therefore submits a point drop; right-click/CmdCancel clears
+     * it through the normal target-mode cancellation path. */
+    memset(&client->menu, 0, sizeof(client->menu));
+    client->menu.dragged_item = item;
+    client->menu.on_entity_selected = G_ItemDragSelectEntity;
+    client->menu.on_location_selected = G_ItemDragSelectLocation;
+    UI_AddCancelButton(clent);
+}
+
 CLIENTCOMMAND(DropItem) {
     LPEDICT unit;
     LONG slot;
@@ -2079,6 +2128,7 @@ clientCommand_t clientCommands[] = {
     { "autocast", CMD_Autocast },
     { "research", CMD_Research },
     { "inventory", CMD_Inventory },
+    { "itemdrag", CMD_ItemDrag },
     { "cargounload", CMD_CargoUnload },
     { "dropitem", CMD_DropItem },
     { "select", CMD_Select },

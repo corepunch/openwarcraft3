@@ -28,6 +28,7 @@
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
 #define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
+#define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
@@ -115,6 +116,7 @@ typedef struct {
     BOOL supports_order_queue; /* active target mode accepts Shift chaining */
     BOOL order_queued;         /* transient modifier for the current target callback */
     BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
+    LPEDICT dragged_item;      /* transient inventory item carried by the cursor for a drop order */
 } menu_t;
 typedef menu_t clientMenu_s;
 
@@ -1020,6 +1022,7 @@ struct edict_s {
     MOVETYPE movetype;
     TARGTYPE targtype;
     LPEDICT goalentity;
+    LPEDICT item_drop; /* inventory item owned by an active point-drop behavior */
     LPEDICT combatentity;
     LPEDICT secondarygoal;
     LPEDICT owner;
@@ -2138,6 +2141,7 @@ BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
 BOOL G_DropItem(LPEDICT unit, DWORD slot);
+BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position);
 void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
 DWORD G_ItemTypeFromClass(LPCSTR cls);
