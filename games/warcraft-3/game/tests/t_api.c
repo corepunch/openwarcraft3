@@ -2741,6 +2741,25 @@ TEST(wc3_api, unit_out_of_range) {
     T_ASSERT(!(dist <= 4.0f));
 }
 
+TEST(wc3_api, killunit_runs_normal_unit_death_transition) {
+    LPEDICT victim = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call KillUnit(u)\n"
+        "endfunction"));
+
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) victim = &g_edicts[i];
+    T_NOT_NULL(victim);
+    T_FEQ(victim->health.value, 0.0f, 0.001f);
+    T_ASSERT(victim->svflags & SVF_DEADMONSTER);
+    T_ASSERT(victim->s.flags & EF_NOT_SELECTABLE);
+    T_NOT_NULL(victim->currentmove);
+    T_STREQ(victim->currentmove->animation, "death");
+}
+
 TEST(wc3_api, player_unit_counts_support_campaign_peon_goals) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

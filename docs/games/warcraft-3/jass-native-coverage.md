@@ -64,6 +64,10 @@ Natural creep sleep now consumes the authored `UnitData.canSleep` flag and imple
 `UnitIsSleeping`, and `UnitWakeUp` against a natural-sleep state distinct from the Dreadlord `AUsl`/`BUsL` status.
 `UnitCanSleepPerm` recognizes `Sleep Always` (`Asla`), while `UnitAddSleepPerm` remains a placeholder until Asla's
 ability-owned `Sleep Once` / player-slot semantics are modeled. See [Neutral Creep Sleep](creep-sleep.md).
+`KillUnit` must use the normal unit-death transition rather than only writing life to zero. The transition selects the
+model's `Death` sequence, publishes unit/player death events, clears orders and selection, updates pathing/FOW state,
+and starts the corpse/decay lifecycle. Bypassing `unit_die()` therefore leaves unit death events, presentation,
+and gameplay cleanup inconsistent with the native contract.
 
 Known examples include:
 
