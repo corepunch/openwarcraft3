@@ -8,7 +8,7 @@ This documents the repeatable retail-reference workflow used for the
 
 1. Extract a copy of the map into `build/retail-camera-trace/`.
 2. Edit only the copied `war3map.j`.
-3. Add a passive JASS sampler around the existing cinematic.
+3. Add passive JASS snapshots around important cinematic events.
 4. Repack the copied map as a legacy Warcraft III map.
 5. Launch that copied map directly in retail.
 6. Copy `CAMTRACE` messages from the game and parse them with
@@ -95,6 +95,11 @@ globals
 endglobals
 
 function CameraTraceSnapshot takes string label returns nothing
+    if not udg_CameraTraceEnabled then
+        return
+    endif
+    set udg_CameraTraceSample = udg_CameraTraceSample + 1
+    set udg_CameraTraceTime = TimerGetElapsed(udg_CameraTraceTimer)
     call BJDebugMsg("CAMTRACE n=" + I2S(udg_CameraTraceSample) + " t=" + R2S(udg_CameraTraceTime) + " label=" + label +
         " tx=" + R2S(GetCameraTargetPositionX()) + " ty=" + R2S(GetCameraTargetPositionY()) + " tz=" + R2S(GetCameraTargetPositionZ()) +
         " ex=" + R2S(GetCameraEyePositionX()) + " ey=" + R2S(GetCameraEyePositionY()) + " ez=" + R2S(GetCameraEyePositionZ()) +
@@ -104,24 +109,13 @@ function CameraTraceSnapshot takes string label returns nothing
         " farz=" + R2S(GetCameraField(CAMERA_FIELD_FARZ)))
 endfunction
 
-function CameraTraceTick takes nothing returns nothing
-    if not udg_CameraTraceEnabled then
-        return
-    endif
-    set udg_CameraTraceSample = udg_CameraTraceSample + 1
-    set udg_CameraTraceTime = udg_CameraTraceTime + 0.25
-    call CameraTraceSnapshot("periodic")
-endfunction
-
 function CameraTraceStart takes nothing returns nothing
-    set udg_CameraTraceEnabled = true
     set udg_CameraTraceSample = 0
     set udg_CameraTraceTime = 0.0
-    if udg_CameraTraceTimer == null then
-        set udg_CameraTraceTimer = CreateTimer()
-    endif
+    set udg_CameraTraceEnabled = true
+    set udg_CameraTraceTimer = CreateTimer()
+    call TimerStart(udg_CameraTraceTimer, 3600.00, false, null)
     call CameraTraceSnapshot("start")
-    call TimerStart(udg_CameraTraceTimer, 0.25, true, function CameraTraceTick)
 endfunction
 
 function CameraTraceStop takes nothing returns nothing
@@ -130,25 +124,25 @@ function CameraTraceStop takes nothing returns nothing
     endif
     call CameraTraceSnapshot("stop")
     set udg_CameraTraceEnabled = false
-    if udg_CameraTraceTimer != null then
-        call PauseTimer(udg_CameraTraceTimer)
-    endif
+    call PauseTimer(udg_CameraTraceTimer)
 endfunction
 ```
 
-Use `0.05` in both places for a fine-grained transition trace. The elapsed
-time is an accumulated sampler time, not a claim about wall-clock precision.
+The timer is used only as an elapsed-time clock; it does not invoke a periodic
+callback. Every snapshot increments the sample number and records the elapsed
+time at the named event.
 
 The copied script added three helpers:
 
 - `CameraTraceSnapshot(label)` prints one machine-readable line containing the
   target XYZ, eye XYZ, distance, angle of attack, rotation, FOV, roll, Z offset,
   and far Z.
-- `CameraTraceStart()` creates a timer and samples the local camera.
-- `CameraTraceStop()` destroys the timer.
+- `CameraTraceStart()` creates an elapsed-time clock and samples the local camera.
+- `CameraTraceStop()` records the final state and pauses the clock.
 
-The sampler was started immediately before the existing opening cinematic and
-stopped after the existing Scene 1 sequence. It did not change camera calls,
+The trace records the cinematic start, the state before and after `DummyStart`,
+the states immediately before and after the `TowerHigh` and `TowerLow`
+applications, and the Scene 1 end/skip paths. It does not change camera calls,
 waits, transmissions, units, terrain, fog, game speed, or trigger order.
 
 `BJDebugMsg` was the only initially reliable output channel. Warcraft JASS has
@@ -214,20 +208,20 @@ the packer/package is the problem, not JASS instrumentation.
 
 ## Reducing output noise
 
-The original 0.05-second timer emits 20 samples per second. Each sample has
-many fields, so it quickly fills the debug message area and wraps on screen.
-Use one of these modes depending on the question being answered:
+The default trace is event-only, so it avoids filling the debug message area
+with repeated identical states. Use one of these modes depending on the
+question being answered:
 
 | Mode | Sampling | Use |
 | --- | ---: | --- |
 | Transition | snapshots immediately before, during, and after a camera call | destination/start-state bugs |
-| Normal | 0.25 s | ordinary cinematic comparison |
-| Fine | 0.05 s | short interpolation or angle-wrap investigations |
-| Event-only | no periodic timer | settled camera values and trigger ordering |
+| Event-only | named events | settled camera values and trigger ordering |
+| Fine | 0.05 s timer | short interpolation or angle-wrap investigations |
 
-For normal comparison, change the copied script's timer period from `0.05` to
-`0.25`; do not change the cinematic's authored waits or camera durations. For
-the least spam, keep `CameraTraceSnapshot()` but call it only at named points:
+For a transition investigation, temporarily add a timer callback to the copied
+script; do not change the cinematic's authored waits or camera durations. For
+event-only tracing, keep `CameraTraceSnapshot()` and call it only at named
+points:
 
 ```jass
 call CameraTraceSnapshot("before-tower-high")
