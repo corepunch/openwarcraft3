@@ -94,6 +94,10 @@ This is separate from the JASS-level ESC skip mechanism.
 
 ## Debugging
 
+For the complete retail-map instrumentation, legacy repacking workflow, Wine
+launch command, failure modes, and low-noise sampling options, see [Retail
+Warcraft III camera tracing](retail-camera-tracing.md).
+
 ### Console Commands
 - `skip_cutscene 1` — fast-forward all cinematic timing
 - `skip_cutscene 0` — restore normal timing
