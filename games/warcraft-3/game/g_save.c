@@ -379,6 +379,7 @@ field_t edict_fields[] = {
     F(edict_s, variation, F_INT),
     F(edict_s, build_project, F_INT),
     F(edict_s, spawn_time, F_INT),
+    F(edict_s, summon_ability, F_INT),
     F(edict_s, harvested_lumber, F_INT),
     F(edict_s, harvested_gold, F_INT),
     F(edict_s, heatmap2, F_INT),

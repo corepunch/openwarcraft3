@@ -129,6 +129,14 @@ Spell command dispatch has a similar rawcode boundary: a WC3 FourCC held in a
 `LPCSTR`. The latter reads beyond the four rawcode bytes and made a command such
 as Holy Light (`AHhb`) fail or succeed depending on unrelated stack contents.
 
+## Farseer Ability Notes
+
+The uploaded Warsmash reference implements `AOcl` Chain Lightning and `AOsf` Feral Spirit, but does not register implementations for `AOfs` Far Sight or `AOeq` Earthquake. OpenRealm therefore treats the latter two as provisional/data-derived behavior rather than claiming Warsmash parity.
+
+Chain Lightning reads damage from Data A, target count from Data B, per-jump damage reduction from Data C, and jump radius from Area. OpenRealm applies target art for each struck unit and selects each subsequent unvisited valid target from the candidates in range rather than always taking entity iteration order. Dedicated Warcraft lightning rendering and Warsmash's 0.25-second inter-jump timing remain gaps.
+
+Feral Spirit reads its summoned unit from UnitID, count from Data B, lifetime from the normal duration field, and spawn distance from Area. Recasting kills surviving summons created by the caster's previous `AOsf` cast, then creates the new summons at the point in front of the caster and requests SpecialArt on each summon. Summons retain their source ability rawcode so replacement does not accidentally kill unrelated summons of the same unit type.
+
 ## Known Gaps
 
 The following are deliberately outside this implementation slice:

@@ -205,33 +205,35 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     S_SpellDamage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
 }
 
-static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell, FLOAT scale) {
+static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell, FLOAT scale, BOOL random_jumps) {
     DWORD level = S_SpellLevel(caster, spell->code), hits = (DWORD)S_SpellData(spell->code, level, 2);
     FLOAT damage = S_SpellData(spell->code, level, 1);
     LPEDICT current = st.entity, visited[32] = {0};
     DWORD nvisited = 0;
     FOR_LOOP(i, MIN(hits, 32)) {
-        LPEDICT next = NULL;
+        LPEDICT candidates[MAX_GROUP_SIZE];
+        DWORD candidate_count = 0;
         if (!current) break;
-        S_SpellDamage(current, caster, (int)MAX(1.0f, damage)); visited[nvisited++] = current; damage *= scale;
+        S_SpellDamage(current, caster, (int)MAX(1.0f, damage));
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, current, NULL, true);
+        visited[nvisited++] = current; damage *= scale;
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                       Vector2_distance(&target->s.origin2, &current->s.origin2) <= S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level)) {
             BOOL seen = false;
             FOR_LOOP(j, nvisited) seen |= target == visited[j];
-            if (seen) continue;
-            next = target; break;
+            if (!seen && candidate_count < MAX_GROUP_SIZE) candidates[candidate_count++] = target;
         }
-        current = next;
+        current = candidate_count ? candidates[random_jumps ? rand() % candidate_count : 0] : NULL;
     }
 }
 
 static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    bounce_execute(caster, st, spell, 1.0f - S_SpellData(spell->code, level, 3));
+    bounce_execute(caster, st, spell, 1.0f - S_SpellData(spell->code, level, 3), true);
 }
 
 static void forked_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
-    bounce_execute(caster, st, spell, 1.0f);
+    bounce_execute(caster, st, spell, 1.0f, false);
 }
 
 static void animate_dead_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {

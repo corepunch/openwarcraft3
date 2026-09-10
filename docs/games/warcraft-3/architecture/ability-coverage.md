@@ -136,7 +136,7 @@ generic `Button` command path rather than by a registered ability code.
 | `AHtb` | Thunder Bolt | Partial | Target selection, projectile, damage, stun, range, mana, cooldown, and target masks exist. Needs better cast animation timing. |
 | `ANfb` | Firebolt via Thunder Bolt type | Partial | Shares Thunder Bolt implementation with Fire Bolt data/art. Needs better cast animation timing. |
 | `Apxf` | Phoenix Fire | Stub | Registered passive stub. Needs autocast/projectile aura behavior. |
-| `AOsf` | Feral Spirit | Partial | No-target summon, level unit id/count, mana/cooldown, ownership, timed life, and summon events exist. |
+| `AOsf` | Feral Spirit | Partial | Warsmash-style recast replacement, single spawn point in front of the caster using authored Area, level unit id/count, ownership, timed life, summon events, and SpecialArt presentation exist. Summoned-unit classification is not yet exposed as a general WC3 unit-type flag. |
 | `AOmi` | Mirror Image | Partial | No-target cast, mana/cooldown, data-defined image count/duration, illusion identity, summon event context, and campaign-script discovery exist. Needs retail damage multipliers, dispel/image shuffle, and richer visual behavior. |
 | `Abun` | Burrow cargo hold | Partial | Per-holder capacity/target/range lookup, hidden+paused cargo state, death ejection, empty attack gating, Warsmash cooldown scaling, footprint-aware boarding range, and Battle Stations/Smart boarding exist. While occupied, the Burrow portrait remains on its dedicated layer and capacity-driven clickable cargo slots replace only the ordinary stat subsection. Remaining work is retail verification of health/mana slot decoration and other presentation details. |
 | `Abtl` | Battle Stations | Partial | OpenRealm uses its data-driven AoE, busy-unit flag, and allowed unit type to choose the nearest eligible workers up to remaining cargo capacity; selected workers path to the Burrow and load on arrival. The bundled Warsmash source defines the order/error keys but has no `Abtl` implementation, so this auto-call flow is retail/data-derived rather than source-confirmed Warsmash behavior. Needs localized no-Peons command feedback and broader custom-map validation. |
@@ -180,7 +180,7 @@ generic `Button` command path rather than by a registered ability code.
 | `AIsm` | Permanent Strength Gain | TODO | Needs permanent hero stat updates. |
 | `AIam` | Permanent Agility Gain | TODO | Needs permanent hero stat updates. |
 | `AIxm` | Permanent Multi-stat Gain | TODO | Needs permanent hero stat updates. |
-| `AIde` | Item Defense Bonus | Partial | Passive item armor modifier is preserved across Hero Agility recomputation; broader armor modifier framework remains. |
+| `AIde` | Item Defense Bonus | Partial | Passive item armor modifier applies on inventory acquisition and reverses on removal, using the shared temporary armor bonus preserved across Hero Agility recomputation; this matches Warsmash Ring-of-Protection-style add/remove semantics. Broader armor modifier framework remains. |
 | `AIml` | Item Life Bonus | TODO | Needs max-health modifier system. |
 | `AImm` | Item Mana Bonus | TODO | Needs max-mana modifier system. |
 | `AIfs` | Figurine Summon | TODO | Needs item summon behavior. |
