@@ -667,6 +667,17 @@ TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
         "function main takes nothing returns nothing\n"
         "  local camerasetup c = CreateCameraSetup()\n"
         "  call CameraSetupSetDestPosition(c, 700.0, 800.0, 0.0)\n"
+        "  call CameraSetupSetField(c, CAMERA_FIELD_ZOFFSET, 377.4, 0.0)\n"
+        "  call CameraSetupApplyForceDuration(c, true, 2.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.state.position.x, 700.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 800.0f, 0.001f);
+    T_FEQ(gc->camera.state.z_offset, 377.4f, 0.001f);
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local camerasetup c = CreateCameraSetup()\n"
+        "  call CameraSetupSetDestPosition(c, 700.0, 800.0, 0.0)\n"
         "  call CameraSetupSetField(c, CAMERA_FIELD_NEARZ, 65.0, 0.0)\n"
         "  call CameraSetupSetField(c, CAMERA_FIELD_FARZ, 7500.0, 0.0)\n"
         "  call CameraSetupApplyWithZ(c, 275.0)\n"
