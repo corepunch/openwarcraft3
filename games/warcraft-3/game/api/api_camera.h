@@ -24,11 +24,35 @@ static FLOAT G_CameraVerticalToHorizontalFov(FLOAT vertical) {
     return 2.0f * atanf(tanf(vfov_rad / 2.0f) * WC3_CAMERA_ASPECT) * 180.0f / (FLOAT)M_PI;
 }
 
+static FLOAT G_CameraDegreesToRadians(FLOAT value) { return value * (FLOAT)M_PI / 180.0f; }
+
+/* Reconstruct the rendered orbit eye from the same target, orientation, and distance sent to the client. */
+static VECTOR3 G_CameraEyePosition(LPCPLAYER playerstate) {
+    QUATERNION quat;
+    MATRIX4 view, inverse;
+    VECTOR3 eye, target = Vector3_unm(&playerstate->vieworigin);
+
+    quat = Quaternion_fromEuler(&playerstate->viewangles, ROTATE_ZYX);
+    Matrix4_identity(&view);
+    Matrix4_translate(&view, &(VECTOR3){ 0, 0, -playerstate->distance });
+    Matrix4_rotateQuat(&view, &quat);
+    Matrix4_translate(&view, &target);
+    Matrix4_inverse(&view, &inverse);
+    eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
+    return eye;
+}
+
 /* Mirror low authored AoA values above the target while preserving their world-facing orbit. */
 static FLOAT G_CameraAuthoredToPitch(FLOAT value) { return value < 90 ? 90 - value : -90 - value; }
 static FLOAT G_CameraPitchToAuthored(FLOAT value) { return value < 0 ? -90 - value : 90 - value; }
 static FLOAT G_CameraAuthoredToYaw(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
 static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
+/* Convert the client Euler yaw back to Warcraft's authored rotation field. */
+static FLOAT G_CameraRotation(LPCPLAYER p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
+/* Recover the authored target offset from the terrain-composed runtime target height. */
+static FLOAT G_CameraZOffset(LPCPLAYER p) {
+    return p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
+}
 
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
                                                  BOOL set_z, FLOAT z_offset,
@@ -385,8 +409,27 @@ DWORD GetCameraBoundMaxY(LPJASS j) {
     return jass_pushnumber(j, level.camera_bounds.max.y);
 }
 DWORD GetCameraField(LPJASS j) {
-    //HANDLE whichField = jass_checkhandle(j, 1, "camerafield");
-    return jass_pushnumber(j, 0);
+    HANDLE whichField = jass_checkhandle(j, 1, "camerafield");
+    API_PLAYERSTATE(playerstate);
+    FLOAT value = 0;
+    if (playerstate && whichField) switch (*(CAMERAFIELD *)whichField) {
+        case CAMERA_FIELD_TARGET_DISTANCE: value = playerstate->distance; break;
+        case CAMERA_FIELD_FARZ: value = playerstate->zfar; break;
+        case CAMERA_FIELD_NEARZ: value = playerstate->znear; break;
+        /* Warcraft's field getters expose angles and FOV in radians; runtime state stores degrees. */
+        case CAMERA_FIELD_ANGLE_OF_ATTACK:
+            value = G_CameraDegreesToRadians(G_CameraPitchToAuthored(playerstate->viewangles.x)); break;
+        case CAMERA_FIELD_FIELD_OF_VIEW:
+            value = G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(playerstate->fov)); break;
+        case CAMERA_FIELD_ROLL: value = G_CameraDegreesToRadians(playerstate->viewangles.y); break;
+        case CAMERA_FIELD_ROTATION: value = G_CameraDegreesToRadians(G_CameraRotation(playerstate)); break;
+        case CAMERA_FIELD_ZOFFSET: value = G_CameraZOffset(playerstate); break;
+        case CAMERA_FIELD_LOCAL_PITCH:
+        case CAMERA_FIELD_LOCAL_YAW:
+        case CAMERA_FIELD_LOCAL_ROLL:
+            break;
+    }
+    return jass_pushnumber(j, value);
 }
 DWORD GetCameraTargetPositionX(LPJASS j) {
     API_PLAYERSTATE(playerstate);
@@ -410,14 +453,26 @@ DWORD GetCameraTargetPositionLoc(LPJASS j) {
     return 1;
 }
 DWORD GetCameraEyePositionX(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    API_PLAYERSTATE(playerstate);
+    VECTOR3 eye = playerstate ? G_CameraEyePosition(playerstate) : (VECTOR3){ 0 };
+    return jass_pushnumber(j, eye.x);
 }
 DWORD GetCameraEyePositionY(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    API_PLAYERSTATE(playerstate);
+    VECTOR3 eye = playerstate ? G_CameraEyePosition(playerstate) : (VECTOR3){ 0 };
+    return jass_pushnumber(j, eye.y);
 }
 DWORD GetCameraEyePositionZ(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    API_PLAYERSTATE(playerstate);
+    VECTOR3 eye = playerstate ? G_CameraEyePosition(playerstate) : (VECTOR3){ 0 };
+    return jass_pushnumber(j, eye.z);
 }
 DWORD GetCameraEyePositionLoc(LPJASS j) {
-    return jass_pushnullhandle(j, "location");
+    API_ALLOC(VECTOR2, location);
+    API_PLAYERSTATE(playerstate);
+    if (playerstate) {
+        VECTOR3 eye = G_CameraEyePosition(playerstate);
+        *location = (VECTOR2){ eye.x, eye.y };
+    }
+    return 1;
 }

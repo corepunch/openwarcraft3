@@ -144,7 +144,7 @@ netField_t uiFrameFields[] = {
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, vieworigin), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, fov), NFT_BYTE },
+    { NETF(PLAYER, fov), NFT_FLOAT },
     /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
     { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
     { NETF(PLAYER, rdflags), NFT_LONG },

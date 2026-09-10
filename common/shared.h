@@ -578,7 +578,7 @@ struct playerState_s {
     FLOAT distance;                 // camera distance from vieworigin for orbit/isometric view
     FLOAT znear;                    // near clip; required camera sample, copied like fov
     FLOAT zfar;                     // far clip; required camera sample, copied like fov
-    DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice
+    FLOAT fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
     DWORD rdflags;                  // refdef flags (underwater tint, etc.)
     DWORD uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
     DWORD client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
