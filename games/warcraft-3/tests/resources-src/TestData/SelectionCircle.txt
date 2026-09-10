@@ -1,0 +1,4 @@
+[SelectionCircle]
+ColorFriend=200,1,2,3
+ColorNeutral=201,4,5,6
+ColorEnemy=202,7,8,9

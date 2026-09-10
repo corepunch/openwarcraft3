@@ -637,6 +637,12 @@ CLIENTCOMMAND(Smart) {
         client->menu.order_queued = old_queued;
     }
     if (issued) {
+        /* Retail briefly flashes the clicked unit's selection ring after a
+         * successful Smart target order. The relationship colour is local to
+         * the issuing player and the existing indicator event owns timing. */
+        if (target->svflags & SVF_MONSTER)
+            G_SendWidgetIndicator(target,
+                G_SmartTargetIndicatorColor(client->ps.number, target), &client->ps);
         G_QueueOrderSound(G_GetMainControllableUnit(client));
         if (rallied) G_PlayUISoundForPlayer(clent, "RallyPointPlace");
         Get_Commands_f(clent);

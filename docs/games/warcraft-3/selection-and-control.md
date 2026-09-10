@@ -161,7 +161,7 @@ usual red/yellow presentation comes from the default alliance matrix, not a
 hard-coded color exception, so map scripts can change the relationship at
 runtime.
 
-`renderer/r_ents.c` uses the same flags for both hover and full selected circles. The selection-circle texture and radius remain the existing WC3 data/model choice; relationship colours are currently renderer constants rather than `SelectionCircle/ColorFriend`, `ColorNeutral`, and `ColorEnemy` skin data.
+`renderer/r_ents.c` uses the same flags for both hover and full selected circles. The selection-circle texture and radius remain the existing WC3 data/model choice; persistent selected/hover relationship colours are currently renderer constants rather than `SelectionCircle/ColorFriend`, `ColorNeutral`, and `ColorEnemy` skin data. Smart/right-click target acknowledgement is separate: it resolves the relationship through `G_SelectionRelation`, reads the exact `SelectionCircle` palette from `UI\MiscData.txt`, and sends that colour through the generic transient widget-indicator path. See [Command feedback](command-feedback.md).
 
 ## Control Boundary
 

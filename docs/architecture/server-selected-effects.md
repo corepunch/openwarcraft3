@@ -73,7 +73,7 @@ Presentation state that is neither an entity snapshot nor generic client state m
 
 Persistent local markers such as Warcraft III's Rally destination are ordinary game-owned edicts. The game resolves and registers the model, sets `SVF_OWNER_ONLY`, and stores the recipient in `entityState_t.player`; `SV_BuildClientFrame` excludes the edict from every other client's snapshot. Point markers use an authoritative world origin, while widget markers use the normal linked-edict movement path to follow their target.
 
-The owning game client keeps the marker edict pointer so selection changes update or free the same entity. Save/load does not serialize that runtime cache pointer: the marker's saved `owner` edict reconstructs it after pointer fixups. One-shot acknowledgements such as move and attack confirmations remain temporary events.
+The owning game client keeps the marker edict pointer so selection changes update or free the same entity. Save/load does not serialize that runtime cache pointer: the marker's saved `owner` edict reconstructs it after pointer fixups. One-shot acknowledgements remain temporary events: point orders use the move/attack confirmation events, while WC3 Smart unit-target acknowledgement and JASS `AddIndicator` share the generic `TE_ENTITY_INDICATOR` widget event. See [WC3 Command feedback](../games/warcraft-3/command-feedback.md).
 
 ## One-shot resolved world text
 

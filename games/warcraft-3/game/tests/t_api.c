@@ -1977,6 +1977,48 @@ TEST(wc3_api, selection_relation_matches_enemy_neutral_and_shared_control) {
     T_EQ(G_SelectionRelation(0, &ally), SELECT_RELATION_FRIEND);
 }
 
+TEST(wc3_api, smart_target_indicator_uses_relationship_color_from_miscdata) {
+    stbIniCache_t saved = game.config.misc, custom = { 0 };
+    edict_t own = { .s = { .player = 0 } };
+    edict_t ally = { .s = { .player = 1 } };
+    edict_t enemy = { .s = { .player = 2 } };
+    COLOR32 color;
+
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\SelectionCircle.txt"));
+    game.config.misc = custom;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+
+    color = G_SmartTargetIndicatorColor(0, &own);
+    T_EQ(color.r, 1); T_EQ(color.g, 2); T_EQ(color.b, 3); T_EQ(color.a, 200);
+    color = G_SmartTargetIndicatorColor(0, &ally);
+    T_EQ(color.r, 4); T_EQ(color.g, 5); T_EQ(color.b, 6); T_EQ(color.a, 201);
+    color = G_SmartTargetIndicatorColor(0, &enemy);
+    T_EQ(color.r, 7); T_EQ(color.g, 8); T_EQ(color.b, 9); T_EQ(color.a, 202);
+
+    game.config.misc = saved;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_api, smart_target_indicator_falls_back_to_stock_classic_colors) {
+    stbIniCache_t saved = game.config.misc;
+    edict_t own = { .s = { .player = 0 } };
+    edict_t ally = { .s = { .player = 1 } };
+    edict_t enemy = { .s = { .player = 2 } };
+    COLOR32 color;
+
+    game.config.misc = (stbIniCache_t){ 0 };
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+
+    color = G_SmartTargetIndicatorColor(0, &own);
+    T_EQ(color.r, 0); T_EQ(color.g, 255); T_EQ(color.b, 0); T_EQ(color.a, 255);
+    color = G_SmartTargetIndicatorColor(0, &ally);
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 0); T_EQ(color.a, 255);
+    color = G_SmartTargetIndicatorColor(0, &enemy);
+    T_EQ(color.r, 255); T_EQ(color.g, 0); T_EQ(color.b, 0); T_EQ(color.a, 255);
+
+    game.config.misc = saved;
+}
+
 TEST(wc3_api, selection_accepts_visible_foreign_unit_but_rejects_invalid_states) {
     LPGAMECLIENT client = &game.clients[0];
     edict_t ent = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 2 } };

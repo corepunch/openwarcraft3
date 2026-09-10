@@ -89,6 +89,26 @@ static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities
 static void movement_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
 static void movement_noop_unicast(LPEDICT ent) { (void)ent; }
 
+typedef struct {
+    DWORD count;
+    pfWriteType_t type[4];
+    LONG value[4];
+    LPEDICT recipient;
+} smartIndicatorCapture_t;
+
+static smartIndicatorCapture_t smart_indicator_capture;
+
+static void movement_capture_indicator_write(pfWriteType_t type, void const *value) {
+    DWORD slot = smart_indicator_capture.count++;
+    if (slot >= 4) return;
+    smart_indicator_capture.type[slot] = type;
+    if (value) smart_indicator_capture.value[slot] = *(LONG const *)value;
+}
+
+static void movement_capture_indicator_unicast(LPEDICT ent) {
+    if (!smart_indicator_capture.recipient) smart_indicator_capture.recipient = ent;
+}
+
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -1625,6 +1645,71 @@ static LPEDICT make_smart_destructable(FLOAT x, FLOAT y,
     dest->s.origin.x = x;
     dest->s.origin.y = y;
     return dest;
+}
+
+TEST(wc3_movement, smart_unit_target_sends_classic_relationship_indicator) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT unit, target;
+    char target_number[16];
+    LPCSTR command[] = { "smart", target_number };
+
+    setup_test_world();
+    memset(&smart_indicator_capture, 0, sizeof(smart_indicator_capture));
+    gi.Write = movement_capture_indicator_write;
+    gi.unicast = movement_capture_indicator_unicast;
+    G_SetClientConnected(clent, true);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 0.0f);
+    unit->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
+    unit->s.player = target->s.player = client->ps.number;
+    unit->movetype = MOVETYPE_STEP; unit->stand = unit_stand; unit_stand(unit);
+    G_SelectEntity(client, unit);
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_ASSERT(smart_indicator_capture.count >= 4);
+    T_EQ(smart_indicator_capture.type[0], PF_BYTE);
+    T_EQ(smart_indicator_capture.value[0], svc_temp_entity);
+    T_EQ(smart_indicator_capture.type[1], PF_BYTE);
+    T_EQ(smart_indicator_capture.value[1], TE_ENTITY_INDICATOR);
+    T_EQ(smart_indicator_capture.type[2], PF_LONG);
+    T_EQ(smart_indicator_capture.value[2], (LONG)target->s.number);
+    T_EQ(smart_indicator_capture.type[3], PF_LONG);
+    T_EQ((DWORD)smart_indicator_capture.value[3], 0xff00ff00u);
+    T_EQ(smart_indicator_capture.recipient, clent);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
+TEST(wc3_movement, smart_without_accepted_unit_target_sends_no_indicator) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT target;
+    char target_number[16];
+    LPCSTR command[] = { "smart", target_number };
+
+    setup_test_world();
+    memset(&smart_indicator_capture, 0, sizeof(smart_indicator_capture));
+    gi.Write = movement_capture_indicator_write;
+    gi.unicast = movement_capture_indicator_unicast;
+    G_SetClientConnected(clent, true);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 0.0f);
+    target->svflags |= SVF_MONSTER; target->s.player = 1;
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_EQ(smart_indicator_capture.count, 0);
+    T_NULL(smart_indicator_capture.recipient);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
 }
 
 /* Entity picking wins over the terrain trace on a bridge. Preserve that
