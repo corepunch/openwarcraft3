@@ -3359,6 +3359,33 @@ static int test_menu_map_list(LPCSTR path, LPCSTR ext, LPSTR out, int size) {
     return 1;
 }
 
+/* Native preview placement must fit the entire authored border above the compact metadata rows. */
+TEST(menu_fdf, map_preview_fits_compact_and_full_panes) {
+    menuImport_t saved = mi;
+    test_glue_setup();
+    T_ASSERT(UI_EnsureFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf"));
+    LPFRAMEDEF source = UI_FindFrame("MapInfoPane");
+    T_NOT_NULL(source);
+    FLOAT heights[] = { 0.223125f, 0.36f };
+    FOR_LOOP(i, 2) {
+        LPFRAMEDEF root = UI_CloneFrameTree(source, NULL);
+        UI_SetSize(root, 0.271875f, heights[i]);
+        UI_LayoutMapInfoPane(root);
+        LPFRAMEDEF preview = UI_FindChildFrame(root, "MinimapImage");
+        LPFRAMEDEF border = UI_FindChildFrame(root, "MinimapImageBackdrop");
+        LPFRAMEDEF label = UI_FindChildFrame(root, "SuggestedPlayersLabel");
+        FLOAT bottom = -preview->Points.y[FPP_MIN].offset + (preview->Height + border->Height) * 0.5f;
+        T_ASSERT(bottom <= -label->Points.y[FPP_MIN].offset);
+        T_FEQ(preview->Width / preview->Height, 1.0f, 0.0001f);
+        FLOAT width = preview->Width;
+        UI_LayoutMapInfoPane(root);
+        T_FEQ(preview->Width, width, 0.0001f);
+        if (i == 1) T_FEQ(preview->Width, UI_FindChildFrame(source, "MinimapImage")->Width, 0.0001f);
+    }
+    Cmd_ExecuteString("menu_ingame");
+    mi = saved;
+}
+
 TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     menuImport_t saved = mi;
     test_glue_setup();

@@ -64,6 +64,54 @@ Queue insertion reserves food immediately when the new item is the head. A later
 
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards.
 
+## Melee visibility versus campaign restrictions
+
+The local `data/WarsmashModEngine` reference keeps a worker's full `Builds` list visible in a melee game,
+including structures with unmet prerequisites. `AbstractCAbilityBuild.innerCheckCanUse()` compares each
+requirement against the player's unlocked technology count; the command-card visitor's
+`missingRequirement()` disables the icon and adds requirement text. Its `techtreeMaximumReached()` instead
+sets `omitIconEntirely`. These are separate rules: missing a Keep does not hide an Arcane Sanctum.
+
+The authoritative unit fields are `Builds` (`ubui`), `Requires` (`ureq`), and `Requiresamount` (`urqa`).
+They come from the race `*UnitFunc.txt` profiles and unit-object overrides; prerequisite rawcodes can denote
+unit/building counts or researched upgrade levels. A missing amount means one. `Requirescount` / `Requires1`
+and subsequent tiers are separate tier requirements, not a general hide-locked-buildings option.
+
+Stock Human archive values checked in both editions:
+
+| Structure | Rawcode | ROC `Requires` | TFT `Requires` |
+|---|---|---|---|
+| Blacksmith | `hbla` | `htow` (Town Hall) | `htow` |
+| Workshop | `harm` | `hkee,hbla` (Keep, Blacksmith) | `hkee,hbla` |
+| Arcane Sanctum | `hars` | `hkee` (Keep) | `hkee` |
+| Gryphon Aviary | `hgra` | `hcas,hlum` (Castle, Lumber Mill) | `hkee,hlum` (Keep, Lumber Mill) |
+
+ROC Peasants list ten structures; TFT adds `hvlt` (Arcane Vault), which has no prerequisite in the
+inspected profile. Campaign omissions are authored restrictions. For example, ROC Human02's
+`war3map.j:InitTechTree_Player1` sets `hbla`, `harm`, `hars`, and `hgra` maxima to zero, hiding them
+independently of owned structures or research. Do not copy a campaign command-card subset into melee rules.
+
+Bounded verification on Bandit Ridge used the following command, also without `-tft` for ROC:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +map 'Maps/FrozenThrone/(2)BanditRidge.w3x' +idleworker +button CmdBuild +screenshot 10 +com_frame_limit 25
+```
+
+Temporary traces immediately after `G_GetBuildCommandState()` confirmed `wc3_build_all=0`, maxima `-1`,
+and `BUILD_COMMAND_DISABLED` for Workshop, Sanctum, and Aviary. The Aviary reason was Keep in TFT and Castle
+in ROC. The traces were removed after verification. `BUILD_COMMAND_UNAFFORDABLE` remains visible/clickable
+so the attempted command can report a resource shortage, matching Warsmash's resource-preview behavior.
+
+Disabled command buttons follow Warsmash's `AbilityDataUI.disable()`: `UI_CommandButtonImage()` resolves
+the recipient's `CommandButtonDisabledArtPath` skin field and appends `DIS` plus the normal art basename
+(for example `DISBTNWorkshop.blp`). The directory comes from `UI\war3skins.txt`, not a hardcoded path.
+`UI_WriteCommandButtonFrame()` sends that texture with white modulation, replacing the previous normal
+texture/gray tint, and retains the disabled click/hotkey behavior. Enabled buttons keep their original art.
+Missing skin data or an overlong derived path produces an explicit diagnostic instead of substituting
+enabled artwork; missing texture assets follow the ordinary image-registration diagnostics.
+The `wc3_building.disabled_command_button*` tests cover texture selection, basename-only art, unchanged
+input gating, and invalid skin/path handling in both editions.
+
 ## Placement
 
 `G_SnapBuildingPoint()` implements the WC3 pathing-grid alignment used by both authoritative placement and the client ghost:
@@ -288,3 +336,17 @@ completion entering `G_CompleteConstruction`, publication of
 `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and the builder state immediately after
 release. This is intended for campaign compatibility debugging and does not
 change construction semantics.
+
+## Command-Button Active Highlight
+
+Construction and training rawcodes have no ability-table entry, so `GetAbilityIndex(NULL)`
+produces the byte sentinel `255`. Idle units likewise publish `entityState_t.ability = 255`.
+The client must exclude that sentinel before comparing a command frame's `stat` with the selected
+unit's ability; equality alone lit every construction choice while the worker was idle.
+Ability index zero remains valid, and `UIFLAG_ALTERNATE_ACTIVE` independently enables autocast glow.
+The regression test `client_layout.command_glow_requires_an_ability_or_autocast` checks the actual
+renderer submission for all these cases.
+
+For a bounded visual check, load Bandit Ridge with `+idleworker +button CmdBuild +screenshot 10
++com_frame_limit 25` after the map argument, in both ROC and TFT. The native construction card
+should show normal icon borders while the idle Peasant is selected.

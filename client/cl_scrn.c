@@ -976,7 +976,8 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         .color       = SCR_CommandButtonColor(frame),
         .shader      = SHADER_COMMANDBUTTON,
         .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
-                       (sel && sel->ability == frame->stat)));
+                       /* 255 means no ability on both sides, so idle units must not light every build choice. */
+                       (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat)));
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {

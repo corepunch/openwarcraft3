@@ -153,6 +153,31 @@ During a gameplay transmission, `LAYER_MESSAGE` belongs to the transmission.
 An ordinary message started underneath it retains its own expiry time and is
 shown after the transmission only if it has not expired.
 
+## Direct Local-Player Text Calls
+
+`Blizzard.j`'s `MeleeCrippledPlayerTimeout` broadcasts the reveal announcement with
+`DisplayTimedTextToPlayer(GetLocalPlayer(), ...)` after leaving its local-player `if` block.
+On Bandit Ridge this reached `DisplayTimedTextToPlayer` with both `toPlayer` and `currentplayer`
+null and crashed in `PLAYER_ENT`. The VM previously expanded only local-player conditions.
+`eval_CALL` now evaluates direct local-player call statements once per Warcraft player slot when
+there is no current selector, restoring the unscoped selector afterward. Calls inside an existing
+local-player scope remain targeted; explicit `Player(n)` arguments are not broadcast.
+This belongs in VM evaluation, rather than interpreting every null player argument as a broadcast
+in the text native or substituting the host player.
+
+Reproduce the original timer path with:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +dedicated 1 +set com_fast_forward 1 +map 'Maps/FrozenThrone/(2)BanditRidge.w3x' +com_frame_limit 2000
+```
+
+The same map also runs with ROC archives by omitting `-tft`. A connected host can omit
+`+dedicated 1` and use `-vid_hidden 1`. Before the fix the timer caused SIGSEGV; afterward both
+modes complete the bounded run. The subsequent `CripplePlayer` native is still unimplemented:
+its runtime error is a separate missing reveal feature, not another null-player crash.
+`wc3_api.direct_local_player_text_call_reaches_each_player_once` covers coroutine dispatch,
+targeted local scope, one announcement per supported player slot, and an explicit target.
+
 ## Local Audio
 
 The JASS VM evaluates `GetLocalPlayer()` branches once per represented player

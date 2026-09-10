@@ -81,3 +81,21 @@ All three game layout engines follow the single-header DDX-style schema table ar
 | **World of Warcraft** | `games/world-of-warcraft/menu/stb_wowxml.h` | `uiwow_node_types[]`, `uiwow_script_tags[]`, `uiwow_button_part_tags[]`, `uiwow_shared_attrs[]`, `uiwow_point_factors[]` | Parses FrameXML (`.xml`) into `uiWowXmlElem_t wow_xml.elems[]` |
 
 Each parser defines the format grammar as data (table of names, offsets, types, flags/callbacks) and dispatches in one generic loop without manual `if`/`else` ladders.
+
+## Native Map-Info Preview Placement
+
+Retail `UI/FrameDef/Glue/MapInfoPane.fdf` leaves the `MinimapImage` and metadata-row anchors to
+native runtime placement. Its sprite has an intrinsic size of `0.13125`, while the decorative
+`MinimapImageBackdrop` is `0.183125` and supplies its own center anchor. Preserve these authored
+proportions and anchor metadata when laying out the native pane.
+
+`LocalMultiplayerJoin.fdf` allocates a compact pane height of `0.223125`. The former compact path
+moved Suggested Players to `0.163` below the pane top but kept the full-size preview; its border
+extended to about `0.190`, overlapping that row. `UI_LayoutMapInfoPane` now fits the image and border
+proportionally into the compact preview slot above the rows. The full pane retains the FDF sizes,
+and repeated layout of a compact pane does not keep shrinking it. No replacement FDF is loaded.
+`menu_fdf.map_preview_fits_compact_and_full_panes` covers both sizes and repeated layout.
+
+Capture the settled browser with `+menu_multiplayer +screenshot 120 +com_frame_limit 135`, using
+`-vid_hidden 1` for a hidden window, in both ROC and TFT. Very early screenshots capture the glue
+opening animation with the panels still offscreen and cannot verify the final layout.
