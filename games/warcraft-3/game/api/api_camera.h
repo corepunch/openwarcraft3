@@ -58,9 +58,8 @@ static FLOAT G_CameraZOffset(LPCPLAYER p) {
               : p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
 }
 
-/* Emit event-only camera samples for retail/OpenRealm comparisons without changing map JASS. */
-static void G_CameraTraceSnapshot(LPCSTR label) {
-    LPGAMECLIENT gc;
+/* Emit opt-in camera samples for retail/OpenRealm comparisons without changing map JASS. */
+void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     LPCPLAYER p;
     LPCAMERASETUP s;
     LPCVECTOR3 ang;
@@ -70,7 +69,6 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
 
     if (!enabled || !*enabled || !strcmp(enabled, "0")) return;
-    gc = G_CurrentCameraClient("G_CameraTraceSnapshot");
     if (!gc) return;
     p = &gc->ps;
     s = &gc->camera.state;
@@ -103,6 +101,10 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
             G_CameraDegreesToRadians(G_CameraYawToAuthored(ang->z, ang->x)),
             G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(fov)),
             G_CameraDegreesToRadians(roll), zoff, farz);
+}
+
+void G_CameraTraceSnapshot(LPCSTR label) {
+    G_CameraTraceSnapshotForClient(G_CurrentCameraClient("G_CameraTraceSnapshot"), label);
 }
 
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
