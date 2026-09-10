@@ -163,6 +163,23 @@ TEST(wc3_jass_map, array_assignment_and_access_evaluate_expressions) {
     ));
 }
 
+TEST(wc3_jass_map, coroutine_discards_statement_return_values) {
+    T_ASSERT(run_test_jass(
+        "function retained takes nothing returns integer\n"
+        "  return 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i == 300\n"
+        "    call retained()\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  call BJassAssert(i == 300, \"coroutine return cleanup\")\n"
+        "endfunction\n"
+    ));
+}
+
 /* =========================================================================
  * Map/player setup — config() state round trips through native enum handles
  * ========================================================================= */
