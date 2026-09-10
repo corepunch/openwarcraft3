@@ -13,6 +13,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 }
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return SC2_MapCameraHeightAtPoint(x, y); }
+BOOL CL_GameCameraUsesWorldUp(void) { return false; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
 
 bool CM_LoadMapFormat(LPCSTR mapFilename) {

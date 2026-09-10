@@ -308,6 +308,7 @@ static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
 }
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera);
+BOOL CL_GameCameraUsesWorldUp(void);
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
 

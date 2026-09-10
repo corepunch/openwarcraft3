@@ -1502,8 +1502,10 @@ void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
 BOOL G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
+#ifdef WC3_DEBUG_CAMERA_TRACE
 void G_CameraTraceSnapshotForClient(LPGAMECLIENT, LPCSTR);
 void G_CameraTraceSnapshot(LPCSTR);
+#endif
 
 // g_creep_sleep.c
 BOOL G_UnitCanSleep(LPCEDICT);

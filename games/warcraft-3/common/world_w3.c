@@ -45,6 +45,7 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
 }
 
 FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
+BOOL CL_GameCameraUsesWorldUp(void) { return true; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
     FLOAT delta = fmodf(b - a, 360.0f);
     if (delta > 180.0f)

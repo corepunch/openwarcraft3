@@ -540,9 +540,9 @@ void Cvar_Init(void) {
 #ifdef WC3
     Cvar_GetD("wc3_cheat_starting_resources", "0", 0,
               "cheat: add 5000 gold and 5000 lumber to each human player's map-authored starting resources");
-    Cvar_GetD("wc3_camera_trace", "0", 0,
-              "emit event-only CAMTRACE camera samples for camera setup applications");
 #endif
+    Cvar_GetD("camera_trace", "0", 0,
+              "emit opt-in camera trace samples for game camera setup applications");
     Cvar_GetD("game_port",        PORT_SERVER_STRING,  CVAR_ARCHIVE, "UDP port the game server listens on");
     Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
     Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");
