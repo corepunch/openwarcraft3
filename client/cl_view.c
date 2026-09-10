@@ -43,6 +43,7 @@ static LPCMODEL V_ConfigSkyModel(void) {
  * leave the slot empty. Positive styles share the renderer's linear start/end
  * path until a producer proves and exposes additional equations. */
 static void V_UpdateSceneFog(viewDef_t *view, BOOL world) {
+    static BOOL invalid_logged;
     int style = 0;
     FLOAT start = 0.0f, end = 0.0f, density = 0.0f;
     FLOAT red = 0.0f, green = 0.0f, blue = 0.0f;
@@ -51,9 +52,17 @@ static void V_UpdateSceneFog(viewDef_t *view, BOOL world) {
     view->fogEnable = false;
     view->fogStart = view->fogEnd = 0.0f;
     view->fogColor = (VECTOR3){0};
-    if (!world || !*cl.configstrings[CS_SCENE_FOG]) return;
+    if (!world || !*cl.configstrings[CS_SCENE_FOG]) {
+        invalid_logged = false;
+        return;
+    }
     if (sscanf(cl.configstrings[CS_SCENE_FOG], "%d %f %f %f %f %f %f",
-               &style, &start, &end, &density, &red, &green, &blue) != 7) return;
+               &style, &start, &end, &density, &red, &green, &blue) != 7) {
+        if (!invalid_logged) fprintf(stderr, "CL: invalid scene fog configstring\n");
+        invalid_logged = true;
+        return;
+    }
+    invalid_logged = false;
     (void)density;
     if (style <= 0) return;
 

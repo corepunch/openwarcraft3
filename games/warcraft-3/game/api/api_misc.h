@@ -1193,7 +1193,9 @@ DWORD SetTerrainFogEx(LPJASS j) {
     FLOAT green = jass_checknumber(j, 6);
     FLOAT blue = jass_checknumber(j, 7);
 
-    G_EnvironmentFogSet(style, zstart, zend, density, red, green, blue);
+    G_EnvironmentFogSet(&(wc3EnvironmentFogParams_t){
+        .style = style, .start = zstart, .end = zend, .density = density,
+        .color = { red, green, blue } });
     return 0;
 }
 DWORD SetWaterBaseColor(LPJASS j) {

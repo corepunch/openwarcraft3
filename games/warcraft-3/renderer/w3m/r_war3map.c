@@ -299,6 +299,7 @@ void _W3M_DrawTerrainShadows(void) {
     R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
 }
 
+/* Copy the server-authored scene fog into the terrain shader before each pass. */
 static void _W3M_SetSceneFog(void) {
     tr.shader_default.state.fogEnable = tr.viewDef.fogEnable;
     tr.shader_default.state.fogColor = tr.viewDef.fogColor;

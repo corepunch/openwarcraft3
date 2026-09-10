@@ -1335,6 +1335,12 @@ typedef struct {
     BOOL defaults_valid;
 } wc3EnvironmentFog_t;
 
+typedef struct {
+    LONG style;
+    FLOAT start, end, density;
+    VECTOR3 color;
+} wc3EnvironmentFogParams_t;
+
 struct level_locals {
     LPJASS vm;
     ggroup_t **groups;
@@ -1526,7 +1532,7 @@ BOOL G_IsNight(void);
 
 // g_environment_fog.c
 void G_EnvironmentFogInitMap(void);
-void G_EnvironmentFogSet(LONG style, FLOAT start, FLOAT end, FLOAT density, FLOAT red, FLOAT green, FLOAT blue);
+void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
 
