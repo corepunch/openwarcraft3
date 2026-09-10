@@ -9,7 +9,7 @@ This documents the repeatable retail-reference workflow used for the
 1. Extract a copy of the map into `build/retail-camera-trace/`.
 2. Edit only the copied `war3map.j`.
 3. Add passive JASS snapshots around important cinematic events.
-4. Repack the copied map as a legacy Warcraft III map.
+4. Preserve the extracted MPQ and replace only its `war3map.j` member.
 5. Launch that copied map directly in retail.
 6. Copy `CAMTRACE` messages from the game and parse them with
    `tools/retail_camera_trace.py`.
@@ -67,9 +67,32 @@ proving that artifact was not the untouched retail source.
 
 `mpqtool pack-legacy` is not an in-place update operation. It creates a new
 MPQ containing only the files passed to that command, so using it against a
-copied payload would discard the rest of the map. Use `mpqtool` for inspection
-and extraction, and use the StormLib-based `smpq` utility to build the complete
-legacy payload:
+copied payload discards the rest of the map. It also produced anonymous
+`File000000*.xxx` names when inspected by StormLib in this experiment. Do not
+use it to produce the retail trace map.
+
+The confirmed working method preserves the original MPQ layout and replaces
+only `war3map.j` with the same archived name:
+
+```sh
+map="$trace/Human02Interlude-instrumented/Human02Interlude-smpq.w3m"
+output="$trace/Human02Interlude-instrumented/Human02Interlude-smpq-event-replaced.w3m"
+script="$trace/Human02Interlude-debug/event-war3map.j"
+stage="$(mktemp -d)"
+cp "$map" "$output"
+cp "$script" "$stage/war3map.j"
+(cd "$stage" && smpq -a -f "$output" war3map.j)
+smpq -i "$output"
+```
+
+The staged basename is important. Passing a file named `event-war3map.j`
+directly adds a new archive member instead of replacing `war3map.j`, producing
+19 files. The successful replacement archive has 18 files and one
+`war3map.j`. Keep the original `Human02Interlude-smpq.w3m` as a known-good
+control and never modify it in place.
+
+The earlier full-repack procedure remains useful only as a diagnostic
+comparison. It is not a confirmed retail-compatible production path:
 
 ```sh
 command -v smpq                  # provided by StormLib; required for repacking
@@ -91,9 +114,11 @@ build/bin/mpqtool -mpq \
 
 For this map the legacy wrapper is 512 bytes and the footer is 260 bytes. The
 repacker used here is the apt-installed `/usr/bin/smpq` 1.6 using StormLib
-9.30. The final `mpqtool ls` check must show the normal root-level
-`war3map.*` names. Keep the MPQ-extracted control map and its wrapper as
-comparison inputs; do not repack the campaign archive in place.
+9.30. Full rebuilds with otherwise plausible headers, trailers, compression,
+and file lists loaded the loading screen and then crashed, so they are not
+equivalent to the replacement workflow. Keep the MPQ-extracted control map
+and its wrapper as comparison inputs; do not repack the campaign archive in
+place.
 
 The JASS edits belong at these stable generated-script locations:
 
@@ -205,13 +230,20 @@ simple `test -f` plus `winepath -w` check was less error-prone.
 
 ## Packing lessons
 
-The 1.29 client was sensitive to the map package shape. The reliable package
-was the legacy 512-byte Warcraft map wrapper followed by a complete MPQ
-payload. The compressed development package was rejected by 1.29, and several
-other wrapper/payload variants loaded the loading screen and then crashed
-before the map became playable. Always test the untouched map extracted from
-`War3Local.mpq` first; a derived copy going to the menu does not prove that
-the retail installation or launch command is wrong.
+The 1.29 client was sensitive to the map package shape. The confirmed working
+instrumented package was made by copying a working MPQ archive and replacing
+only `war3map.j` in place. It retained MPQ version 1, 4096-byte sector
+compression, 18 files, the original 512-byte Warcraft map wrapper, and the
+original 260-byte trailer. The modified JASS then ran and produced camera
+logs, proving that the script itself was valid and that this replacement
+workflow was accepted by retail.
+
+An untouched map extracted from `War3Local.mpq` also loaded successfully.
+Several independently rebuilt MPQs—including full `smpq` repacks and the
+project `mpqtool pack-legacy` output—loaded the loading screen and then
+crashed or returned to the menu. A derived copy going to the menu therefore
+does not prove that the retail installation or launch command is wrong.
+Preserve the known-good archive and use the script-only replacement method.
 
 Do not overwrite the campaign map in `data/Warcraft III`. Pack into a separate
 file with a distinct name and preserve the original extracted files for binary
@@ -222,8 +254,14 @@ the packer/package is the problem, not JASS instrumentation.
 
 - Launching an invalid or unsupported package without the compatible legacy
   wrapper led to the menu, an empty error dialog, or an access-violation report.
-- Repacking with compression produced a map that 1.29 could reject or crash
-  after the loading screen.
+- Full MPQ reconstruction, even with MPQ version 1, sector compression, the
+  original wrapper/trailer, and an apparently complete file list, produced
+  maps that 1.29 could reject or crash after the loading screen.
+- Passing a renamed script directly to `smpq -a -f` added a second JASS member
+  instead of replacing `war3map.j`; stage the file under the exact archive
+  basename first.
+- `mpqtool pack-legacy` produced an archive with anonymous names when checked
+  by StormLib and is not the working retail-map path.
 - The original retail executable sometimes showed a black screen under Wine;
   `-window -graphicsapi OpenGL2` made the client usable for this test.
 - Wine's NTLM warnings (`ntlm_auth`/winbind) were startup noise, not the cause
