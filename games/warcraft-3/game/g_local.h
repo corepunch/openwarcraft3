@@ -2032,6 +2032,7 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);
+BOOL move_is_active_order_walk(LPCEDICT);
 void order_stop(LPEDICT);
 void order_attackmove(LPEDICT, LPEDICT);
 void order_patrol(LPEDICT, LPEDICT);

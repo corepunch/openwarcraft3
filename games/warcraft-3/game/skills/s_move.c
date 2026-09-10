@@ -512,6 +512,10 @@ static void ai_move_walk(LPEDICT ent) {
 
 static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 
+BOOL move_is_active_order_walk(LPCEDICT ent) {
+    return ent && ent->currentmove == &move_move_walk;
+}
+
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {
