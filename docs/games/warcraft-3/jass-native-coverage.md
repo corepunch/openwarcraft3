@@ -54,7 +54,11 @@ covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIn
 Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
 `AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
 [Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued
-animation semantics remain separate gaps. Several callbacks consume state but still violate
+animation semantics remain separate gaps. `SetDoodadAnimation` and `SetDoodadAnimationRect` now select matching
+map-scenery edicts by rawcode and area, play authored MDX sequences, honor `nearestOnly`, support numbered random
+variants, and implement the retail `show`/`hide` special names. Doodad `soundon`/`soundoff` remains a separate audio
+presentation gap, so those natives are still partial rather than full conformance; see
+[Scripted Doodad Animation](doodad-animation.md). Several callbacks consume state but still violate
 their JASS contract and therefore need a `partial` status in any future generated
 ledger. The effect module now has functional independent handles for
 `AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`. The three weather

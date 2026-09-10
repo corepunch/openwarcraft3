@@ -1513,20 +1513,24 @@ DWORD NewSoundEnvironment(LPJASS j) {
     return 0;
 }
 DWORD SetDoodadAnimation(LPJASS j) {
-    //FLOAT x = jass_checknumber(j, 1);
-    //FLOAT y = jass_checknumber(j, 2);
-    //FLOAT radius = jass_checknumber(j, 3);
-    //LONG doodadID = jass_checkinteger(j, 4);
-    //BOOL nearestOnly = jass_checkboolean(j, 5);
-    //LPCSTR animName = jass_checkstring(j, 6);
-    //BOOL animRandom = jass_checkboolean(j, 7);
+    FLOAT x = jass_checknumber(j, 1);
+    FLOAT y = jass_checknumber(j, 2);
+    FLOAT radius = jass_checknumber(j, 3);
+    LONG doodadID = jass_checkinteger(j, 4);
+    BOOL nearestOnly = jass_checkboolean(j, 5);
+    LPCSTR animName = jass_checkstring(j, 6);
+    BOOL animRandom = jass_checkboolean(j, 7);
+
+    G_SetDoodadAnimationRadius(x, y, radius, (DWORD)doodadID, nearestOnly, animName, animRandom);
     return 0;
 }
 DWORD SetDoodadAnimationRect(LPJASS j) {
-    //HANDLE r = jass_checkhandle(j, 1, "rect");
-    //LONG doodadID = jass_checkinteger(j, 2);
-    //LPCSTR animName = jass_checkstring(j, 3);
-    //BOOL animRandom = jass_checkboolean(j, 4);
+    LPCBOX2 r = jass_checkhandle(j, 1, "rect");
+    LONG doodadID = jass_checkinteger(j, 2);
+    LPCSTR animName = jass_checkstring(j, 3);
+    BOOL animRandom = jass_checkboolean(j, 4);
+
+    G_SetDoodadAnimationRect(r, (DWORD)doodadID, animName, animRandom);
     return 0;
 }
 DWORD Cheat(LPJASS j) {

@@ -1576,6 +1576,7 @@ int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
 LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
+LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize);
 BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
 LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname);
 void         G_SetUnitAnimation(LPEDICT unit, LPCSTR animname);
@@ -2168,6 +2169,13 @@ mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number);
 void G_SpawnDestructableLoot(LPEDICT ent);
 void G_DestructableStartDeathAnimation(LPEDICT ent);
 void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
+
+BOOL G_IsDoodad(LPCEDICT ent);
+void G_DoodadAnimationEnd(LPEDICT ent);
+DWORD G_SetDoodadAnimationRadius(FLOAT x, FLOAT y, FLOAT radius, DWORD doodad_id,
+                                 BOOL nearest_only, LPCSTR anim_name, BOOL random_animation);
+DWORD G_SetDoodadAnimationRect(LPCBOX2 rect, DWORD doodad_id,
+                               LPCSTR anim_name, BOOL random_animation);
 void tree_die(LPEDICT ent, LPEDICT attacker);
 
 // ui_init

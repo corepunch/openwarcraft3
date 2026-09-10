@@ -110,6 +110,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Breakable Destructables](breakable-destructables.md)
+- [Scripted Doodad Animation](doodad-animation.md)
 - [Warcraft III UI System](architecture/ui.md)
 - [UI Flow](architecture/ui-flow.md)
 - [UI Quick Reference](architecture/ui-quick-reference.md)

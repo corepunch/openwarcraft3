@@ -481,6 +481,29 @@ LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCS
     return G_GetAnimation(modelindex, animname);
 }
 
+LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize) {
+    g_cmodel_t *model = GetModel(modelindex);
+    LPCANIMATION selected;
+    LPCANIMATION choice = NULL;
+    DWORD matches = 0;
+
+    if (!model) return NULL;
+    selected = G_GetAnimationForProperties(modelindex, animname, NULL);
+    if (!selected || !randomize) return selected;
+
+    /* ConvertMDLXAnimationName gives numbered variants of one logical sequence
+     * the same sync point. Reservoir sampling chooses uniformly without a
+     * temporary allocation; animRandom=false above keeps the first authored
+     * match used by the ordinary selector. */
+    FOR_LOOP(i, model->num_animations) {
+        LPCANIMATION candidate = model->animations + i;
+        if (candidate->syncpoint != selected->syncpoint) continue;
+        matches++;
+        if ((DWORD)(rand() % matches) == 0) choice = candidate;
+    }
+    return choice ? choice : selected;
+}
+
 BOOL G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary) {
     size_t len;
     unsigned char next;
