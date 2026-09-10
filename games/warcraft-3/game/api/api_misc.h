@@ -1284,11 +1284,18 @@ DWORD PauseGame(LPJASS j) {
     return 0;
 }
 DWORD AddIndicator(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    COLOR32 color = MAKE(COLOR32,
+        (BYTE)MAX(0, MIN(255, red)),
+        (BYTE)MAX(0, MIN(255, green)),
+        (BYTE)MAX(0, MIN(255, blue)),
+        (BYTE)MAX(0, MIN(255, alpha)));
+
+    G_SendWidgetIndicator(whichWidget, color, currentplayer);
     return 0;
 }
 DWORD PingMinimap(LPJASS j) {

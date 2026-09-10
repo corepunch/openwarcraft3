@@ -845,6 +845,9 @@ typedef enum {
     /* Generic server-selected world text. Payload: POSITION, STRING, RGBA LONG,
      * font SHORT, lifetime LONG ms, fade-start LONG ms, velocity FLOAT/FLOAT px/s. */
     TE_FLOATING_TEXT,
+    /* Generic transient entity highlight. Payload: entity LONG, RGBA LONG.
+     * The client owns the fixed two-flash lifetime and follows the entity while visible. */
+    TE_ENTITY_INDICATOR,
 } tempEvent_t;
 
 typedef enum {

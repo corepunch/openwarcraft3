@@ -46,6 +46,11 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
+`AddIndicator` and `UnitAddIndicator` are implemented as local transient presentation rather than widget state.
+The game sends the widget entity number plus clamped RGBA to each applicable client, which reuses the ordinary
+terrain-conforming selection circle for two flashes without changing authoritative selection membership. This also
+covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIndicator` native with a unit widget.
+
 Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
 `AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
 [Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued

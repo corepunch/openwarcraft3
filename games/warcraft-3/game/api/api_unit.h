@@ -1,3 +1,5 @@
+extern LPPLAYER currentplayer;
+
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
@@ -937,11 +939,18 @@ DWORD WaygateIsActive(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD UnitAddIndicator(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    COLOR32 color = MAKE(COLOR32,
+        (BYTE)MAX(0, MIN(255, red)),
+        (BYTE)MAX(0, MIN(255, green)),
+        (BYTE)MAX(0, MIN(255, blue)),
+        (BYTE)MAX(0, MIN(255, alpha)));
+
+    G_SendWidgetIndicator(whichUnit, color, currentplayer);
     return 0;
 }
 DWORD RemoveGuardPosition(LPJASS j) {

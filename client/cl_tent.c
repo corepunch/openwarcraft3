@@ -3,8 +3,12 @@
 #define MAX_MISSILES 64
 #define MAX_SPELL_IMPACTS 32
 #define MAX_FLOATING_TEXTS 64      /* entries; bounds simultaneous transient world labels */
+#define MAX_ENTITY_INDICATORS 32     /* entries; repeated calls for one entity reuse its slot */
 #define FLOATING_TEXT_CAPACITY 32  /* bytes including terminator; numeric gains are much shorter */
 #define SPELL_IMPACT_LIFETIME 800  /* ms — one-shot birth animation duration */
+#define ENTITY_INDICATOR_LIFETIME 1000 /* ms — retail AddIndicator flashes twice */
+#define ENTITY_INDICATOR_PERIOD 500    /* ms per flash cycle */
+#define ENTITY_INDICATOR_ON_TIME 250   /* ms visible at the start of each cycle */
 
 typedef struct  {
     VECTOR3 origin;
@@ -37,6 +41,13 @@ typedef struct {
 
 typedef struct {
     BOOL active;
+    DWORD entity;
+    COLOR32 color;
+    DWORD starttime;
+} entityIndicator_t;
+
+typedef struct {
+    BOOL active;
     VECTOR3 origin;
     char text[FLOATING_TEXT_CAPACITY];
     COLOR32 color;
@@ -51,6 +62,7 @@ typedef struct {
 struct {
     missile_t missiles[MAX_MISSILES];
     spellImpact_t impacts[MAX_SPELL_IMPACTS];
+    entityIndicator_t indicators[MAX_ENTITY_INDICATORS];
     floatingText_t texts[MAX_FLOATING_TEXTS];
 } tents = { 0 };
 
@@ -74,6 +86,18 @@ static floatingText_t *CL_AllocFloatingText(void) {
     FOR_LOOP(i, MAX_FLOATING_TEXTS) {
         if (!tents.texts[i].active) return &tents.texts[i];
         if (tents.texts[i].starttime < oldest->starttime) oldest = &tents.texts[i];
+    }
+    return oldest;
+}
+
+static entityIndicator_t *CL_AllocIndicator(DWORD entity) {
+    entityIndicator_t *oldest = &tents.indicators[0];
+
+    FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
+        entityIndicator_t *indicator = &tents.indicators[i];
+        if (indicator->active && indicator->entity == entity) return indicator;
+        if (!indicator->active) return indicator;
+        if (indicator->starttime < oldest->starttime) oldest = indicator;
     }
     return oldest;
 }
@@ -126,6 +150,22 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
                 imp->starttime = cl.time;
                 imp->lifetime  = SPELL_IMPACT_LIFETIME;
                 imp->active    = true;
+            }
+            break;
+        case TE_ENTITY_INDICATOR:
+            {
+                entityIndicator_t *indicator;
+                LONG number = MSG_ReadLong(msg);
+                DWORD packed = (DWORD)MSG_ReadLong(msg);
+
+                if (number <= 0 || number >= MAX_CLIENT_ENTITIES) break;
+                indicator = CL_AllocIndicator((DWORD)number);
+                indicator->entity = (DWORD)number;
+                indicator->color = MAKE(COLOR32,
+                    packed & 0xffu, (packed >> 8) & 0xffu,
+                    (packed >> 16) & 0xffu, (packed >> 24) & 0xffu);
+                indicator->starttime = cl.time;
+                indicator->active = indicator->color.a != 0;
             }
             break;
         case TE_FLOATING_TEXT:
@@ -322,6 +362,27 @@ TEST(client_tent, confirmation_carries_walkable_ground_conform_contract) {
     cl.time = old_time;
 }
 #endif
+
+void CL_ApplyIndicator(renderEntity_t *ent) {
+    if (!ent || !ent->number) return;
+
+    FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
+        entityIndicator_t *indicator = &tents.indicators[i];
+        DWORD age;
+
+        if (!indicator->active) continue;
+        age = cl.time - indicator->starttime;
+        if (age >= ENTITY_INDICATOR_LIFETIME) {
+            indicator->active = false;
+            continue;
+        }
+        if (indicator->entity != ent->number) continue;
+        if (age % ENTITY_INDICATOR_PERIOD < ENTITY_INDICATOR_ON_TIME) {
+            ent->indicator = indicator->color;
+        }
+        return;
+    }
+}
 
 void CL_ClearTEnts(void) {
     memset(&tents, 0, sizeof(tents));

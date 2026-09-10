@@ -293,6 +293,7 @@ void CL_InitInput(void);
 // cl_tent.c
 void CL_ParseTEnt(LPSIZEBUF msg);
 void CL_AddTEnts(void);
+void CL_ApplyIndicator(renderEntity_t *ent);
 void CL_DrawTEnts(void);
 void CL_ClearTEnts(void);
 

@@ -359,6 +359,18 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 orig
     }
 }
 
+static void R_RenderEntityIndicator(renderEntity_t const *entity, LPCVECTOR2 origin) {
+    if (!entity->indicator.a) return;
+
+    float radius = R_SelectionRadius(entity);
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+        if ((radius * 2) > selCircles[i]) continue;
+        R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i],
+                      R_SPLAT_SHADER(&tr.shader_splat), entity->indicator);
+        break;
+    }
+}
+
 /* Subtle highlight circle for the entity under the mouse cursor. */
 static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     if (entity->number != tr.viewDef.hover_entity || entity->number == 0) {
@@ -402,4 +414,5 @@ void R_DrawEntity(renderEntity_t const *entity, BOOL shad) {
     R_RenderModel(entity);
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
     R_RenderHoverHighlight(entity);
+    R_RenderEntityIndicator(entity, (LPCVECTOR2)&entity->origin);
 }
