@@ -2667,6 +2667,23 @@ SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar.armor, 7.0f)
 SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar.health, 600.0f)
 SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
 
+TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-hero-shortcut-alert.bin";
+    field_t const *desc = find_save_field("hero_shortcut_alert_until");
+    LPEDICT unit;
+
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    T_NOT_NULL(desc);
+    if (desc) T_ASSERT(desc->type == F_IGNORE && desc->flags == FIELD_RUNTIME);
+    unit->hero_shortcut_alert_until = 12345;
+    T_ASSERT(WriteGame(filename));
+    unit->hero_shortcut_alert_until = 0;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(unit->hero_shortcut_alert_until, 0);
+    remove(filename);
+}
+
 TEST(wc3_save, field_collision_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
     field_t const *desc = find_save_field("collision");
