@@ -206,7 +206,10 @@ DWORD SetUnitColor(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
     if (whichUnit && pColor) {
+        DWORD const encoded = MIN(*pColor, 30u) + 1u;
         whichUnit->unit_color = *pColor;
+        whichUnit->s.effect_flags = (whichUnit->s.effect_flags & ~EFX_TEAM_COLOR_MASK) |
+            (USHORT)(encoded << EFX_TEAM_COLOR_SHIFT);
     }
     return 0;
 }

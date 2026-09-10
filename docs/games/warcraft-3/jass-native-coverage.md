@@ -51,6 +51,8 @@ The game sends the widget entity number plus clamped RGBA to each applicable cli
 terrain-conforming selection circle for two flashes without changing authoritative selection membership. This also
 covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIndicator` native with a unit widget.
 
+`SetUnitColor` now publishes a per-unit replaceable team-color override without changing unit ownership. The override is packed into unused `effect_flags` presentation bits as `playercolor + 1`, so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state. This mirrors Warsmash's `RenderUnit.setPlayerColor` behavior and allows campaign scripts such as Prologue01 to give completed Circle of Power checkpoints their authored neutral-passive look.
+
 Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
 `AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
 [Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued

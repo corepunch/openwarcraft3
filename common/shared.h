@@ -226,6 +226,10 @@ enum {
     EFX_SLOT_FOURTH = 1 << 11,
     EFX_SLOT_FIFTH = 1 << 12,
 };
+/* Bits 3-7 carry an optional WC3 player-color override as ordinal + 1.
+ * Zero means use entityState_t.player, preserving ownership separately. */
+#define EFX_TEAM_COLOR_MASK 0x00f8
+#define EFX_TEAM_COLOR_SHIFT 3
 #define EFX_SLOT_MASK 0x1f00 // bits 8-12; authored attachment slots used by model effects
 #define EFX_SLOT_SHIFT 8 // bits; low bit of the packed attachment-slot mask; used by the renderer
 

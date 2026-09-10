@@ -206,7 +206,11 @@ static void V_AddClientEntity(centity_t const *ent) {
         LPCSTR cs = cl.configstrings[CS_GENERAL + (i >> 4)];
         re.name = cs ? cs + (i & 0xF) * ENT_NAME_SLOT_SIZE : NULL;
     }
-    re.team = ent->current.player;
+    {
+        DWORD const encoded_color =
+            (ent->current.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
+        re.team = encoded_color ? encoded_color - 1 : ent->current.player;
+    }
 #ifdef WOW
     /* WoW reuses the existing snapshot class ID for the DBC creature display ID. */
     re.display_id = ent->current.class_id;

@@ -664,6 +664,11 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     unit->health = saved->health;
     unit->mana = saved->mana;
     unit->unit_color = saved->unit_color;
+    if (saved->unit_color) {
+        DWORD const encoded = MIN(saved->unit_color, 30u) + 1u;
+        unit->s.effect_flags = (unit->s.effect_flags & ~EFX_TEAM_COLOR_MASK) |
+            (USHORT)(encoded << EFX_TEAM_COLOR_SHIFT);
+    }
 
     FOR_LOOP(i, MAX_INVENTORY) {
         gameCacheItem_t const *saved_item = saved->inventory + i;

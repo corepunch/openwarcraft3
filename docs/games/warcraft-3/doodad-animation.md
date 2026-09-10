@@ -40,6 +40,8 @@ call SetUnitColor( udg_Circle01, GetPlayerColor(Player(PLAYER_NEUTRAL_PASSIVE)) 
 
 `LOo2` is the separate banner/flag doodad placed in the middle of the Circle of Power.  Its authored `Death` sequence removes the banner and emits the smoke puff seen in retail.  The Circle unit remains and is recoloured independently.
 
+The Circle's completed appearance is a separate `SetUnitColor` operation. Prologue01 initializes each checkpoint Circle as `PLAYER_COLOR_LIGHT_GRAY`, then changes it to the neutral-passive player's color after the banner Death animation starts. The Circle remains owned by its original map player; only the MDX replaceable team-color presentation changes.
+
 The same pattern is used for the later tutorial waypoint banners and the final objective (`gg_rct_SpotVictory`).
 
 This distinction matters when debugging the scene: `CircleOfPower.mdx` animation traces cannot observe the banner transition because the transition belongs to the `LOo2` doodad model.
