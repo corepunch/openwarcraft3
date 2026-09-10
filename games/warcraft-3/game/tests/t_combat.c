@@ -142,6 +142,28 @@ TEST(wc3_combat, tdamage_reduces_health) {
     T_EQ(_die_call_count, 0);
 }
 
+TEST(wc3_combat, tdamage_refreshes_owned_hero_shortcut_alert) {
+    LPGAMECLIENT client;
+    LPEDICT target;
+    LPEDICT attacker;
+
+    reset_entities();
+    setup_test_world();
+    client = &game.clients[0];
+    client->ps.number = 0;
+    client->shortcuts.dirty = false;
+    target = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    target->s.player = 0;
+    attacker->s.player = 1;
+    level.time = 7000;
+
+    T_Damage(target, attacker, 25);
+
+    T_ASSERT(target->hero_shortcut_alert_until > level.time);
+    T_ASSERT(client->shortcuts.dirty);
+}
+
 TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     LPEDICT building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);

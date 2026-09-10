@@ -8,6 +8,8 @@ BOOL scr_initialized;
 
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
+#define SCR_ALERT_PULSE_HALF_MS 250 // milliseconds; triangle-wave half period for transient command-button alert tint
+#define SCR_ALERT_PULSE_MIN_GB 80 // color channel value; preserves portrait detail at the red peak of a transient alert
 
 /* Returns the UI canvas width for the current window aspect.  The canvas
  * expands horizontally while the height stays fixed (matches
@@ -946,6 +948,22 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawSprite(model, anim, screen->x, screen->y);
 }
 
+/* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
+static COLOR32 SCR_CommandButtonColor(LPCUIFRAME frame) {
+    COLOR32 color = COLOR32_WHITE;
+    DWORD deadline;
+    FLOAT phase, pulse;
+
+    if (!frame || !(frame->flagsvalue & UIFLAG_ALERT_RED_PULSE) || frame->value <= 0.0f) return color;
+    deadline = (DWORD)frame->value;
+    if ((LONG)(cl.time - deadline) >= 0) return color;
+
+    phase = (FLOAT)(cl.time % (SCR_ALERT_PULSE_HALF_MS * 2)) / (FLOAT)SCR_ALERT_PULSE_HALF_MS;
+    pulse = 1.0f - fabsf(phase - 1.0f);
+    color.g = color.b = (BYTE)(255.0f - pulse * (255.0f - SCR_ALERT_PULSE_MIN_GB));
+    return color;
+}
+
 void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE sel = SCR_LayoutSelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
@@ -955,11 +973,10 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         .texture     = cl.pics[frame->tex.index],
         .screen      = scrn,
         .uv          = suv,
-        .color       = COLOR32_WHITE,
+        .color       = SCR_CommandButtonColor(frame),
         .shader      = SHADER_COMMANDBUTTON,
         .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
                        (sel && sel->ability == frame->stat)));
-    (void)frame;
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {

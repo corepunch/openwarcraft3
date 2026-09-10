@@ -211,6 +211,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
      * damage wakes the former here; the existing status cleanup below wakes
      * the spell-induced Sleep effect independently. */
     G_UnitWakeUp(target);
+    /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
+    G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
             memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));

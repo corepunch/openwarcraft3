@@ -972,6 +972,7 @@ struct edict_s {
     } stock;
     FLOAT velocity;
     doodadHero_t hero;
+    DWORD hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
     edictAbilities_s abilities;
@@ -1786,6 +1787,7 @@ LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after);
 void G_InvalidateUnitShortcuts(LPGAMECLIENT client);
 void G_InvalidateAllUnitShortcuts(void);
 void G_InvalidateUnitShortcutsForUnit(LPEDICT ent);
+void G_AlertHeroShortcutDamage(LPEDICT ent);
 void G_ActivateHeroButton(LPEDICT clent, DWORD number);
 void G_ActivateHeroKey(LPEDICT clent, DWORD slot);
 void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number);
