@@ -24,6 +24,12 @@ static FLOAT G_CameraVerticalToHorizontalFov(FLOAT vertical) {
     return 2.0f * atanf(tanf(vfov_rad / 2.0f) * WC3_CAMERA_ASPECT) * 180.0f / (FLOAT)M_PI;
 }
 
+/* Mirror low authored AoA values above the target while preserving their world-facing orbit. */
+static FLOAT G_CameraAuthoredToPitch(FLOAT value) { return value < 90 ? 90 - value : -90 - value; }
+static FLOAT G_CameraPitchToAuthored(FLOAT value) { return value < 0 ? -90 - value : 90 - value; }
+static FLOAT G_CameraAuthoredToYaw(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
+static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
+
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
                                                  BOOL set_z, FLOAT z_offset,
                                                  FLOAT duration) {
@@ -202,10 +208,10 @@ DWORD CameraSetupSetField(LPJASS j) {
         case CAMERA_FIELD_TARGET_DISTANCE: whichSetup->target_distance = value; break;
         case CAMERA_FIELD_FARZ: whichSetup->far_z = value; break;
         case CAMERA_FIELD_NEARZ: whichSetup->near_z = value; break;
-        case CAMERA_FIELD_ANGLE_OF_ATTACK: whichSetup->viewangles.x = -90 - value; break;
+        case CAMERA_FIELD_ANGLE_OF_ATTACK: whichSetup->viewangles.x = G_CameraAuthoredToPitch(value); break;
         case CAMERA_FIELD_FIELD_OF_VIEW: whichSetup->fov = G_CameraHorizontalToVerticalFov(value); break;
         case CAMERA_FIELD_ROLL: whichSetup->viewangles.y = value; break;
-        case CAMERA_FIELD_ROTATION: whichSetup->viewangles.z = 90 - value; break;
+        case CAMERA_FIELD_ROTATION: whichSetup->viewangles.z = G_CameraAuthoredToYaw(value, whichSetup->viewangles.x); break;
         case CAMERA_FIELD_ZOFFSET: whichSetup->z_offset = value; break;
         case CAMERA_FIELD_LOCAL_PITCH:
         case CAMERA_FIELD_LOCAL_YAW:
@@ -223,10 +229,10 @@ DWORD CameraSetupGetField(LPJASS j) {
         case CAMERA_FIELD_TARGET_DISTANCE: value = whichSetup->target_distance; break;
         case CAMERA_FIELD_FARZ: value = whichSetup->far_z; break;
         case CAMERA_FIELD_NEARZ: value = whichSetup->near_z; break;
-        case CAMERA_FIELD_ANGLE_OF_ATTACK: value = -90 - whichSetup->viewangles.x; break;
+        case CAMERA_FIELD_ANGLE_OF_ATTACK: value = G_CameraPitchToAuthored(whichSetup->viewangles.x); break;
         case CAMERA_FIELD_FIELD_OF_VIEW: value = G_CameraVerticalToHorizontalFov(whichSetup->fov); break;
         case CAMERA_FIELD_ROLL: value = whichSetup->viewangles.y; break;
-        case CAMERA_FIELD_ROTATION: value = 90 - whichSetup->viewangles.z; break;
+        case CAMERA_FIELD_ROTATION: value = G_CameraYawToAuthored(whichSetup->viewangles.z, whichSetup->viewangles.x); break;
         case CAMERA_FIELD_ZOFFSET: value = whichSetup->z_offset; break;
         case CAMERA_FIELD_LOCAL_PITCH:
         case CAMERA_FIELD_LOCAL_YAW:
