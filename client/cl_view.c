@@ -163,6 +163,18 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
+#ifdef WC3
+    /* WC3 camera setups describe an orbit around a target; rebuild its view
+     * with world-up so low AoA shots cannot roll over. */
+    if (distance > 0.0f) {
+        MATRIX4 inverse;
+        VECTOR3 eye, direction;
+        Matrix4_inverse(&view, &inverse);
+        eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
+        direction = Vector3_sub(&origin, &eye);
+        Matrix4_lookAt(&view, &eye, &direction, &(VECTOR3){0, 0, 1});
+    }
+#endif
     Matrix4_multiply(&proj, &view, output);
 }
 
