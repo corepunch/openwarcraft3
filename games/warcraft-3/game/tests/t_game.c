@@ -2718,6 +2718,7 @@ SAVE_PTR_FIELD_TEST(field_patrol_a_round_trip, "movement.patrol_a", movement.pat
 SAVE_PTR_FIELD_TEST(field_patrol_b_round_trip, "movement.patrol_b", movement.patrol_b, 0)
 SAVE_PTR_FIELD_TEST(field_patrol_target_round_trip, "movement.patrol_target", movement.patrol_target, 0)
 SAVE_PTR_FIELD_TEST(field_goal_entity_round_trip, "goalentity", goalentity, 0)
+SAVE_PTR_FIELD_TEST(field_item_drop_round_trip, "item_drop", item_drop, 0)
 SAVE_PTR_FIELD_TEST(field_combat_entity_round_trip, "combatentity", combatentity, 0)
 SAVE_PTR_FIELD_TEST(field_secondary_goal_round_trip, "secondarygoal", secondarygoal, 0)
 SAVE_PTR_FIELD_TEST(field_owner_round_trip, "owner", owner, 0)

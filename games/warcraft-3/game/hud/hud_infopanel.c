@@ -1170,6 +1170,7 @@ static void WriteInventory(LPEDICT player, LPEDICT ent) {
         FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
         char onclick[128];
+        char onrightclick[128];
         char tooltip[1024];
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_COMMANDBUTTON;
@@ -1178,7 +1179,12 @@ static void WriteInventory(LPEDICT player, LPEDICT ent) {
         UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
         frame.tooltip = tooltip;
         snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
+        snprintf(onrightclick, sizeof(onrightclick), "itemdrag %u", (unsigned)items[i].slot);
         frame.onclick = onclick;
+        /* Command-button text is the existing secondary/right-click command
+         * channel (also used by autocast). Inventory items use it to begin the
+         * Warsmash-style hold-item cursor interaction. */
+        frame.text = onrightclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
         UI_WriteProxyFrame(&frame, NULL, 0);
         WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);

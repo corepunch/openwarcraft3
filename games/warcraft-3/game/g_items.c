@@ -340,6 +340,7 @@ BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
 
 BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
     LPEDICT item;
+    VECTOR2 drop_position;
 
     if (!unit || !position || slot >= MAX_INVENTORY) {
         return false;
@@ -350,15 +351,22 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
         return false;
     }
 
+    /* Warsmash finishes a point drop through setPointAndCheckUnstuck rather
+     * than assigning the requested coordinates blindly. Reuse OpenRealm's
+     * deterministic WC3 unstuck search so blocked terrain resolves to a legal
+     * nearby position while preserving the requested point as its fallback. */
+    drop_position = *position;
+    G_FindUnitUnstuckPosition(item, position, &drop_position);
+
     G_ApplyItemStats(unit, item, false);
     unit->inventory[slot] = NULL;
     item->item.carrier = NULL;
     item->item.inventory_slot = -1;
     item->item.in_world = true;
-    item->s.origin.x = position->x;
-    item->s.origin.y = position->y;
-    item->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
-    item->s.origin2 = *position;
+    item->s.origin.x = drop_position.x;
+    item->s.origin.y = drop_position.y;
+    item->s.origin.z = CM_GetHeightAtPoint(drop_position.x, drop_position.y);
+    item->s.origin2 = drop_position;
     item->s.renderfx &= ~RF_HIDDEN;
     item->svflags &= ~SVF_NOCLIENT;
     gi.LinkEntity(item);
@@ -372,6 +380,67 @@ BOOL G_DropItem(LPEDICT unit, DWORD slot) {
         return false;
     }
     return G_DropItemAt(unit, slot, &unit->s.origin2);
+}
+
+static void G_StopDropItemOrder(LPEDICT unit) {
+    if (!unit) return;
+    unit->goalentity = NULL;
+    unit->item_drop = NULL;
+    if (unit->stand) unit->stand(unit);
+    else unit_stand(unit);
+}
+
+static void G_DropItemThink(LPEDICT unit) {
+    LPEDICT item = unit ? unit->item_drop : NULL;
+    LPEDICT destination = unit ? unit->goalentity : NULL;
+    FLOAT distance;
+    FLOAT move_distance;
+    LONG slot;
+
+    if (!unit || !destination || !G_IsItem(item) || item->item.carrier != unit || item->item.in_world) {
+        G_StopDropItemOrder(unit);
+        return;
+    }
+    slot = item->item.inventory_slot;
+    if (slot < 0 || slot >= MAX_INVENTORY || unit->inventory[slot] != item) {
+        G_StopDropItemOrder(unit);
+        return;
+    }
+
+    distance = M_DistanceToGoal(unit);
+    if (distance <= ITEM_DROP_RANGE) {
+        VECTOR2 const position = destination->s.origin2;
+        G_DropItemAt(unit, (DWORD)slot, &position);
+        G_StopDropItemOrder(unit);
+        return;
+    }
+
+    move_distance = unit_movedistance(unit);
+    if (move_is_blocked(unit, distance, move_distance)) {
+        G_StopDropItemOrder(unit);
+        return;
+    }
+    unit_changeangle(unit);
+    unit_moveindirection(unit);
+}
+
+static umove_t item_move_drop = { "walk", G_DropItemThink, NULL, &a_inventory };
+
+BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
+    if (!unit || !item || !position || (unit->aiflags & AI_IMMOBILE) ||
+        !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||
+        item->item.inventory_slot < 0 || item->item.inventory_slot >= MAX_INVENTORY ||
+        unit->inventory[item->item.inventory_slot] != item) {
+        return false;
+    }
+
+    unit->goalentity = Waypoint_add(position);
+    if (!unit->goalentity) return false;
+    move_reset_progress(unit);
+    unit_setmove(unit, &item_move_drop);
+    unit->item_drop = item;
+    unit_setanimation(unit, "stand");
+    return true;
 }
 
 void G_RemoveItem(LPEDICT item) {

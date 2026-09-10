@@ -226,8 +226,23 @@ The existing JASS natives route through this lifecycle:
 - `GetItemCharges`
 - `SetItemCharges`
 
-The client command `dropitem <slot>` exposes a direct zero-based drop path for
-the main selected unit. Inventory drag/drop interaction is a later UI phase.
+The client command `dropitem <slot>` remains a direct zero-based drop-at-feet
+path for the main selected unit. Inventory buttons now also use the existing
+command-button secondary/right-click channel: right-clicking an occupied slot
+sends `itemdrag <slot>` and enters a server-owned point-target mode. The next
+left-click on terrain starts a real drop behavior for that exact item instance.
+If the requested point is farther than `ITEM_DROP_RANGE`, the carrier walks
+into range before releasing the item; the behavior revalidates the carried item
+on each tick. A successful point drop removes passive item effects, unhides and
+relinks the same item entity, and runs the requested point through the shared
+WC3 deterministic unstuck search before placing it. Right-click or the normal
+Cancel command leaves the target mode without dropping the item.
+
+This slice intentionally does not yet implement Warsmash's held-item cursor
+art, inventory-slot swapping, allied-unit give-item targeting, or `AInv`'s
+`CanDropItems` (`inv5`) rejection/error path. Those need dedicated presentation,
+slot-target, transfer, and ability-field plumbing rather than being folded into
+the ground-drop behavior.
 
 Successful transitions and carried-item charge changes refresh the inventory
 layer for clients currently selecting the carrier. Hidden entities are also
@@ -244,7 +259,8 @@ inventory entry and exit.
 
 Still missing are automatic `powerup` acquisition/use, asynchronous targeted
 item completion and its charge/event semantics, `cooldownID`/`ignoreCD` item
-cooldowns and disabled icons, slot swapping, giving, and death-drop rules.
+cooldowns and disabled icons, held-item cursor art, slot swapping, allied-unit
+giving, `inv5`/`Cantdropitem` enforcement, and death-drop rules.
 
 The implementation is derived from observable behavior and Warcraft III data
 formats described by the clean-room specification. It does not depend on
@@ -256,7 +272,8 @@ The `wc3_items.*` in-engine tests cover world-state initialization, data-driven
 capacity (including reduced, zero, above-storage-limit, and implicit ROC Hero
 `AInv` cases),
 first-empty-slot insertion,
-full-inventory failure, pickup range and revalidation, drop identity, renderer
+full-inventory failure, pickup range and revalidation, drop identity, point-drop
+deferred execution/movement/revalidation, save/load of the active drop-item pointer, renderer
 visibility flags, carried-item removal, connection-state refresh gating, charge
 initialization/preservation, carried-charge refresh/no-op behavior, perishable
 use decrement/removal, non-perishable decrement-without-removal behavior, JASS charge access,
