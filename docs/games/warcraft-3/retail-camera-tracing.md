@@ -250,6 +250,114 @@ filename.
 The values are raw retail getter values: angular fields and FOV appeared as
 radians in the trace, while distance and positions remained world units.
 
+## Retail fade/filter investigation
+
+The opening scene's first two seconds are intentionally hidden by the map's
+cinematic filter. The script first applies `DummyStart` and `TowerLow`, waits
+for approximately two seconds, then applies `TowerHigh` and begins the
+ten-second `TowerHigh` to `TowerLow` transition. A one-second
+`CinematicFilterGenericBJ` call then reveals the tower view. A missing tower
+during the initial black interval is therefore not evidence of a camera or
+model-rendering failure.
+
+The retail 1.29.2 executable contains these cine-filter native names:
+
+```text
+SetCineFilterTexture
+SetCineFilterBlendMode
+SetCineFilterTexMapFlags
+SetCineFilterStartUV
+SetCineFilterEndUV
+SetCineFilterStartColor
+SetCineFilterEndColor
+SetCineFilterDuration
+DisplayCineFilter
+IsCineFilterDisplayed
+```
+
+Static inspection also finds RTTI for `CCinematicFilter`, `CFadeTimer`, and
+`CSimpleFadeTimer`. Blizzard symbols/PDB data are not present in the
+installation, so these are the names and internal class identities visible
+from the binary; native implementation addresses still require a debugger
+breakpoint or disassembly mapping.
+
+For the tested ROC 1.29.2 `Warcraft III.exe` (image base `0x00400000`), the
+JASS native registration table resolves to these wrapper entry points. These
+addresses are specific to this executable build and must not be copied to a
+different patch:
+
+| Native | Virtual address | RVA |
+| --- | ---: | ---: |
+| `SetCineFilterTexture` | `0x004A7800` | `0x000A7800` |
+| `SetCineFilterBlendMode` | `0x004A7460` | `0x000A7460` |
+| `SetCineFilterTexMapFlags` | `0x004A77B0` | `0x000A77B0` |
+| `SetCineFilterStartUV` | `0x004A7740` | `0x000A7740` |
+| `SetCineFilterEndUV` | `0x004A75D0` | `0x000A75D0` |
+| `SetCineFilterStartColor` | `0x004A7640` | `0x000A7640` |
+| `SetCineFilterEndColor` | `0x004A74D0` | `0x000A74D0` |
+| `SetCineFilterDuration` | `0x004A74A0` | `0x000A74A0` |
+| `DisplayCineFilter` | `0x0048F9B0` | `0x0008F9B0` |
+| `IsCineFilterDisplayed` | `0x00498E70` | `0x00098E70` |
+
+The registration block is at `0x004A05AF` (with a duplicate native-table
+initializer at `0x00CBB860`). The wrapper disassembly shows that
+`SetCineFilterDuration` stores the supplied duration in the filter state,
+`DisplayCineFilter` updates the filter's displayed-state field, and
+`IsCineFilterDisplayed` reads that field. `SetCineFilterStartColor` and
+`SetCineFilterEndColor` pack the four byte color arguments before passing them
+to the filter state. The exact timer update and screen-compositing methods are
+inside the stripped `CCinematicFilter`/`CFadeTimer` implementation and still
+need runtime breakpoints or further call-graph analysis.
+
+The corresponding OpenRealm path is `api_cinefilter.h` to `G_Cinefade()` to
+`playerState.cinefade` to `SCR_DrawLayout()`. Compare the overlay alpha at
+`t=0`, `t=2.0`, and `t=2.1` through `t=3.1`; the camera may already be
+positioned beneath a fully opaque filter while the scene is black.
+
+### Runtime breakpoint result
+
+The first live breakpoint run under Wine reached the retail filter natives and
+printed this startup sequence before the campaign map began:
+
+```text
+RETAIL_FILTER start-color a=0,0,0,255
+RETAIL_FILTER end-color a=0,0,0,255
+RETAIL_FILTER duration=0.000000
+RETAIL_FILTER display=1
+```
+
+This confirms that the black opening can be established independently of a
+camera operation. It does not yet identify the compositor's per-frame alpha
+update: that requires the map to remain running under the debugger and a
+breakpoint/watchpoint on the internal `CFadeTimer` state. The debugger must be
+launched with a stable X11 display and the same MPQ-packed map copy that is
+known to load without returning to the menu. If Wine loses its display or the
+map exits during debugger startup, `winedbg` can leave a GDB prompt with no
+inferior; that run has no runtime evidence and should be discarded.
+
+For native debugging, install the 32-bit Wine runtime. This installation uses
+Wine's WoW64 mode; the 32-bit runtime is required, but this Wine build rejects
+`WINEARCH=win32`, so use the existing/default WoW64 prefix rather than creating
+a legacy 32-bit prefix:
+
+```sh
+sudo dpkg --add-architecture i386
+sudo apt update
+sudo apt install wine32:i386 libwine:i386
+wineboot -u
+```
+
+Verify the package installation with `dpkg-query -W wine32:i386
+libwine:i386`. A test such as `WINEARCH=win32 wineboot -u` is expected to
+fail with this WoW64 build and does not indicate that the required 32-bit
+runtime is missing.
+
+The available `winedbg` can launch the 32-bit executable through its GDB
+proxy. This is sufficient for breakpoints after native registration targets
+are identified, but the lack of Blizzard symbols means initial breakpoints use
+raw addresses. Do not modify the retail executable or the original campaign
+archive during this investigation.
+
 ## Retail launch
 
 For the installed 1.29 executable, this was the working form:
