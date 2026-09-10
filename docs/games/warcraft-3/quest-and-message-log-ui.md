@@ -139,8 +139,9 @@ resolve TRIGSTR / level string
         -> presentation_dirty flushes LAYER_MESSAGE
 ```
 
-`SetCinematicScene` uses the same retained history without creating a second
-transient `client_s.message`:
+Gameplay-mode `SetCinematicScene` prompts use the same retained history without
+creating a second transient `client_s.message`. Cutscene-mode dialogue remains
+cinematic presentation only and is not added to the Message Log:
 
 ```text
 resolve speaker/dialogue
@@ -150,9 +151,9 @@ resolve speaker/dialogue
         -> presentation_dirty flushes the active dialogue presentation
 ```
 
-This records narrator/tutorial transmissions alongside nearby `DisplayText*`
-hints. Empty `SetCinematicScene` clear state is ignored rather than adding a
-blank history row.
+This records gameplay narrator/tutorial transmissions alongside nearby
+`DisplayText*` hints. Empty `SetCinematicScene` clear state and cutscene
+dialogue are ignored rather than adding history rows.
 
 `client_s.message_log` is a 128-entry ring. When full, the oldest entry is
 replaced. This implements bounded Warcraft-style history without coupling the
