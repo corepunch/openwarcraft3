@@ -330,6 +330,7 @@ globals
     constant playerslotstate PLAYER_SLOT_STATE_LEFT = ConvertPlayerSlotState(2)
     constant playercolor PLAYER_COLOR_RED = ConvertPlayerColor(0)
     constant playercolor PLAYER_COLOR_BLUE = ConvertPlayerColor(1)
+    constant playercolor PLAYER_COLOR_LIGHT_GRAY = ConvertPlayerColor(8)
     constant camerafield CAMERA_FIELD_FARZ = ConvertCameraField(1)
     constant camerafield CAMERA_FIELD_ZOFFSET = ConvertCameraField(6)
     constant camerafield CAMERA_FIELD_NEARZ = ConvertCameraField(7)
