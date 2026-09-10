@@ -44,6 +44,8 @@ The same pattern is used for the later tutorial waypoint banners and the final o
 
 This distinction matters when debugging the scene: `CircleOfPower.mdx` animation traces cannot observe the banner transition because the transition belongs to the `LOo2` doodad model.
 
+Doodad model lookup follows the `Doodads.slk` `file` field directly.  A numeric variation suffix is considered only when `numVar > 1`; when that suffixed asset is absent, lookup falls back to the unsuffixed base model. The legacy `dir` column is not used to reconstruct or duplicate the model path.  This matters for scripted animations because the game-side MDX loader must open the same authoritative model that the map renderer displays.
+
 ## Verification
 
 Automated coverage should verify:

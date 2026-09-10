@@ -271,16 +271,57 @@ LPEDICT G_Spawn(void) {
     return edict;
 }
 
+static BOOL SP_DoodadModelExists(LPCSTR filename) {
+    DWORD size = 0;
+    HANDLE data;
+
+    if (!filename || !*filename) return false;
+    data = gi.ReadFile(filename, &size);
+    if (!data) return false;
+    gi.MemFree(data);
+    return true;
+}
+
+static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
+                                   LPSTR out, size_t out_size) {
+    PATHSTR stem = { 0 };
+    PATHSTR varied = { 0 };
+    LPCSTR file;
+    char *dot;
+
+    if (!out || !out_size) return;
+    out[0] = '\0';
+    if (!row || !(file = row->file) || !*file) return;
+
+    /* Doodads.slk `file` is already the authoritative model stem.  Do not
+     * rebuild it from the legacy `dir` column: doing so turns entries such as
+     * LOo2 into a path that the game-side MDX loader cannot open even though
+     * the map renderer can still display the placement.  Warsmash likewise
+     * resolves doodads from `file` directly. */
+    strlcpy(stem, file, sizeof(stem));
+    dot = strrchr(stem, '.');
+    if (dot && (!strcasecmp(dot, ".mdx") || !strcasecmp(dot, ".mdl")))
+        *dot = '\0';
+
+    if (row->numVar > 1) {
+        DWORD const max_variation = (DWORD)row->numVar - 1;
+        snprintf(varied, sizeof(varied), "%s%u.mdx", stem, MIN(variation, max_variation));
+        if (SP_DoodadModelExists(varied)) {
+            strlcpy(out, varied, out_size);
+            return;
+        }
+        /* Some SLK rows advertise multiple variations even when a particular
+         * suffixed file is absent.  Warcraft/Warsmash fall back to the base
+         * model rather than registering a path that cannot be loaded. */
+    }
+    snprintf(out, out_size, "%s.mdx", stem);
+}
+
 static void SP_SpawnDoodad(LPEDICT edict) {
     Doodads_t const *row = edict->data.Doodads;
-    LPCSTR dir = row->dir;
-    LPCSTR file = row->file;
     PATHSTR buffer;
-    if (dir) {
-        snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
-    }
+
+    SP_DoodadModelFilename(row, edict->variation, buffer, sizeof(buffer));
     edict->s.model = G_RegisterModel(buffer);
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
