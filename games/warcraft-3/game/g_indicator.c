@@ -1,5 +1,28 @@
 #include "g_local.h"
 
+/* Retail Smart-click acknowledgement uses the same selection-circle palette
+ * as unit relationship presentation. UI\MiscData.txt stores these as A,R,G,B. */
+COLOR32 G_SmartTargetIndicatorColor(DWORD viewer, LPCEDICT unit) {
+    static LPCSTR const keys[] = { "ColorFriend", "ColorNeutral", "ColorEnemy" };
+    static COLOR32 const stock[] = {
+        { 0, 255, 0, 255 }, { 255, 255, 0, 255 }, { 255, 0, 0, 255 },
+    };
+    selectionRelation_t relation;
+    LPCSTR value;
+    unsigned a, r, g, b;
+
+    relation = G_SelectionRelation(viewer, unit);
+    if ((DWORD)relation >= sizeof(keys) / sizeof(keys[0])) relation = SELECT_RELATION_ENEMY;
+    value = Stb_IniCacheFind(&game.config.misc, "SelectionCircle", keys[relation]);
+    if (value && sscanf(value, "%u,%u,%u,%u", &a, &r, &g, &b) == 4 &&
+        a <= 255 && r <= 255 && g <= 255 && b <= 255)
+        return MAKE(COLOR32, r, g, b, a);
+
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 1.29 SelectionCircle values are
+     * retained for tests/minimal data sets that omit UI\MiscData.txt. */
+    return stock[relation];
+}
+
 /* Serialize one indicator to a target client's temporary-entity stream. */
 static void G_SendWidgetIndicatorClient(LPGAMECLIENT client, LPCEDICT widget, COLOR32 color) {
     LPEDICT clent;

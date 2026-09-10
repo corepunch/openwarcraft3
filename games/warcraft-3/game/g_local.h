@@ -1985,6 +1985,7 @@ void G_QueueOwnerSoundAlias(LPEDICT, LPCSTR);
 void G_QueueOwnerUISound(LPEDICT, LPCSTR);
 void G_SendMinimapPing(LPGAMECLIENT, LPCVECTOR2, FLOAT, COLOR32, DWORD);
 void G_SendOwnerMinimapAlert(LPEDICT);
+COLOR32 G_SmartTargetIndicatorColor(DWORD, LPCEDICT);
 void G_SendWidgetIndicator(LPEDICT, COLOR32, LPPLAYER);
 void G_ShowCommandErrorText(LPEDICT, LPCSTR);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
