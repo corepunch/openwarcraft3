@@ -69,6 +69,14 @@ in the latter checkout. That main includes `0059057e`, which fixes the older PR 
 
 All `sv_cheats 1` Warcraft III cheat commands print their result to the issuing player's in-game console. This includes successful state changes as well as disabled-cheat, usage, and validation feedback. The same text is retained on stderr for terminal/debug logs; console delivery is presentation-only and is skipped for disconnected test/reserved clients.
 
+`hero max` raises the selected friendly Hero to the active map's `Misc/MaxHeroLevel` and grants the skill points associated with that level:
+
+```
+hero max
+```
+
+The command uses the ordinary Hero XP/level-up path so attribute growth and Hero level events remain authoritative. After leveling, it ensures the Hero has at least one total skill point per Hero level minus already learned Hero ability ranks; existing extra skill points awarded by map scripts are preserved. The command requires `sv_cheats 1` and a selected controllable Hero.
+
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
 ```
