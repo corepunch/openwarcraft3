@@ -25,6 +25,8 @@ static int R_DebugEntities(void) {
 }
 
 static BOOL R_EntityInView(renderEntity_t const *entity) {
+    BOX3 bounds;
+    MATRIX4 matrix;
     float radius;
 
     if (!entity || (entity->flags & RF_HIDDEN) || !entity->model) {
@@ -32,6 +34,13 @@ static BOOL R_EntityInView(renderEntity_t const *entity) {
     }
     if (tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) {
         return true;
+    }
+
+    /* Model bounds cover tall map art whose gameplay selection radius is only
+     * the ground footprint; keep the radius path for models without bounds. */
+    if (R_GetEntityBounds(entity, &bounds)) {
+        R_GetEntityMatrix(entity, &matrix);
+        return Frustum_ContainsBox(&tr.viewDef.frustum, &bounds, &matrix);
     }
 
     radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);

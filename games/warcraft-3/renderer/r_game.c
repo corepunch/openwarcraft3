@@ -476,6 +476,15 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance)
     return true;
 }
 
+/* Share MDX authored bounds with the outer renderer culler so tall doodads are
+ * not rejected by their smaller gameplay selection radius. */
+bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
+    if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx)
+        return false;
+    *bounds = entity->model->mdx->bounds.box;
+    return true;
+}
+
 bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     (void)entity;
     (void)matrix;

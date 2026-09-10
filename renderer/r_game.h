@@ -43,6 +43,7 @@ void R_RenderModel(renderEntity_t const *entity);
 void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags);
 bool R_ModelCanStaticInstance(LPCMODEL model);
 bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance);
+bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds);
 bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 #ifndef USE_SHADOWMAPS
