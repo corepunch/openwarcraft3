@@ -54,7 +54,7 @@ FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
     return a + delta * fraction;
 }
 FLOAT CM_GetCameraHeightOffset(void) {
-    return -TILE_SIZE; // orbit look-at sits one tile below sampled terrain
+    return -48.0f; // world units; retail target reference is 48 below sampled terrain
 }
 
 #ifdef BZ_TESTS

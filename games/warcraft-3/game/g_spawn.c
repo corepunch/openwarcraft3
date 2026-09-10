@@ -591,6 +591,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
         clent->client->camera.state.near_z = cam.znear;
         clent->client->camera.state.far_z = cam.zfar;
     }
+    clent->client->camera.target_height = ps->vieworigin.z;
     clent->client->camera.old_state = clent->client->camera.state;
     clent->client->camera.target_inherit_orientation = false;
     if (mapinfo) {
