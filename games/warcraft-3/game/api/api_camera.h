@@ -63,6 +63,8 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
     LPGAMECLIENT gc;
     LPCPLAYER p;
     LPCAMERASETUP s;
+    LPCVECTOR3 ang;
+    FLOAT dist, fov, roll, zoff, farz;
     VECTOR3 eye;
     static DWORD sample;
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
@@ -72,6 +74,23 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
     if (!gc) return;
     p = &gc->ps;
     s = &gc->camera.state;
+    if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
+        ang = &p->viewangles;
+        dist = p->distance;
+        fov = p->fov;
+        roll = p->viewangles.y;
+        zoff = G_CameraZOffset(p);
+        farz = p->zfar;
+    } else {
+        if (gc->camera.end_time > gc->camera.start_time)
+            s = &gc->camera.old_state;
+        ang = &s->viewangles;
+        dist = s->target_distance;
+        fov = s->fov;
+        roll = s->viewangles.y;
+        zoff = s->z_offset;
+        farz = s->far_z;
+    }
     eye = G_CameraEyePosition(p);
     /* Retail exposes newly applied setup fields immediately, while its eye and
      * target getters continue to report the realized camera until the next
@@ -80,10 +99,10 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
             "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f\n",
             (unsigned)++sample, G_Time() / 1000.0f, label ? label : "camera-event",
             p->vieworigin.x, p->vieworigin.y, p->vieworigin.z, eye.x, eye.y, eye.z,
-            s->target_distance, G_CameraDegreesToRadians(G_CameraPitchToAuthored(s->viewangles.x)),
-            G_CameraDegreesToRadians(G_CameraYawToAuthored(s->viewangles.z, s->viewangles.x)),
-            G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(s->fov)),
-            G_CameraDegreesToRadians(s->viewangles.y), s->z_offset, s->far_z);
+            dist, G_CameraDegreesToRadians(G_CameraPitchToAuthored(ang->x)),
+            G_CameraDegreesToRadians(G_CameraYawToAuthored(ang->z, ang->x)),
+            G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(fov)),
+            G_CameraDegreesToRadians(roll), zoff, farz);
 }
 
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
