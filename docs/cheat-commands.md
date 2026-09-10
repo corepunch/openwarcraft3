@@ -77,6 +77,17 @@ hero max
 
 The command uses the ordinary Hero XP/level-up path so attribute growth and Hero level events remain authoritative. After leveling, it ensures the Hero has at least one total skill point per Hero level minus already learned Hero ability ranks; existing extra skill points awarded by map scripts are preserved. The command requires `sv_cheats 1` and a selected controllable Hero.
 
+The same selected-Hero command family can restore or directly set current health and mana:
+
+```
+hero health
+hero health <amount>
+hero mana
+hero mana <amount>
+```
+
+Without an amount, `hero health` fills current health to the Hero's current maximum and `hero mana` fills current mana to its current maximum. With an amount, the command sets the current value to that non-negative integer, clamped to the current maximum; it never changes maximum health or maximum mana. Health uses the ordinary runtime health setter, while mana updates the current mana pool directly. These commands require `sv_cheats 1` and a selected controllable Hero.
+
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
 ```

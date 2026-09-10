@@ -244,6 +244,48 @@ TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget)
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT hero;
+    LPCSTR fill_health[] = { "hero", "health" };
+    LPCSTR set_health[] = { "hero", "health", "275" };
+    LPCSTR clamp_health[] = { "hero", "health", "9999" };
+    LPCSTR fill_mana[] = { "hero", "mana" };
+    LPCSTR set_mana[] = { "hero", "mana", "125" };
+    LPCSTR clamp_mana[] = { "hero", "mana", "9999" };
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    hero->hero.level = 1;
+    hero->health.max_value = 700.0f;
+    hero->health.value = 100.0f;
+    hero->mana.max_value = 300.0f;
+    hero->mana.value = 50.0f;
+    G_SelectEntity(client, hero);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_health);
+    T_EQ((int)hero->health.value, 700);
+    G_ClientCommand(&g_edicts[0], 3, set_health);
+    T_EQ((int)hero->health.value, 275);
+    G_ClientCommand(&g_edicts[0], 3, clamp_health);
+    T_EQ((int)hero->health.value, 700);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_mana);
+    T_EQ((int)hero->mana.value, 300);
+    G_ClientCommand(&g_edicts[0], 3, set_mana);
+    T_EQ((int)hero->mana.value, 125);
+    G_ClientCommand(&g_edicts[0], 3, clamp_mana);
+    T_EQ((int)hero->mana.value, 300);
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPCSTR toggle[] = { "instantbuild" };
