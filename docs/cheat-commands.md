@@ -171,10 +171,10 @@ For campaign skipping, prefer `objective list` followed by `objective complete <
 Instant build is an issuing-player cheat and requires `sv_cheats 1`:
 
 ```
-instantbuild          # toggle
-instantbuild on
-instantbuild off
-warpten               # Warcraft-style alias; same toggle
+instant build          # toggle
+instant build on
+instant build off
+warpten                # Warcraft-style alias; same build toggle
 ```
 
 When enabled, structures owned by that player complete on the next construction work tick, ordinary trained units complete on the next producer tick, and active research completes on the next research tick. The cheat deliberately preserves the normal command path: the worker still travels to a valid site, placement and resource/food checks still run, research costs and requirements are still checked, the structure/unit/research is still created through the ordinary queue, and normal completion events, UI invalidation, sounds, rally orders, and exit-placement checks remain authoritative. Turning the cheat on also affects construction, training, and research already in progress on their next tick. A blocked producer exit still keeps a completed trained unit queued until a legal exit position exists. Hero revival timers are not changed by this command.
@@ -184,12 +184,22 @@ The state is per player rather than global, so enabling it for a human player do
 Instant kill is also an issuing-player cheat and requires `sv_cheats 1`:
 
 ```
-instantkill          # toggle
-instantkill on
-instantkill off
+instant kill           # toggle
+instant kill on
+instant kill off
 ```
 
 When enabled, any normal damage dealt by that player's units or buildings is made lethal to unit, building, and attackable destructable targets on the same damage-resolution call. This includes destructable gates as well as trees and crates when they are attackable. It preserves the ordinary death path, so destructable death transitions, death callbacks, combat cleanup, kill credit, and attack completion still run normally. Invulnerable targets remain immune. The state is per player, so other human or computer players retain normal damage unless they enable their own cheat state.
+
+The combined command controls both instant-build and instant-kill state for the issuing player:
+
+```
+instant all             # turn both on unless both are already on; otherwise turn both off
+instant all on
+instant all off
+```
+
+If one of the two cheats is on and the other is off, bare `instant all` turns both on. The explicit `on`/`off` forms always set both states together.
 
 Time-of-day phase cheats set the authoritative Warcraft clock directly and require `sv_cheats 1`:
 

@@ -288,8 +288,8 @@ TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
 
 TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
-    LPCSTR toggle[] = { "instantbuild" };
-    LPCSTR enable[] = { "instantbuild", "on" };
+    LPCSTR toggle[] = { "instant", "build" };
+    LPCSTR enable[] = { "instant", "build", "on" };
     LPCSTR disable[] = { "warpten", "off" };
 
     setup_test_world();
@@ -297,11 +297,11 @@ TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     game.clients[1].connected = true;
     gi.CvarString = give_resources_cheat_cvar;
 
-    G_ClientCommand(&g_edicts[0], 1, toggle);
+    G_ClientCommand(&g_edicts[0], 2, toggle);
     T_ASSERT(game.clients[0].cheat_instant_build);
     T_ASSERT(!game.clients[1].cheat_instant_build);
 
-    G_ClientCommand(&g_edicts[1], 2, enable);
+    G_ClientCommand(&g_edicts[1], 3, enable);
     T_ASSERT(game.clients[1].cheat_instant_build);
     G_ClientCommand(&g_edicts[0], 2, disable);
     T_ASSERT(!game.clients[0].cheat_instant_build);
@@ -313,24 +313,51 @@ TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
 
 TEST(wc3_game, instant_kill_cheat_is_per_player_and_toggleable) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
-    LPCSTR toggle[] = { "instantkill" };
-    LPCSTR enable[] = { "instantkill", "on" };
-    LPCSTR disable[] = { "instantkill", "off" };
+    LPCSTR toggle[] = { "instant", "kill" };
+    LPCSTR enable[] = { "instant", "kill", "on" };
+    LPCSTR disable[] = { "instant", "kill", "off" };
 
     setup_test_world();
     game.clients[0].connected = true;
     game.clients[1].connected = true;
     gi.CvarString = give_resources_cheat_cvar;
 
-    G_ClientCommand(&g_edicts[0], 1, toggle);
+    G_ClientCommand(&g_edicts[0], 2, toggle);
     T_ASSERT(game.clients[0].cheat_instant_kill);
     T_ASSERT(!game.clients[1].cheat_instant_kill);
 
-    G_ClientCommand(&g_edicts[1], 2, enable);
+    G_ClientCommand(&g_edicts[1], 3, enable);
     T_ASSERT(game.clients[1].cheat_instant_kill);
-    G_ClientCommand(&g_edicts[0], 2, disable);
+    G_ClientCommand(&g_edicts[0], 3, disable);
     T_ASSERT(!game.clients[0].cheat_instant_kill);
     T_ASSERT(game.clients[1].cheat_instant_kill);
+
+    gi.CvarString = old_cvar;
+}
+
+
+TEST(wc3_game, instant_all_sets_and_toggles_both_player_cheats) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPCSTR enable[] = { "instant", "all", "on" };
+    LPCSTR toggle[] = { "instant", "all" };
+
+    setup_test_world();
+    game.clients[0].connected = true;
+    gi.CvarString = give_resources_cheat_cvar;
+
+    G_ClientCommand(&g_edicts[0], 3, enable);
+    T_ASSERT(game.clients[0].cheat_instant_build);
+    T_ASSERT(game.clients[0].cheat_instant_kill);
+
+    G_ClientCommand(&g_edicts[0], 2, toggle);
+    T_ASSERT(!game.clients[0].cheat_instant_build);
+    T_ASSERT(!game.clients[0].cheat_instant_kill);
+
+    game.clients[0].cheat_instant_build = true;
+    game.clients[0].cheat_instant_kill = false;
+    G_ClientCommand(&g_edicts[0], 2, toggle);
+    T_ASSERT(game.clients[0].cheat_instant_build);
+    T_ASSERT(game.clients[0].cheat_instant_kill);
 
     gi.CvarString = old_cvar;
 }
