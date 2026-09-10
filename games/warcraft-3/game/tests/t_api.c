@@ -306,6 +306,7 @@ static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, 
 TEST(wc3_api, default_camera_authors_lens) {
     gameCamera_t cam;
     T_ASSERT(CL_GameDefaultCamera(&cam));
+    T_ASSERT(CL_GameCameraUsesWorldUp());
     T_FEQ(cam.fov, WC3_CAMERA_DEFAULT_FOV, 0.001f);
     T_FEQ(cam.znear, WC3_CAMERA_DEFAULT_NEAR_Z, 0.001f);
     T_FEQ(cam.zfar, WC3_CAMERA_DEFAULT_FAR_Z, 0.001f);

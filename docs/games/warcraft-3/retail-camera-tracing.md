@@ -488,7 +488,7 @@ the map. Enable the opt-in cvar before loading the original map:
 
 ```sh
 build/bin/openwarcraft3 -data 'data/Warcraft III' \
-  +set vid_hidden 1 +set wc3_camera_trace 1 \
+  +set vid_hidden 1 +set camera_trace 1 \
   +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 300 \
   > openrealm-camtrace.log 2>&1
 ```
@@ -505,7 +505,7 @@ Use mode `2` for a bounded transition capture:
 
 ```sh
 build/bin/openwarcraft3 -data 'data/Warcraft III' \
-  +set vid_hidden 1 +set wc3_camera_trace 2 \
+  +set vid_hidden 1 +set camera_trace 2 \
   +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 500 \
   > openrealm-camtrace-fine.log 2>&1
 ```
@@ -544,7 +544,7 @@ Human03 load if necessary:
 
 ```sh
 build/bin/openwarcraft3 -data 'data/Warcraft III' \
-  +set vid_hidden 1 +set wc3_camera_trace 1 \
+  +set vid_hidden 1 +set camera_trace 1 \
   +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 5000 \
   > openrealm-full-camtrace.log 2>&1
 ```

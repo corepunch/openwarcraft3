@@ -590,10 +590,11 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
     client->camera.end_time = client->camera.start_time;
 }
 
+#ifdef WC3_DEBUG_CAMERA_TRACE
 /* Sample the realized local camera at 20 Hz only when fine tracing is enabled. */
 static void G_CameraTraceFrame(void) {
     static DWORD next;
-    LPCSTR mode = gi.CvarString("wc3_camera_trace", "0");
+    LPCSTR mode = gi.CvarString("camera_trace", "0");
     DWORD now = G_Time();
 
     if (!mode || strcmp(mode, "2")) {
@@ -605,6 +606,9 @@ static void G_CameraTraceFrame(void) {
     if (game.max_clients && game.clients[0].connected)
         G_CameraTraceSnapshotForClient(game.clients, "periodic");
 }
+#else
+static void G_CameraTraceFrame(void) { }
+#endif
 
 /* The player controller has no model; its focus and orbit still belong to the game. */
 static void G_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
