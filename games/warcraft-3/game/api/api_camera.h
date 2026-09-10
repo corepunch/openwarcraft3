@@ -67,8 +67,8 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     LPCAMERASETUP s;
     LPCVECTOR3 ang;
     FLOAT dist, fov, roll, zoff, farz;
-    FLOAT terrain;
-    FLOAT k;
+    FLOAT terrain, sample_height, realized_base, composed_z;
+    FLOAT k = 0.0f;
     VECTOR3 eye, realized_target;
     static DWORD sample;
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
@@ -78,6 +78,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     p = &gc->ps;
     s = &gc->camera.state;
     terrain = CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y);
+    sample_height = CM_GetCameraHeightAtPoint(p->vieworigin.x, p->vieworigin.y);
     if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
         k = (G_Time() - gc->camera.start_time) /
             (FLOAT)(gc->camera.end_time - gc->camera.start_time);
@@ -94,7 +95,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
         zoff = LerpNumber(gc->camera.old_state.z_offset, gc->camera.state.z_offset, k);
         farz = p->zfar;
     } else {
-        if (gc->camera.end_time > gc->camera.start_time)
+        if (gc->camera.end_time > gc->camera.start_time && G_Time() < gc->camera.end_time)
             s = &gc->camera.old_state;
         ang = &s->viewangles;
         dist = s->target_distance;
@@ -105,17 +106,20 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
         realized_target = p->vieworigin;
         eye = G_CameraEyePositionFromState(&realized_target, &p->viewangles, p->distance);
     }
+    realized_base = p->vieworigin.z - zoff;
+    composed_z = gc->camera.target_height + zoff;
     /* Retail exposes newly applied setup fields immediately, while its eye and
      * target getters continue to report the realized camera until the next
      * client update. Keep both halves of that contract in the trace. */
     fprintf(stderr,
-            "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f terrain=%.3f targetbase=%.3f\n",
+            "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f terrain=%.3f sampleheight=%.3f targetbase=%.3f realizedbase=%.3f composedz=%.3f setupx=%.3f setupy=%.3f k=%.3f\n",
             (unsigned)++sample, G_Time() / 1000.0f, label ? label : "camera-event",
             p->vieworigin.x, p->vieworigin.y, p->vieworigin.z, eye.x, eye.y, eye.z,
             dist, G_CameraDegreesToRadians(G_CameraPitchToAuthored(ang->x)),
             G_CameraDegreesToRadians(G_CameraYawToAuthored(ang->z, ang->x)),
             G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(fov)),
-            G_CameraDegreesToRadians(roll), zoff, farz, terrain, gc->camera.target_height);
+            G_CameraDegreesToRadians(roll), zoff, farz, terrain, sample_height, gc->camera.target_height,
+            realized_base, composed_z, gc->camera.state.position.x, gc->camera.state.position.y, k);
 }
 
 void G_CameraTraceSnapshot(LPCSTR label) {
