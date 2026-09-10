@@ -247,6 +247,24 @@ The parser retains the raw fields and adds `dx`, `dy`, `dz`, horizontal
 distance, and Euclidean eye-to-target distance. These derived values are
 diagnostics only; they do not replace the retail camera fields.
 
+## OpenRealm engine-side trace
+
+OpenRealm can emit the same event-only format without modifying or repacking
+the map. Enable the opt-in cvar before loading the original map:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' \
+  +set vid_hidden 1 +set wc3_camera_trace 1 \
+  +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 300 \
+  > openrealm-camtrace.log 2>&1
+```
+
+The trace is emitted by the `CameraSetupApply*` camera natives after they
+assign runtime state. It is event-only, disabled by default, and reports the
+same logical fields and reconstructed eye/target geometry as the JASS getters.
+It does not sample every frame, and it does not depend on `BJDebugMsg` or the
+instrumented retail map.
+
 ## Verified reference observations
 
 For the Human02 opening shot, retail kept target X/Y at approximately

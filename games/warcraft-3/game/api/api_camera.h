@@ -54,6 +54,29 @@ static FLOAT G_CameraZOffset(LPCPLAYER p) {
     return p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
 }
 
+/* Emit event-only camera samples for retail/OpenRealm comparisons without changing map JASS. */
+static void G_CameraTraceSnapshot(LPCSTR label) {
+    LPGAMECLIENT gc;
+    LPCPLAYER p;
+    VECTOR3 eye;
+    static DWORD sample;
+    LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
+
+    if (!enabled || !*enabled || !strcmp(enabled, "0")) return;
+    gc = G_CurrentCameraClient("G_CameraTraceSnapshot");
+    if (!gc) return;
+    p = &gc->ps;
+    eye = G_CameraEyePosition(p);
+    fprintf(stderr,
+            "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f\n",
+            (unsigned)++sample, G_Time() / 1000.0f, label ? label : "camera-event",
+            p->vieworigin.x, p->vieworigin.y, p->vieworigin.z, eye.x, eye.y, eye.z,
+            p->distance, G_CameraDegreesToRadians(G_CameraPitchToAuthored(p->viewangles.x)),
+            G_CameraDegreesToRadians(G_CameraRotation(p)),
+            G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(p->fov)),
+            G_CameraDegreesToRadians(p->viewangles.y), G_CameraZOffset(p), p->zfar);
+}
+
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
                                                  BOOL set_z, FLOAT z_offset,
                                                  FLOAT duration) {
@@ -319,12 +342,14 @@ DWORD CameraSetupApply(LPJASS j) {
     BOOL doPan = jass_checkboolean(j, 2);
     (void)jass_checkboolean(j, 3); /* panTimed: untimed camera rates are not retained yet */
     G_ApplyCameraSetup(whichSetup, doPan, false, 0.0f, 0);
+    G_CameraTraceSnapshot("CameraSetupApply");
     return 0;
 }
 DWORD CameraSetupApplyWithZ(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     FLOAT zDestOffset = jass_checknumber(j, 2);
     G_ApplyCameraSetup(whichSetup, true, true, zDestOffset, 0);
+    G_CameraTraceSnapshot("CameraSetupApplyWithZ");
     return 0;
 }
 DWORD CameraSetupApplyForceDuration(LPJASS j) {
@@ -332,6 +357,7 @@ DWORD CameraSetupApplyForceDuration(LPJASS j) {
     BOOL doPan = jass_checkboolean(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
     G_ApplyCameraSetup(whichSetup, doPan, false, 0.0f, forceDuration * 1000);
+    G_CameraTraceSnapshot("CameraSetupApplyForceDuration");
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
@@ -339,6 +365,7 @@ DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
     FLOAT zDestOffset = jass_checknumber(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
     G_ApplyCameraSetup(whichSetup, true, true, zDestOffset, forceDuration * 1000);
+    G_CameraTraceSnapshot("CameraSetupApplyForceDurationWithZ");
     return 0;
 }
 DWORD CameraSetTargetNoise(LPJASS j) {
