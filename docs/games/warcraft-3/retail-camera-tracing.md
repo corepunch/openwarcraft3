@@ -236,8 +236,15 @@ call PreloadGenEnd("camtrace.txt")
 `PreloadGenStart()` is called when tracing starts, each snapshot passes its
 completed `CAMTRACE` string to `Preload(msg)`, and `PreloadGenEnd()` is called
 when tracing stops. Retail writes the result below the Wine Documents tree at
-`Documents/Warcraft III/CustomMapData/camtrace.txt`; the exact Linux path
-depends on the Wine prefix.
+`Documents/Warcraft III/CustomMapData/`. The filename is the argument passed
+to `PreloadGenEnd`: the full probe uses `camtrace.txt`, while the transition
+probe map uses `camtrace-transition.txt`. The exact Linux path depends on the
+Wine prefix. Locate either output with:
+
+```sh
+find "$HOME/.wine/drive_c/users" -type f \
+  \( -name 'camtrace.txt' -o -name 'camtrace-transition.txt' \) -print
+```
 
 The output is a generated JASS preload script, not raw text. Warcraft inserts
 its own asset preload calls and the map path between the camera samples, so
@@ -473,10 +480,11 @@ distance, and Euclidean eye-to-target distance. These derived values are
 diagnostics only; they do not replace the retail camera fields.
 
 For a generated preload file, first extract only the camera lines from the
-wrapper, then use the same parser:
+wrapper, then use the same parser. Replace the input filename with whichever
+file the map generated:
 
 ```sh
-grep 'call Preload( "CAMTRACE ' camtrace.txt \
+grep 'call Preload( "CAMTRACE ' camtrace-transition.txt \
   | sed -E 's/^.*Preload\( "([^"]+)" \).*$/\1/' \
   > retail-camtrace.txt
 python3 tools/retail_camera_trace.py retail-camtrace.txt -o retail-camtrace.csv

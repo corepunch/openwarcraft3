@@ -27,19 +27,22 @@ static FLOAT G_CameraVerticalToHorizontalFov(FLOAT vertical) {
 static FLOAT G_CameraDegreesToRadians(FLOAT value) { return value * (FLOAT)M_PI / 180.0f; }
 
 /* Reconstruct the rendered orbit eye from the same target, orientation, and distance sent to the client. */
-static VECTOR3 G_CameraEyePosition(LPCPLAYER playerstate) {
+static VECTOR3 G_CameraEyePositionFromState(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance) {
     QUATERNION quat;
     MATRIX4 view, inverse;
-    VECTOR3 eye, target = Vector3_unm(&playerstate->vieworigin);
+    VECTOR3 eye, origin = Vector3_unm(target);
 
-    quat = Quaternion_fromEuler(&playerstate->viewangles, ROTATE_ZYX);
+    quat = Quaternion_fromEuler(angles, ROTATE_ZYX);
     Matrix4_identity(&view);
-    Matrix4_translate(&view, &(VECTOR3){ 0, 0, -playerstate->distance });
+    Matrix4_translate(&view, &(VECTOR3){ 0, 0, -distance });
     Matrix4_rotateQuat(&view, &quat);
-    Matrix4_translate(&view, &target);
+    Matrix4_translate(&view, &origin);
     Matrix4_inverse(&view, &inverse);
     eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
     return eye;
+}
+static VECTOR3 G_CameraEyePosition(LPCPLAYER playerstate) {
+    return G_CameraEyePositionFromState(&playerstate->vieworigin, &playerstate->viewangles, playerstate->distance);
 }
 
 /* Mirror low authored AoA values above the target while preserving their world-facing orbit. */
@@ -65,7 +68,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     LPCVECTOR3 ang;
     FLOAT dist, fov, roll, zoff, farz;
     FLOAT k;
-    VECTOR3 eye;
+    VECTOR3 eye, realized_target;
     static DWORD sample;
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
 
@@ -76,6 +79,10 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
         k = (G_Time() - gc->camera.start_time) /
             (FLOAT)(gc->camera.end_time - gc->camera.start_time);
+        /* Retail keeps the realized eye on the old setup while logical fields expose the new setup. */
+        realized_target = p->vieworigin;
+        eye = G_CameraEyePositionFromState(&realized_target, &gc->camera.old_state.viewangles,
+                                           gc->camera.old_state.target_distance);
         ang = &p->viewangles;
         dist = p->distance;
         fov = p->fov;
@@ -93,8 +100,9 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
         roll = s->viewangles.y;
         zoff = s->z_offset;
         farz = s->far_z;
+        realized_target = p->vieworigin;
+        eye = G_CameraEyePositionFromState(&realized_target, &p->viewangles, p->distance);
     }
-    eye = G_CameraEyePosition(p);
     /* Retail exposes newly applied setup fields immediately, while its eye and
      * target getters continue to report the realized camera until the next
      * client update. Keep both halves of that contract in the trace. */
@@ -365,8 +373,9 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
     G_ClearCameraTarget(gc, "CameraSetupApply");
     gc->camera.old_state = gc->camera.state;
     if (apply_position && (setup->position.x != gc->camera.old_state.position.x ||
-                           setup->position.y != gc->camera.old_state.position.y))
+                           setup->position.y != gc->camera.old_state.position.y)) {
         gc->camera.target_height = gc->ps.vieworigin.z;
+    }
     gc->camera.state = *setup;
     if (!apply_position) {
         gc->camera.state.position = gc->camera.old_state.position;
