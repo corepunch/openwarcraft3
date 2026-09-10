@@ -1142,8 +1142,10 @@ BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta) {
 
     ent->hero.skillpoints = new_points;
     owner = G_GetPlayerClientByNumber(ent->s.player);
-    if (new_points != old_points && owner && owner->ps.number == ent->s.player) {
-        G_InvalidateCommands(owner);
+    if (new_points != old_points) {
+        if (owner && owner->ps.number == ent->s.player) G_InvalidateCommands(owner);
+        /* Hero shortcut badges used to stay stale after learning/gaining points; refresh every viewer that can control this Hero. */
+        G_InvalidateUnitShortcutsForUnit(ent);
     }
     return true;
 }

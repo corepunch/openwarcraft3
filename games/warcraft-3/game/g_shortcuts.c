@@ -9,7 +9,8 @@
 #include "g_local.h"
 
 #define WC3_HERO_FUNCTION_KEYS 7
-#define WC3_HERO_BUTTON_DOUBLE_CLICK_MS 500
+#define WC3_HERO_BUTTON_DOUBLE_CLICK_MS 500 // milliseconds; matches the existing Hero shortcut double-activation window
+#define WC3_HERO_DAMAGE_ALERT_MS 3000 // milliseconds; keeps a damaged Hero conspicuous through several red pulses without rebuilding on expiry
 
 typedef struct {
     DWORD entity;
@@ -77,6 +78,21 @@ void G_InvalidateUnitShortcutsForUnit(LPEDICT ent) {
         LPGAMECLIENT client = game.clients + i;
         if (G_UnitCanControl(client, ent)) G_InvalidateUnitShortcuts(client);
     }
+}
+
+/* Record one real-damage alert on an owned Hero and rebuild its shortcut once.
+ * The client animates until this absolute deadline, so combat does not create per-frame layout traffic. */
+void G_AlertHeroShortcutDamage(LPEDICT ent) {
+    LPGAMECLIENT owner;
+
+    if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
+        !ent->data.UnitBalance || !G_UnitIsHero(ent)) return;
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (!owner || owner->ps.number != ent->s.player || !G_UnitShowsHeroShortcut(owner, ent)) return;
+
+    /* Damage used to leave the persistent Hero button visually unchanged; carry one expiry timestamp in its next layout instead. */
+    ent->hero_shortcut_alert_until = G_Time() + WC3_HERO_DAMAGE_ALERT_MS;
+    G_InvalidateUnitShortcuts(owner);
 }
 
 LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after) {

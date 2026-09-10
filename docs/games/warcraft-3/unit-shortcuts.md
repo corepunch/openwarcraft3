@@ -70,6 +70,8 @@ struct {
 Relevant gameplay transitions mark `dirty`:
 
 - relevant Hero/worker spawn/free;
+- owned Hero skill-point changes, so the shortcut badge updates immediately;
+- real damage to an owned Hero that has a shortcut, once per damage event, so the refreshed alert deadline reaches the client;
 - owner transfer;
 - alliance/control changes;
 - `Ahar` ability add/remove for harvest-only/custom workers;
@@ -92,7 +94,7 @@ A dirty HUD rebuild uses one combined entity pass to emit Hero buttons, count id
 
 ## Selection Synchronization
 
-Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the generic `select` game-command transport, which the client applies before game-specific UI dispatch.
+Normal world clicks update both server selection and the client's `cl.selection` cache directly. A server-authored layout button does not have that local side effect, so shortcut selection uses the dedicated `svc_set_selection` protocol event.
 
 Flow:
 
@@ -101,7 +103,7 @@ HUD/F-key command
     -> server validates target/control
     -> server replaces authoritative selection
     -> server refreshes portrait/commands
-    -> GameCommand("select", entity number)
+    -> svc_set_selection(count, entity numbers)
     -> client replaces cl.selection
 ```
 
@@ -116,6 +118,8 @@ No `entityState_t` or `playerState_t` network fields are added.
 - Hero buttons start at the top-left edge of the rendered world immediately below the upper menu and stack vertically.
 - The idle-worker button keeps its authored vertical position immediately above the minimap on 4:3, but on widescreen its horizontal offset is measured from the physical left edge rather than from the centered 4:3 HUD safe area.
 - The idle-worker count is a bottom-right text overlay on the worker icon.
+- A Hero with unspent skill points uses the same bottom-right number overlay, showing the current `hero.skillpoints` value and omitting the number at zero.
+- Real damage to an owned Hero refreshes a transient red pulse on that Hero shortcut. The server rebuilds the shortcut once with an absolute expiry timestamp; the client animates the tint locally until expiry, so there is no per-frame shortcut serialization.
 
 The shortcut layer emits an invisible `FT_SIMPLEFRAME` root with `UIFLAG_EXTEND_WIDESCREEN_X`. Hero buttons, the idle-worker button, and its count are parented to that root using the same authored offsets and sizes as before. On 4:3 the root is still `0.8 x 0.6`, so placement is unchanged; on a wider display only the root expands to the full UI canvas, putting the shortcut controls against the physical left edge while the normal ConsoleUI remains centered in its 4:3 safe area.
 
@@ -127,12 +131,17 @@ Both buttons use `FT_COMMANDBUTTON`, so they share the existing server-authored 
 
 Shared-control changes invalidate all shortcut layers because `G_UnitCanControl()` can change for units belonging to another player. Owner changes invalidate both the old and new control relationships.
 
+## Hero Damage Alert
+
+`T_Damage()` calls the shortcut alert hook only after invulnerability and Mana Shield processing have left positive damage. Destructables and ordinary non-Hero units are ignored. The alert belongs to the Hero's owning player rather than every ally with shared control; shared-control Hero shortcuts keep their normal selection behavior without receiving the owner's combat warning.
+
+The server stores only a transient deadline on the Hero edict and marks the owner's shortcut layer dirty. `hud_shortcuts.c` serializes `UIFLAG_ALERT_RED_PULSE` plus that absolute millisecond deadline into the Hero command button. The generic client command-button renderer uses a 500 ms triangle-wave pulse and returns automatically to the normal untinted icon when the deadline passes. The transient deadline is presentation state and is intentionally not persisted by save/load.
+
 ## Known Gaps
 
 The first implementation intentionally does not guess at retail behavior that is not already represented by reliable OpenRealm state:
 
 - no health/mana overlays or low-health flashing on Hero shortcut buttons;
-- no Hero skill-point indicator on the shortcut button;
 - no dedicated dead/reviving visual treatment beyond retaining the Hero icon;
 - no `SetReservedLocalHeroButtons` JASS/native implementation;
 - no backtick idle-worker binding while that key owns the developer console;
@@ -153,7 +162,9 @@ Added unit tests cover the idle-worker predicate and shortcut dirty invalidation
 7. Order one Peasant to harvest and confirm the count drops without periodic polling.
 8. Stop that Peasant and confirm the count rises after its transition to plain stand.
 9. Kill/free/transfer a worker and confirm the count/roster changes.
-10. Kill and revive a Hero and confirm its persistent shortcut remains available.
+10. Give a Hero one or more unspent skill points and confirm the number appears in the lower-right of its shortcut; spend the final point and confirm the number disappears.
+11. Damage the owned Hero and confirm its shortcut pulses red for several flashes without affecting the portrait art or selection behavior. Repeated damage should refresh the warning window.
+12. Kill and revive a Hero and confirm its persistent shortcut remains available.
 
 No local compile or test execution is required to update this document; use the repository test commands in `CONTRIBUTING.md` when validating a built tree.
 

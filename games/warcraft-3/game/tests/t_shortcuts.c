@@ -12,6 +12,9 @@ static BOOL shortcut_root_extended;
 static BOOL shortcut_hero_parented;
 static BOOL shortcut_worker_parented;
 static BOOL shortcut_count_parented;
+static BOOL shortcut_skill_count_seen;
+static BOOL shortcut_hero_alert_seen;
+static FLOAT shortcut_hero_alert_deadline;
 
 static int shortcut_test_image(LPCSTR name) {
     T_ASSERT(name && *name);
@@ -43,10 +46,15 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
     T_EQ(frame->points.x[FPP_MIN].relativeTo, UI_PARENT);
     T_EQ(frame->points.y[FPP_MIN].relativeTo, UI_PARENT);
     if (frame->flags.type == FT_COMMANDBUTTON && frame->onclick) {
-        if (!strncmp(frame->onclick, "herobutton ", 11)) shortcut_hero_parented = true;
+        if (!strncmp(frame->onclick, "herobutton ", 11)) {
+            shortcut_hero_parented = true;
+            shortcut_hero_alert_seen = !!(frame->flagsvalue & UIFLAG_ALERT_RED_PULSE);
+            shortcut_hero_alert_deadline = frame->value;
+        }
         if (!strncmp(frame->onclick, "idleworker ", 11)) shortcut_worker_parented = true;
     } else if (frame->flags.type == FT_STRING) {
         shortcut_count_parented = true;
+        if (frame->text && !strcmp(frame->text, "2")) shortcut_skill_count_seen = true;
     }
 }
 
@@ -98,6 +106,44 @@ TEST(wc3_shortcuts, controlled_unit_invalidation_marks_player_dirty) {
     worker->s.player = 0;
 
     G_InvalidateUnitShortcutsForUnit(worker);
+    T_ASSERT(client->shortcuts.dirty);
+}
+
+
+TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT hero;
+
+    reset_entities();
+    setup_test_world();
+    client->ps.number = 0;
+    client->shortcuts.dirty = false;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f, 64.0f);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    hero->hero.skillpoints = 0;
+
+    T_ASSERT(G_HeroModifySkillPoints(hero, 1));
+    T_EQ(hero->hero.skillpoints, 1);
+    T_ASSERT(client->shortcuts.dirty);
+}
+
+TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT hero;
+
+    reset_entities();
+    setup_test_world();
+    client->ps.number = 0;
+    client->shortcuts.dirty = false;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64.0f, 64.0f);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+    level.time = 5000;
+
+    G_AlertHeroShortcutDamage(hero);
+
+    T_ASSERT(hero->hero_shortcut_alert_until > level.time);
     T_ASSERT(client->shortcuts.dirty);
 }
 
@@ -196,6 +242,9 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     hero_profile = *hero->data.UnitProfile;
     hero_profile.art = "TestUI\\Textures\\solid_white.blp";
     hero->data.UnitProfile = &hero_profile;
+    hero->hero.skillpoints = 2;
+    hero->hero_shortcut_alert_until = 6000;
+    level.time = 5000;
 
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
     worker->svflags |= SVF_MONSTER;
@@ -214,6 +263,9 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     shortcut_hero_parented = false;
     shortcut_worker_parented = false;
     shortcut_count_parented = false;
+    shortcut_skill_count_seen = false;
+    shortcut_hero_alert_seen = false;
+    shortcut_hero_alert_deadline = 0.0f;
     gi.Write = shortcut_test_write;
     gi.unicast = shortcut_test_unicast;
     gi.ImageIndex = shortcut_test_image;
@@ -230,5 +282,8 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     T_ASSERT(shortcut_hero_parented);
     T_ASSERT(shortcut_worker_parented);
     T_ASSERT(shortcut_count_parented);
+    T_ASSERT(shortcut_skill_count_seen);
+    T_ASSERT(shortcut_hero_alert_seen);
+    T_FEQ(shortcut_hero_alert_deadline, 6000.0f, 0.01f);
 }
 #endif

@@ -51,7 +51,7 @@ static void UI_WriteShortcutNumber(DWORD parent, FLOAT x, FLOAT y, FLOAT w, FLOA
 }
 
 static void UI_WriteUnitShortcutButton(DWORD parent, FLOAT x, FLOAT y, FLOAT size, LPCEDICT unit,
-                                       LPCSTR command, LPCSTR tooltip) {
+                                       LPCSTR command, LPCSTR tooltip, BOOL damage_alert) {
     uiFrame_t frame;
     LPCSTR art;
 
@@ -62,6 +62,10 @@ static void UI_WriteUnitShortcutButton(DWORD parent, FLOAT x, FLOAT y, FLOAT siz
     frame.tex.index = gi.ImageIndex(art);
     frame.onclick = command;
     frame.tooltip = tooltip;
+    if (damage_alert && unit->hero_shortcut_alert_until > G_Time()) {
+        frame.flagsvalue |= UIFLAG_ALERT_RED_PULSE;
+        frame.value = (FLOAT)unit->hero_shortcut_alert_until;
+    }
     UI_SetShortcutRect(&frame, parent, x, y, size, size);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
@@ -96,7 +100,10 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
             snprintf(tooltip, sizeof(tooltip), "Select %s", name && *name ? name : "Hero");
             UI_WriteUnitShortcutButton(shortcut_root, HERO_SHORTCUT_X,
                                        HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
-                                       HERO_SHORTCUT_SIZE, unit, command, tooltip);
+                                       HERO_SHORTCUT_SIZE, unit, command, tooltip, unit->s.player == client->ps.number);
+            UI_WriteShortcutNumber(shortcut_root, HERO_SHORTCUT_X,
+                                   HERO_SHORTCUT_Y + hero_slot * (HERO_SHORTCUT_SIZE + HERO_SHORTCUT_GAP),
+                                   HERO_SHORTCUT_SIZE, HERO_SHORTCUT_SIZE, unit->hero.skillpoints);
             hero_slot++;
         }
 
@@ -111,7 +118,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
         DWORD number = (DWORD)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
         UI_WriteUnitShortcutButton(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
-                                   next_idle, command, "Select Idle Worker");
+                                   next_idle, command, "Select Idle Worker", false);
         UI_WriteShortcutNumber(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y,
                                IDLE_WORKER_SIZE, IDLE_WORKER_SIZE, idle_count);
     }
