@@ -49,13 +49,17 @@ These are measurements from Warcraft III ROC 1.29.2 for
   direct retail terrain query of `256.000`. This is evidence that the camera
   uses a separate terrain-derived height function near the cliff, rather than
   simply adding `CAMERA_FIELD_ZOFFSET` to `GetLocationZ(targetXY)`.
-- OpenRealm's corresponding target reference is approximately `459.000`,
-  leaving a measured vertical discrepancy of about `4.894` units.
+- Before the fix, OpenRealm retained a target reference of approximately
+  `464.000`, leaving a measured vertical discrepancy of about `9.894` units.
+- The W3E data around the tower contains direct vertex heights of `256`, but
+  the 8x8 vertex neighborhood inside a 512x512 world-unit camera window
+  averages to `456`. Applying the map's two-unit camera-sample correction
+  produces `454.000`, matching retail's `454.106` within `0.106` units.
 - OpenRealm's target XY, distance, angle-of-attack, rotation, FOV, and Z-offset
   progression otherwise closely follow the retail trace.
-- Existing OpenRealm diagnostics showed the map terrain at the target as
-  approximately `251` with a camera height offset of `-48`; this does not by
-  itself explain retail's `454.106` reference height.
+- Before the fix, OpenRealm used the retained runtime target reference rather
+  than a destination-derived camera height; its direct terrain query and the
+  legacy `-48` camera offset therefore did not explain retail's `454.106`.
 - A previous targeted trace showed that changing the target reference to the
   destination terrain height would be incorrect.
 - Retail's first two seconds are hidden by the cinematic filter. That black
@@ -69,20 +73,24 @@ These are measurements from Warcraft III ROC 1.29.2 for
   not authoritative, but it is now consistent with the boundary trace and is
   a useful algorithm hypothesis to test against the map data.
 
-## What we are trying to find
+## What we found
 
-We need to establish which retail quantity produces the approximately
-`454.106` target reference:
+The retail quantity is a camera-specific neighborhood height, not the direct
+bilinear terrain height:
 
-1. Is it a smoothed/averaged terrain height sampled around the destination?
-2. Is it a terrain/cliff-derived height with a fixed engine offset?
-3. Is it authored camera/setup state independent of terrain?
-4. Is it the previous camera target height carried into the setup?
-5. Does retail apply a map/world coordinate conversion before exposing the
-   camera getter values?
+1. OpenRealm now samples authoritative W3E vertex heights in the 512x512
+   world-unit neighborhood around a camera setup destination.
+2. The sample applies the two-unit layer correction before becoming the
+   retained camera target reference.
+3. The retained value is selected when the destination position changes, so
+   camera transitions preserve it while authored camera fields interpolate.
+4. The bounded OpenRealm trace reports `targetbase=454.000` and
+   `targetZ=831.400` for the tower setup, compared with retail
+   `targetbase=454.106` and `targetZ=831.506`.
 
-Only after this is known should OpenRealm's camera target-height calculation be
-changed.
+`screenshots/onlineinfo.md` was useful as a hypothesis, but the W3E
+neighborhood calculation and the OpenRealm trace are the authoritative evidence
+for this implementation.
 
 ## Current measurement map
 
@@ -120,23 +128,24 @@ Extract the `CAMTRACE` lines from the generated preload wrapper before parsing
 them as CSV. The on-screen `BJDebugMsg` output remains a fallback if the file
 is not generated.
 
-## Decision rule
+## Implementation and verification
 
-Do not replace the direct terrain query with a hardcoded `454.106` value or a
-Human02-specific correction. The retail terrain probe is now available and
-shows that direct terrain does not account for the reference height. The next
-diagnostic must compare candidate smoothed terrain calculations against the
-exact `TowerLow` destination at the camera-setup boundary. Do not change
-`target_height` or the camera composition formula until that calculation is
-identified.
+The fix is in `CM_GetCameraHeightAtPoint()`. It is map-derived and does not
+contain Human02 coordinates or retail measurements. `G_ApplyCameraSetup()` uses
+it when a setup changes the camera destination; ordinary terrain queries remain
+unchanged for units, destructables, pathing, and gameplay placement.
 
-The eventual fix must:
+The verified bounded run used:
 
-- derive the height from authoritative map/camera state;
-- preserve normal gameplay camera behavior;
-- preserve the retail transition start state and interpolation;
-- avoid a Human02-only branch or hardcoded `454.106` value;
-- include a focused regression test for the corrected camera state.
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' \
+  +set vid_hidden 1 +set wc3_camera_trace 1 \
+  +map 'Maps/Campaign/Human02Interlude.w3m' +com_frame_limit 300 \
+  > /tmp/openrealm-height-fixed.log 2>&1
+```
+
+The diagnostic trace includes `terrain` and `targetbase` fields. Temporary
+map-specific `CAMHEIGHT` logs were removed after the comparison.
 
 ## Completion evidence
 
@@ -145,5 +154,8 @@ This objective is complete when we have:
 1. retail terrain and cliff measurements at the tower target;
 2. a documented explanation for the `454.106` reference height;
 3. an OpenRealm change based on that explanation;
-4. matching retail/OpenRealm transition samples; and
+4. matching retail/OpenRealm transition boundary samples; and
 5. passing focused and full test suites.
+
+All five items are complete: the focused and full project tests pass with
+`23580/23580` assertions.

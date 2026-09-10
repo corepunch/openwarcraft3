@@ -264,17 +264,30 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT d = CM_GetWar3MapVertexHeight(vd);
     FLOAT ab = LerpNumber(a, b, x - fx);
     FLOAT cd = LerpNumber(c, d, x - fx);
-    static BOOL logged;
-    if (!logged && fabsf(sx + 4909.3f) < 0.1f && fabsf(sy - 2474.5f) < 0.1f) {
-        fprintf(stderr, "CAMHEIGHT terrain x=%.3f y=%.3f center=(%.3f,%.3f) grid=(%.6f,%.6f) cell=(%.0f,%.0f) heights=(%.3f,%.3f,%.3f,%.3f) raw=(%u,%u,%u,%u) levels=(%u,%u,%u,%u) result=%.3f\n",
-                sx, sy, world.map->center.x, world.map->center.y, x, y, fx, fy, a, b, c, d,
-                va ? va->accurate_height : 0, vb ? vb->accurate_height : 0,
-                vc ? vc->accurate_height : 0, vd ? vd->accurate_height : 0,
-                va ? va->level : 0, vb ? vb->level : 0, vc ? vc->level : 0, vd ? vd->level : 0,
-                LerpNumber(ab, cd, y - fy));
-        logged = true;
-    }
     return LerpNumber(ab, cd, y - fy);
+}
+
+FLOAT CM_GetCameraHeightAtPoint(FLOAT sx, FLOAT sy) {
+    FLOAT const radius = TILE_SIZE * 4; // world units; retail camera-height neighborhood radius
+    if (!world.map || !world.map->vertices) return 0.0f;
+    FLOAT const min_x = (sx - world.map->center.x - radius) / TILE_SIZE;
+    FLOAT const max_x = (sx - world.map->center.x + radius) / TILE_SIZE;
+    FLOAT const min_y = (sy - world.map->center.y - radius) / TILE_SIZE;
+    FLOAT const max_y = (sy - world.map->center.y + radius) / TILE_SIZE;
+    DWORD x0, x1, y0, y1, count = 0;
+    FLOAT sum = 0.0f;
+
+    x0 = (DWORD)MAX(0, (int)ceilf(min_x));
+    x1 = (DWORD)MIN((int)world.map->width - 1, (int)floorf(max_x));
+    y0 = (DWORD)MAX(0, (int)ceilf(min_y));
+    y1 = (DWORD)MIN((int)world.map->height - 1, (int)floorf(max_y));
+    for (DWORD y = y0; y <= y1; y++)
+        for (DWORD x = x0; x <= x1; x++) {
+            sum += CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(x, y));
+            count++;
+        }
+    /* Retail averages the camera-height neighborhood with the W3E layer correction at the sample boundary. */
+    return count ? sum / count - 2.0f : CM_GetHeightAtPoint(sx, sy);
 }
 
 FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy) {
