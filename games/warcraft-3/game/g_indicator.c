@@ -5,7 +5,9 @@
 COLOR32 G_SmartTargetIndicatorColor(DWORD viewer, LPCEDICT unit) {
     static LPCSTR const keys[] = { "ColorFriend", "ColorNeutral", "ColorEnemy" };
     static COLOR32 const stock[] = {
-        { 0, 255, 0, 255 }, { 255, 255, 0, 255 }, { 255, 0, 0, 255 },
+        MAKE(COLOR32, .r = 0, .g = 255, .b = 0, .a = 255),
+        MAKE(COLOR32, .r = 255, .g = 255, .b = 0, .a = 255),
+        MAKE(COLOR32, .r = 255, .g = 0, .b = 0, .a = 255),
     };
     selectionRelation_t relation;
     LPCSTR value;
@@ -18,8 +20,9 @@ COLOR32 G_SmartTargetIndicatorColor(DWORD viewer, LPCEDICT unit) {
         a <= 255 && r <= 255 && g <= 255 && b <= 255)
         return MAKE(COLOR32, r, g, b, a);
 
-    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 1.29 SelectionCircle values are
-     * retained for tests/minimal data sets that omit UI\MiscData.txt. */
+    /* HACK: stock WC3 1.29 values cover minimal/test data that lacks the
+     * authoritative UI\MiscData.txt section; keep the missing data visible. */
+    fprintf(stderr, "WC3: invalid or missing SelectionCircle.%s; using stock color\n", keys[relation]);
     return stock[relation];
 }
 
