@@ -913,4 +913,69 @@ TEST(wc3_spell, non_spell_ability_has_null_spell) {
 	T_NULL(abil->spell);  /* move is not a spell */
 }
 
+
+TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_approach) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\n"
+        "C;Y2;X3;K\"air,ground,enemy,neutral\"\nC;Y2;X4;K\"75\"\n"
+        "C;Y2;X5;K\"9\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"100\"\n"
+        "C;Y2;X8;K\"1\"\nC;Y2;X9;K\"0\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOcl" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('O','f','a','r'), 500, 300, 0, 0);
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
+    LPEDICT thinker;
+    DWORD thinker_slot;
+    char target_number[16];
+    LPCSTR button[] = { "button", "AOcl" };
+    LPCSTR select_target[] = { "select", target_number };
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = client->ps.number;
+    caster->collision = 16.0f;
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 500.0f;
+    ((LPMAPINFO)level.mapinfo)->players[caster->s.player].playerType = kPlayerTypeOrc;
+    ((LPMAPINFO)level.mapinfo)->players[target->s.player].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_SelectEntity(client, caster);
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+
+    G_ClientCommand(clent, 2, button);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select_target);
+
+    T_NULL(client->menu.on_entity_selected);
+    T_ASSERT(caster->goalentity == target);
+    T_ASSERT(move_is_active_order_walk(caster));
+    T_FEQ(target->health.value, 500.0f, 0.001f);
+    T_FEQ(caster->mana.value, 300.0f, 0.001f);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse);
+    T_NOT_NULL(thinker->think);
+
+    caster->s.origin2.x = caster->s.origin.x = 425.0f;
+    caster->s.origin2.y = caster->s.origin.y = 0.0f;
+    thinker->think(thinker);
+
+    T_ASSERT(!thinker->inuse);
+    T_FEQ(target->health.value, 400.0f, 0.001f);
+    T_FEQ(caster->mana.value, 225.0f, 0.001f);
+    T_ASSERT(!S_SpellCooldownReady(caster, MAKEFOURCC('A','O','c','l')));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

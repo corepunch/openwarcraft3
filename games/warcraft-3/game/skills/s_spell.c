@@ -415,6 +415,95 @@ static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
 
 /* ---- Per-target-type unified callbacks ---- */
 
+static void spell_execute_unit_target(LPEDICT caster, DWORD code, DWORD level,
+                                      spell_info_t const *spell, LPEDICT target) {
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL)
+        spell_begin_channel(caster, code);
+    spell->execute(caster, st, spell);
+}
+
+/* Ranged target spells are accepted before the caster is in range. Warsmash's
+ * CBehaviorTargetSpellBase owns that approach phase and only performs the spell
+ * effect once canReach(target, castRange) becomes true. Keep the same separation
+ * here: the player's click selects the spell target, while this short-lived
+ * server thinker watches the ordinary Move order and commits the spell when the
+ * caster reaches authored cast range. Replacing that Move order cancels the
+ * pending cast naturally. */
+static void spell_unit_target_approach_think(LPEDICT thinker) {
+    LPEDICT caster = thinker ? thinker->owner : NULL;
+    LPEDICT target = thinker ? thinker->goalentity : NULL;
+    DWORD code = thinker ? thinker->class_id : 0;
+    spell_info_t const *spell = S_SpellInfoForCode(code);
+    DWORD level;
+    FLOAT range;
+    spellTarget_t st;
+
+    if (!caster || !caster->inuse || M_IsDead(caster) || !target || !spell ||
+        spell->target_type != SPELL_TARGET_UNIT) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    /* A replacement order is authoritative. If the same spell-owned Move is
+     * still active but its target died/disappeared, terminate that approach too. */
+    if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (!S_SpellIsAliveTarget(target)) {
+        unit_stand(caster);
+        G_FreeEdict(thinker);
+        return;
+    }
+
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    st = MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target);
+
+    if (!S_SpellAllowsTarget(code, caster, target) ||
+        (spell->validate && !spell->validate(caster, st))) {
+        unit_stand(caster);
+        G_FreeEdict(thinker);
+        return;
+    }
+    if (!S_SpellTargetInRange(caster, target, range))
+        return;
+
+    /* Mana/cooldown can change while walking. Do not spend or fire the ability
+     * unless it is still legal at the actual cast point. */
+    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level)) {
+        unit_stand(caster);
+        G_FreeEdict(thinker);
+        return;
+    }
+
+    unit_stand(caster);
+    spell_execute_unit_target(caster, code, level, spell, target);
+    G_FreeEdict(thinker);
+}
+
+static BOOL spell_begin_unit_target_approach(LPEDICT caster, DWORD code, LPEDICT target) {
+    LPEDICT thinker;
+
+    if (!caster || !target || (caster->aiflags & AI_IMMOBILE) ||
+        G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')))
+        return false;
+
+    order_move(caster, target);
+    if (caster->goalentity != target || !move_is_active_order_walk(caster))
+        return false;
+
+    thinker = G_Spawn();
+    thinker->owner = caster;
+    thinker->goalentity = target;
+    thinker->class_id = code;
+    thinker->think = spell_unit_target_approach_think;
+    thinker->freetime = G_Time();
+    return true;
+}
+
 /* Called when user clicks a target entity for a UNIT-target spell. */
 static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
@@ -422,18 +511,20 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
     spell_info_t const *spell = S_SpellInfoForCode(code);
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     if (!spell) return false;
-    if (!spell_validate(clent, caster, code, level, target, range)) return false;
+    /* Range is intentionally excluded here. An otherwise valid out-of-range
+     * target is an accepted order; the caster must walk into cast range. */
+    if (!spell_validate(clent, caster, code, level, target, 0.0f)) return false;
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!S_SpellIsAliveTarget(target)) return false;
-    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
     if (spell->validate && !spell->validate(caster, st)) return false;
 
-    spell_commit(caster, code, level);
-    if (spell->flags & SPELL_CHANNEL)
-        spell_begin_channel(caster, code);
-    spell->execute(caster, st, spell);
+    if (!S_SpellTargetInRange(caster, target, range))
+        return spell_begin_unit_target_approach(caster, code, target);
+
+    spell_execute_unit_target(caster, code, level, spell, target);
     return true;
 }
 
