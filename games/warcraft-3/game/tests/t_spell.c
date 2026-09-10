@@ -331,7 +331,7 @@ TEST(wc3_spell, requested_active_callback_families_change_simulation) {
 	LPEDICT caster = make_hero(MAKEFOURCC('u','d','e','a'), 200, 300, 0, 0);
 	LPEDICT first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
 	LPEDICT second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
-	LPEDICT third = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 400, 0);
+	LPEDICT third = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 700, 0);
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	caster->s.player = 0; caster->health.max_value = 500; caster->health.value = 100;
 	first->s.player = second->s.player = third->s.player = 1;

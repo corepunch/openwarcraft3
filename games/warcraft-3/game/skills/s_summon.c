@@ -39,6 +39,38 @@ void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
     FOR_LOOP(i, count) summon_unit(caster, unit_id, i, count, duration);
 }
 
+static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level, unit_id, count;
+    FLOAT duration, distance;
+    VECTOR2 loc;
+
+    if (!caster) return;
+    level = S_SpellLevel(caster, spell->code);
+    unit_id = S_SpellUnitId(spell->code, level);
+    count = (DWORD)S_SpellData(spell->code, level, 2);
+    duration = S_SpellDuration(spell->code, level, false);
+    distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    if (!unit_id || !count) return;
+
+    /* Warsmash keeps the previous Feral Spirit cast as ability-owned summons:
+     * recasting kills only surviving wolves from that caster's prior cast. */
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster &&
+                  unit->summon_ability == spell->code && !M_IsDead(unit)) {
+        if (unit->die) unit->die(unit, caster);
+        else unit_die(unit, caster);
+    }
+
+    loc = caster->s.origin2;
+    loc.x += cosf(caster->s.angle) * distance;
+    loc.y += sinf(caster->s.angle) * distance;
+    FOR_LOOP(i, count) {
+        LPEDICT summon = S_SummonAt(caster, unit_id, &loc, duration);
+        if (!summon) continue;
+        summon->summon_ability = spell->code;
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, summon, NULL, true);
+    }
+}
+
 LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
     LPEDICT summon;
     if (!caster || !unit_id || !loc) return NULL;
@@ -72,7 +104,7 @@ static spell_info_t spell_feral_spirit = {
     .code = ID_FERAL_SPIRIT,
     .name = "Feral Spirit",
     .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
+    .execute = feral_spirit_execute,
 };
 
 static spell_info_t spell_force_of_nature = {

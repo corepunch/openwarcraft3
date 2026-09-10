@@ -901,6 +901,7 @@ struct edict_s {
         FLOAT progress;
     } revival;
     DWORD spawn_time;
+    DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     DWORD harvested_lumber;
     DWORD harvested_gold;
     struct edictMilitia_s {
