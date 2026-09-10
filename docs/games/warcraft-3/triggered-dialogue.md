@@ -139,10 +139,11 @@ player because `LAYER_MESSAGE` is a single server-authored layer. A new
 ordinary message replaces the previous transient message state. Independently,
 `UI_ShowText` appends the formatted text to the bounded `message_log` history.
 `SetCinematicScene` records the same speaker/dialogue formatting used by the
-gameplay transmission overlay when a transmission starts, so narrator/tutorial
-speech and `DisplayText*` hints share the retained F12 history. Blank cinematic
-clear calls are not recorded. `ClearTextMessages` clears only the active
-ordinary message and leaves that historical log intact.
+gameplay transmission overlay only while the player is in gameplay UI mode, so
+narrator/tutorial prompts and `DisplayText*` hints share the retained F12
+history. Cutscene-mode dialogue and blank cinematic clear calls are not
+recorded. `ClearTextMessages` clears only the active ordinary message and
+leaves that historical log intact.
 
 Command errors are deliberately different: `G_ShowCommandErrorText` uses
 `UI_ShowTransientText`, which shares the transient presentation path without

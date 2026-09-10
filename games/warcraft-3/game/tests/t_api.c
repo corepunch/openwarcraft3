@@ -1236,6 +1236,14 @@ TEST(wc3_api, narrator_and_hint_text_share_message_log) {
         "  call SetCinematicScene(0, PLAYER_COLOR_RED, \"\", \"\", 0.0, 0.0)\n"
         "endfunction\n"));
     T_EQ(gc->message_log.count, 0);
+
+    memset(&gc->message_log, 0, sizeof(gc->message_log));
+    gc->ps.client_ui_state = CLIENT_UI_CINEMATIC;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCinematicScene(0, PLAYER_COLOR_RED, \"Narrator\", \"Cutscene line.\", 3.0, 2.0)\n"
+        "endfunction\n"));
+    T_EQ(gc->message_log.count, 0);
 }
 
 TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {

@@ -1455,7 +1455,10 @@ DWORD SetCinematicScene(LPJASS j) {
         DWORD now = G_Time();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
-        UI_RecordTransmissionMessage(PLAYER_ENT(currentplayer));
+        /* Only gameplay transmissions are tutorial prompts; cutscene dialogue
+         * belongs to the cinematic presentation and must not enter F12 history. */
+        if (gc && gc->ps.client_ui_state == CLIENT_UI_GAME)
+            UI_RecordTransmissionMessage(PLAYER_ENT(currentplayer));
         currentplayer->cinematic_portrait = 0;
         /* The renderer currently owns 16 replaceable team-color textures.
          * Keep unsupported extended player colors deterministic instead of
