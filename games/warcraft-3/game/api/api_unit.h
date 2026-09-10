@@ -100,10 +100,8 @@ DWORD SetUnitFacingTimed(LPJASS j) {
 
 DWORD KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    if (whichUnit) {
-        G_SetHealth(whichUnit, 0);
-        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-    }
+    /* KillUnit is a death transition, not a raw life write; unit_die owns the death animation, events, and cleanup. */
+    if (whichUnit && !M_IsDead(whichUnit)) unit_die(whichUnit, NULL);
     return 0;
 }
 DWORD RemoveUnit(LPJASS j) {
