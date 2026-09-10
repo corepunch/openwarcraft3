@@ -1,5 +1,8 @@
 # Retail Warcraft III camera tracing
 
+The current measurement target and unresolved questions are tracked in
+[`objective.md`](../../../objective.md).
+
 This documents the repeatable retail-reference workflow used for the
 `Human02Interlude.w3m` opening cinematic. The reference was Warcraft III ROC
 1.29.2 running under Wine. The original campaign map was never modified.
