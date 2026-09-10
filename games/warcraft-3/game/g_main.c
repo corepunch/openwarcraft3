@@ -1192,9 +1192,9 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.WriteClientDatagram = G_WriteClientDatagram;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
-    globals.SaveGame = WriteGame;
-    globals.LoadGame = ReadGame;
-    globals.GetSaveMap = G_GetSaveMap;
+    globals.SaveGame = G_WriteState;
+    globals.LoadGame = G_ReadState;
+    globals.CheckSave = G_CheckState;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.edict_size = sizeof(struct edict_s);
     return &globals;

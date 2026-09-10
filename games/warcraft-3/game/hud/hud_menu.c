@@ -106,7 +106,6 @@ static DWORD MenuBuildSaveList(void) {
     if (MenuSaveDebugLevel())
         fprintf(stderr, "WC3_SAVE_MENU enumerate begin list=%s\n", list->Name);
     for (LPCSTR name = names; *name; name += strlen(name) + 1) {
-        PATHSTR path = { 0 };
         PATHSTR map = { 0 };
         LPCSTR display;
 
@@ -115,17 +114,11 @@ static DWORD MenuBuildSaveList(void) {
                 fprintf(stderr, "WC3_SAVE_MENU enumerate skip name=\"%s\" reason=unsafe\n", name);
             continue;
         }
-        gi.SavePath(name, path, sizeof(path));
-        if (!path[0]) {
-            if (MenuSaveDebugLevel())
-                fprintf(stderr, "WC3_SAVE_MENU enumerate skip name=\"%s\" reason=no-path\n", name);
-            continue;
-        }
-        if (!G_GetSaveMap(path, map, sizeof(map))) {
+        if (!gi.SaveMap(name, map, sizeof(map))) {
             if (MenuSaveDebugLevel())
                 fprintf(stderr,
-                        "WC3_SAVE_MENU enumerate skip name=\"%s\" path=\"%s\" reason=unreadable-header\n",
-                        name, path);
+                        "WC3_SAVE_MENU enumerate skip name=\"%s\" reason=unreadable-header\n",
+                        name);
             continue;
         }
         display = !strcasecmp(name, "quick") ? "Quick Save" : name;

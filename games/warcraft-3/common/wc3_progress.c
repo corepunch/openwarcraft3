@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+static BOOL progress_valid(LPCVOID data);
+
 /* Blizzard.j's bj_CAMPAIGN_INDEX_* and bj_CAMPAIGN_OFFSET_* contracts, matched to CampaignStrings sections. */
 static struct { LPCSTR key; int roc, tft; } const campaign_ids[] = {
     { "Tutorial", 0, -1 },
@@ -33,8 +35,33 @@ static field_t const progress_fields[] = {
     {0}
 };
 static SAVERECORD const progress_record = {
-    .magic = MAKEFOURCC('W','3','P','R'), .version = 1, .size = sizeof(CAMPAIGNPROGRESS), .fields = progress_fields,
+    .magic = MAKEFOURCC('W','3','P','R'), .version = 1, .size = sizeof(CAMPAIGNPROGRESS), .footer = MAKEFOURCC('W','3','O','K'), .fields = progress_fields, .valid = progress_valid,
 };
+
+STATEDEF const progress_def = {
+    .key = BZ_PROGRESS_FILE, .life = STATE_PROFILE,
+    .record = { .magic = MAKEFOURCC('W','3','P','R'), .version = 2, .size = sizeof(CAMPAIGNPROGRESS), .valid = progress_valid },
+    .legacy = &progress_record,
+};
+
+/* Disk checksums establish integrity; these bounds establish safe campaign lookups. */
+static BOOL progress_valid(LPCVOID data) {
+    LPCCAMPAIGNPROGRESS state = data;
+    if (state->count > BZ_PROGRESS_MAPS || (unsigned)state->tutorial > PROGRESS_OPEN) goto bad;
+    FOR_LOOP(i, BZ_PROGRESS_CAMPAIGNS) {
+        LPCCAMPAIGNSTATE camp = state->campaigns + i;
+        if ((unsigned)camp->avail > PROGRESS_OPEN || (unsigned)camp->opening > PROGRESS_OPEN ||
+            (unsigned)camp->ending > PROGRESS_OPEN) goto bad;
+        FOR_LOOP(j, BZ_PROGRESS_MISSIONS) if ((unsigned)camp->missions[j] > PROGRESS_OPEN) goto bad;
+    }
+    FOR_LOOP(i, state->count)
+        if (!memchr(state->maps[i].path, 0, sizeof(PATHSTR)) ||
+            state->maps[i].flags & ~(PROGRESS_MAP_PLAYED | PROGRESS_MAP_COMPLETED)) goto bad;
+    return true;
+bad:
+    fprintf(stderr, "WC3 progress: invalid profile values\n");
+    return false;
+}
 
 /* Native campaign/mission offsets are expansion-local; cinematic natives already take global campaign indexes. */
 int campaign_offset(DWORD offset, BOOL expansion) {
@@ -74,14 +101,9 @@ DWORD progress_map_flags(LPCCAMPAIGNPROGRESS state, LPCSTR path) {
     return 0;
 }
 
-SAVERESULT progress_load(LPCSTR path, LPCAMPAIGNPROGRESS state) { return load_record(path, &progress_record, state); }
-
-/* Read-modify-commit prevents menu refreshes or map teardown from overwriting newer script-authored progress. */
-BOOL progress_change(LPCSTR path, LPCPROGRESSCHANGE change) {
-    LPCAMPAIGNPROGRESS state = calloc(1, sizeof(*state));
-    if (!state) { fprintf(stderr, "WC3 progress: allocation failed\n"); return false; }
+/* Mutate the authoritative profile; storage and commit boundaries belong to the engine. */
+BOOL progress_update(LPCAMPAIGNPROGRESS state, LPCPROGRESSCHANGE change) {
     BOOL ok = false;
-    if (progress_load(path, state) == SAVE_INVALID) goto done;
     PROGRESSSTATE *slot = NULL;
     if (change->kind == PROGRESS_TUTORIAL) slot = &state->tutorial;
     else if (change->kind == PROGRESS_PLAYED || change->kind == PROGRESS_COMPLETED) {
@@ -115,8 +137,23 @@ BOOL progress_change(LPCSTR path, LPCPROGRESSCHANGE change) {
         if (*slot == value) { ok = true; goto done; }
         *slot = value;
     }
-    ok = save_record(path, &progress_record, state);
+    ok = true;
 done:
-    free(state);
     return ok;
 }
+
+#ifdef BZ_TESTS
+/* Fixture helpers deliberately bypass live acquisition to exercise disk restart and legacy import. */
+SAVERESULT progress_load(LPCSTR path, LPCAMPAIGNPROGRESS state) {
+    SAVERESULT result = load_record(path, &progress_def.record, state);
+    return result == SAVE_INVALID ? load_record(path, &progress_record, state) : result;
+}
+BOOL progress_change(LPCSTR path, LPCPROGRESSCHANGE change) {
+    LPCAMPAIGNPROGRESS state = calloc(1, sizeof(*state));
+    BOOL ok = state && progress_load(path, state) != SAVE_INVALID && progress_update(state, change) &&
+        save_record(path, &progress_def.record, state);
+    free(state);
+    state_reset(); /* Fixture disk edits model a process restart. */
+    return ok;
+}
+#endif

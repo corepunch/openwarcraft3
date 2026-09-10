@@ -42,6 +42,10 @@ int campaign_index(LPCSTR key, BOOL expansion);
 int campaign_offset(DWORD offset, BOOL expansion);
 CAMPAIGNDOMAIN campaign_domain(LPCSTR path);
 DWORD progress_map_flags(LPCCAMPAIGNPROGRESS state, LPCSTR path);
+extern STATEDEF const progress_def;
+BOOL progress_update(LPCAMPAIGNPROGRESS state, LPCPROGRESSCHANGE change);
+#ifdef BZ_TESTS
 SAVERESULT progress_load(LPCSTR path, LPCAMPAIGNPROGRESS state);
 BOOL progress_change(LPCSTR path, LPCPROGRESSCHANGE change);
+#endif
 #endif

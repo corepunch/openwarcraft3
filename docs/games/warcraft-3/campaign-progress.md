@@ -2,13 +2,11 @@
 
 ## Ownership and Commit Boundaries
 
-Campaign progress is game state, not configuration. `g_progress.c` commits campaign
-script events and successful map visits to `campaign.w3p` through `gi.UserPath`.
-The file lives directly in the engine's per-game writable user directory, alongside
-campaign game-cache sidecars. The menu resolves that same directory through the
-mandatory `menuImport_t.UserPath` callback and reads committed state when opening
-or returning to the campaign menus. It never marks a map played merely because a
-launch button was clicked.
+`progress_def` describes one engine-owned `CAMPAIGNPROGRESS` root. Game and menu acquire it through their mandatory
+`StateAcquire` import and observe the same allocation across maps and menu transitions. The game directly mutates this root
+and explicitly commits campaign events. Menu refresh only reacquires a view; it performs no disk reload or file writes.
+`Com_StateAcquire` resolves `campaign.w3p` under the current game's writable directory. See the
+[engine persistence contract](../../architecture/persistence-plan.md#implemented-migration-2026-09-10).
 
 | Event | Persistent change |
 |---|---|
@@ -32,16 +30,11 @@ also being readable by the client menu when no server map is running.
 
 ## Shared Serialization
 
-`common/wc3_save.c` under `games/warcraft-3/` is shared by the game and menu modules.
-Its `field_t` walker is the extracted mapped-record path from `g_save.c`:
+The engine's `shared/source/state.c` owns the bounded buffers, checksum envelope and replacement transaction. New profile
+records contain a `W3PR` v2 header and the whole pointer-free `CAMPAIGNPROGRESS` block, followed by `STOK` and its checksum.
+The old v1 mapped schema and `W3OK` envelope are read-only import contracts in `wc3_progress.c`; originals remain intact until
+commit succeeds. Explicit record revisions must change when native layout semantics change, even if size stays the same.
 
-- scalars and bounded inline strings;
-- nested structs, counted arrays and rings;
-- raw pointer-free blocks for game-cache entry values;
-- a game callback for world-owned pointer/JASS identity conversions.
-
-`campaign.w3p` uses a native-binary header (`W3PR`, version 1, payload struct size),
-the table-described payload, and the same `W3OK`/FNV-1a footer as normal saves.
 It stores nine campaign records, 128 mission availability values per campaign,
 tutorial state, and up to 512 canonical map visit/completion records. Availability
 is an enum: unset, explicitly locked, explicitly open. Map history uses independent
@@ -49,20 +42,15 @@ visited/completed bits; it does not invent completion from unlocking a later map
 Map paths are case-folded and normalized to forward slashes, matching VFS identity.
 Only the two campaign archive path families create automatic visit/completion records.
 
-Each update reloads the latest committed profile before applying one change, so
-map transitions and menu reads cannot overwrite newer state with stale copies.
-Repeated unchanged events do not rewrite the file. Invalid native indexes are
-reported and do not mutate the profile.
+Updates validate native indexes and mutate the live root. A failed commit preserves disk state and leaves live edits pending
+for retry; repeated events can retry that commit. Corrupt disk data is rejected before acquisition returns an allocation.
+Menus diagnose acquisition failure instead of replacing it with an empty writable profile. Deleting a file while its root is
+live does not reset progress: tests modelling a fresh profile must explicitly reset the engine store.
 
-`save_record` stages a complete checked file, backs up the previous file and
-installs the replacement. On a reported installation failure it attempts to restore
-the backup. This is not a crash-durability guarantee. `load_record` validates into
-scratch memory; malformed/truncated files cannot partially update a live struct.
-Profile updates refuse to overwrite a corrupt file. Menus keep their last valid
-snapshot when a read fails (or initial defaults when none exists), with a diagnostic.
+World restore suppresses profile events from map bootstrap, and does not roll the profile back to an older snapshot.
 
 There is no conversion of the former played cvars, `campaign-progress.orcp` profiles, or version-1 `ORGCACHE` files.
-Hero sidecars use a `W3GC` version-3 header with the shared machinery. Their
+Hero sidecars use a `W3GC` version-4 header with the engine machinery. Their
 pointer-free value unions use native binary blocks, with tag and string validation
 before committing or publishing a loaded cache. Earlier sidecars are rejected.
 

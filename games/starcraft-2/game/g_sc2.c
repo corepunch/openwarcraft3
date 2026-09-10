@@ -853,6 +853,9 @@ static LPCSTR SC2_GetThemeValue(LPCSTR filename) {
 
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
+    globals.SaveGame = game_no_state;
+    globals.LoadGame = game_no_state;
+    globals.CheckSave = game_no_state;
 
     globals.Init                  = SC2_Init;
     globals.Shutdown              = SC2_Shutdown;

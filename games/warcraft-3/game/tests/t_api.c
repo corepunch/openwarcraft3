@@ -214,6 +214,12 @@ static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
 }
 
+static SAVERESULT test_state_acquire(LPCSTATEDEF def, LPSTATE state) {
+    PATHSTR path;
+    gi.UserPath(def->key, path, sizeof(path));
+    return state_acquire(path, def, state);
+}
+
 static LPCSTR campaign_progress_roc_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "fs_expansion") ? "0" : fallback;
 }
@@ -2885,6 +2891,7 @@ TEST(wc3_api, campaign_progress_natives_persist_stock_bj_unlocks) {
     CAMPAIGNPROGRESS progress = {0};
     remove(campaign_progress_test_path);
     gi.UserPath = campaign_progress_test_user_path;
+    gi.StateAcquire = test_state_acquire; gi.StateCommit = state_commit; state_reset();
     gi.CvarString = campaign_progress_roc_cvar;
     level.campaign_select_on_end = false;
     T_ASSERT(run_test_jass(
@@ -2968,6 +2975,7 @@ TEST(wc3_api, gamecache_save_commits_to_process_memory) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
 
     gi.CvarString = gamecache_memory_cvar;
+    gi.StateAcquire = test_state_acquire; gi.StateCommit = state_commit;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local gamecache source = InitGameCache(\"openrealm-test-memory-save.w3v\")\n"

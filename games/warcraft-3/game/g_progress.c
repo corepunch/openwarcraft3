@@ -3,9 +3,10 @@
 
 /* Profile progress outlives level/JASS state and is committed only by campaign events. */
 void G_ProgressChange(LPCPROGRESSCHANGE change) {
-    PATHSTR path;
-    gi.UserPath(BZ_PROGRESS_FILE, path, sizeof(path));
-    if (!progress_change(path, change)) fprintf(stderr, "WC3 progress: could not persist event %u\n", change->kind);
+    if (state_restoring()) return; /* Map bootstrap must not publish profile changes while loading an older world. */
+    STATE profile;
+    if (gi.StateAcquire(&progress_def, &profile) == SAVE_INVALID || !progress_update(profile.data, change) ||
+        !gi.StateCommit(profile.id, profile.data)) fprintf(stderr, "WC3 progress: could not persist event %u\n", change->kind);
 }
 
 void G_ProgressMap(BOOL completed) {

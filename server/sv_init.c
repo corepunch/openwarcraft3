@@ -3,6 +3,8 @@
 
 #include "common/net_platform.h"
 
+void SV_CreateBaseline(void);
+
 static const struct { DWORD base, count; } loading_pools[] = {
     { CS_MODELS, MAX_MODELS },
     { CS_IMAGES, MAX_IMAGES },
@@ -38,39 +40,79 @@ static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
     return true;
 }
 
+/* Script natives return before a world snapshot is taken, preserving the VM safe-point contract. */
+void SV_QueueSave(LPCSTR name) {
+    PATHSTR path;
+    char cmd[sizeof(PATHSTR) + 16];
+    if (!SV_SavePath(name, path) || strpbrk(name, "\"\r\n;")) {
+        fprintf(stderr, "save: unsafe queued slot name\n"); return;
+    }
+    if (snprintf(cmd, sizeof(cmd), "save \"%s\"\n", name) >= sizeof(cmd)) {
+        fprintf(stderr, "save: queued slot name too long\n"); return;
+    }
+    Cbuf_AddText(cmd);
+}
+
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
     PATHSTR path;
     if (!SV_SavePath(name, path)) return false;
-    if (!ge) SV_InitGameProgs();
-    if (!ge || !ge->GetSaveMap || !ge->GetSaveMap(path, map, map_size)) {
-        fprintf(stderr, "load: save %s has no readable map identity\n", name ? name : "");
-        return false;
+    STATEBUFFER buf = {0};
+    PATHSTR saved;
+    BOOL ok = state_read(path, &buf) == SAVE_LOADED && state_load_head(&buf, BZ_GAME, saved);
+    if (ok) {
+        ok = strlen(saved) < map_size;
+        if (ok) strlcpy(map, saved, map_size);
     }
-    return true;
+    state_free(&buf);
+    if (!ok) fprintf(stderr, "load: save %s has no readable map identity\n", name);
+    return ok;
+}
+
+/* All callers, including a game's in-session save UI, use one engine transaction. */
+BOOL SV_SaveGame(LPCSTR name) {
+    PATHSTR path;
+    if (sv.state != ss_game || state_restoring() || !SV_SavePath(name, path)) return false;
+    STATEBUFFER buf = {0};
+    STATESAVE info = {0};
+    strlcpy(info.game, BZ_GAME, sizeof(info.game));
+    strlcpy(info.map, sv.configstrings[CS_WORLD], sizeof(info.map));
+    BOOL ok = state_save_head(&buf, &info) && ge->SaveGame(&buf) && state_write(path, &buf);
+    state_free(&buf);
+    if (!ok) fprintf(stderr, "save: failed to write %s\n", path);
+    return ok;
 }
 
 static void SV_SaveGame_f(void) {
-    PATHSTR path;
-
     if (Cmd_Argc() != 2) { fprintf(stderr, "usage: save <name>\n"); return; }
-    if (sv.state != ss_game || !SV_SavePath(Cmd_Argv(1), path)) return;
-    if (!ge || !ge->SaveGame || !ge->SaveGame(path)) fprintf(stderr, "save: failed to write %s\n", path);
+    SV_SaveGame(Cmd_Argv(1));
 }
 
 BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
-    PATHSTR path;
+    PATHSTR path, saved;
     if (!name || !map || !*map || !SV_SavePath(name, path)) return false;
-    /* Q2 SpawnEntities then SV_CheckForSavegame: ClearWorld + ReadLevel before
-     * reconnect/begin. JASS main() must run during SV_Map before ReadGame. */
-    SV_Map(map);
-    if (sv.state != ss_game) return false;
-    if (!ge || !ge->LoadGame || !ge->LoadGame(path)) {
-        fprintf(stderr, "load: failed to read %s; restoring map baseline\n", path);
-        SV_Map(map);
-        return false;
+    STATEBUFFER buf = {0};
+    if (state_read(path, &buf) != SAVE_LOADED) return false;
+    /* Keep the validated bytes across teardown; never reopen a possibly changed slot afterward. */
+    if (!state_load_head(&buf, BZ_GAME, saved) || strcasecmp(saved, map)) {
+        fprintf(stderr, "load: incompatible map identity in %s\n", path);
+        state_free(&buf); return false;
     }
-    return true;
+    STATEBUFFER body = { .data = buf.data + buf.pos, .size = buf.size - buf.pos };
+    if (!ge) SV_InitGameProgs();
+    if (!ge->CheckSave(&body)) { state_free(&buf); return false; }
+    state_restore(true);
+    SV_Map(map);
+    BOOL ok = sv.state == ss_game && ge->LoadGame(&body);
+    if (ok) { SAFE_DELETE(sv.baselines, MemFree); SV_CreateBaseline(); }
+    state_restore(false);
+    state_free(&buf);
+    if (!ok) {
+        fprintf(stderr, "load: failed to restore %s; stopping incomplete session\n", path);
+        SV_Shutdown();
+    }
+    return ok;
 }
+
 #endif
 
 void SV_CreateBaseline(void) {

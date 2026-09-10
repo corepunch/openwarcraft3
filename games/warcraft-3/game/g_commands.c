@@ -1329,7 +1329,6 @@ static BOOL MenuNormalizeSaveName(LPCSTR input, LPSTR out, DWORD out_size) {
 }
 
 CLIENTCOMMAND(MenuSaveNamed) {
-    PATHSTR path = { 0 };
     char name[CMDARG_LEN] = { 0 };
 
     (void)clent;
@@ -1338,9 +1337,7 @@ CLIENTCOMMAND(MenuSaveNamed) {
         fprintf(stderr, "WC3 menu: invalid save name\n");
         return;
     }
-    gi.SavePath(name, path, sizeof(path));
-    if (path[0] && !WriteGame(path))
-        fprintf(stderr, "WC3 menu: failed to save %s\n", path);
+    if (!gi.SaveGame(name)) fprintf(stderr, "WC3 menu: failed to save %s\n", name);
 }
 
 CLIENTCOMMAND(MenuLoadNamed) {

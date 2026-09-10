@@ -749,27 +749,11 @@ DWORD ReloadGame(LPJASS j) {
     return 0;
 }
 DWORD SaveGame(LPJASS j) {
-    LPCSTR name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 SaveGame: invalid save name\n");
-        return 0;
-    }
-    gi.SavePath(name, path, sizeof(path));
-    if (!WriteGame(path)) fprintf(stderr, "WC3 SaveGame: could not write %s\n", path);
+    gi.QueueSave(jass_checkstring(j, 1));
     return 0;
 }
 DWORD LoadGame(LPJASS j) {
-    LPCSTR name = jass_checkstring(j, 1);
-    PATHSTR path;
-
-    if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
-        fprintf(stderr, "WC3 LoadGame: invalid save name\n");
-        return 0;
-    }
-    gi.SavePath(name, path, sizeof(path));
-    if (!ReadGame(path)) fprintf(stderr, "WC3 LoadGame: could not read %s\n", path);
+    G_RequestLoadGameNamed(jass_checkstring(j, 1));
     return 0;
 }
 DWORD SetCampaignMenuRace(LPJASS j) {

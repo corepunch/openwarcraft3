@@ -1477,6 +1477,7 @@ void FS_Init(void) {
 }
 
 void FS_Shutdown(void) {
+    state_reset();
     FOR_LOOP(i, MAX_ARCHIVES) {
         SFileCloseArchive(archives[i]);
         archives[i] = NULL;
@@ -1849,4 +1850,14 @@ void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
     }
     
     fprintf(stderr, "%s", msg);
+}
+
+/* Resolve logical record keys under the current game's profile namespace. */
+SAVERESULT Com_StateAcquire(LPCSTATEDEF def, LPSTATE state) {
+    PATHSTR path;
+    if (!def->key || !*def->key || strchr(def->key, '/') || strchr(def->key, '\\') || (!strcmp(def->key, ".") || !strcmp(def->key, ".."))) {
+        fprintf(stderr, "State: invalid record key\n"); return SAVE_INVALID;
+    }
+    FS_UserPath(def->key, path, sizeof(path));
+    return state_acquire(path, def, state);
 }

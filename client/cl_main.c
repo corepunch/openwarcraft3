@@ -804,6 +804,8 @@ void CL_Init(void) {
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_WriteFile = CL_UI_WriteFile,
         .UserPath = FS_UserPath,
+        .StateAcquire = Com_StateAcquire,
+        .StateCommit = state_commit,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,

@@ -68,6 +68,12 @@ static void test_progress_userpath(LPCSTR rel, LPSTR out, DWORD size) {
     snprintf(out, size, "/tmp/wc3-menu-progress-%s", rel);
 }
 
+static SAVERESULT test_menu_state(LPCSTATEDEF def, LPSTATE state) {
+    PATHSTR path;
+    test_progress_userpath(def->key, path, sizeof(path));
+    return state_acquire(path, def, state);
+}
+
 /* Menu fixtures use explicit committed unlocks, never the player's profile or cvar state. */
 static void test_progress_seed(void) {
     PATHSTR path;
@@ -91,6 +97,7 @@ static void test_command_imports(void) {
         ready = true;
     }
     mi.UserPath = test_progress_userpath;
+    mi.StateAcquire = test_menu_state; mi.StateCommit = state_commit;
     mi.Cmd_AddCommand = Cmd_AddCommand;
     mi.Cmd_Argc = Cmd_Argc;
     mi.Cmd_Argv = Cmd_Argv;
@@ -3141,7 +3148,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
                       : "map \"Maps\\Campaign\\Human02.w3m\"");
 
     /* A fresh profile follows the archive's DefaultOpen and exposes its first mission only. */
-    remove(progress_path);
+    remove(progress_path); state_reset(); /* A new profile is a storage-lifetime transition, not a menu refresh. */
     SinglePlayerMenu_ShowCampaign();
     T_EQ(campaign_list_box->MapListControl.State->count, 1);
     T_STREQ(campaign_list_box->MapListControl.State->items[0].path, tft ? "NightElf" : "Human");

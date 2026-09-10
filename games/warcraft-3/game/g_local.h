@@ -1489,8 +1489,8 @@ void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
 
 // g_spawn.c
-BOOL WriteGame(LPCSTR filename);
-BOOL ReadGame(LPCSTR filename);
+BOOL G_WriteState(LPSTATEBUFFER buf);
+BOOL G_ReadState(LPSTATEBUFFER buf);
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
 void G_BindEntityData(LPEDICT);
@@ -1509,8 +1509,8 @@ void tree_birth(LPEDICT);
 void tree_pain(LPEDICT);
 
 // g_save.c
-BOOL WriteGame(LPCSTR filename);
-BOOL ReadGame(LPCSTR filename);
+BOOL G_WriteState(LPSTATEBUFFER buf);
+BOOL G_ReadState(LPSTATEBUFFER buf);
 BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
 HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
 ggroup_t *G_AllocJassGroup(void);
@@ -1536,7 +1536,13 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 void G_ClearSaveRegistries(void);
-BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
+BOOL G_SaveMap(LPSTATEBUFFER buf, LPSTR map, DWORD map_size);
+BOOL G_CheckState(LPSTATEBUFFER buf);
+#ifdef BZ_TESTS
+BOOL WriteGame(LPCSTR path);
+BOOL ReadGame(LPCSTR path);
+BOOL G_GetSaveMap(LPCSTR path, LPSTR map, DWORD size);
+#endif
 void G_RunTimers(void);
 void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);

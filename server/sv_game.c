@@ -209,7 +209,11 @@ void SV_InitGameProgs(void) {
     import.ApplyLobbySettings = SV_ApplyLobbySettings;
     import.CvarString = Cvar_String;
     import.UserPath = FS_UserPath;
-    import.SavePath = FS_SavePath;
+    import.StateAcquire = Com_StateAcquire;
+    import.StateCommit = state_commit;
+    import.SaveGame = SV_SaveGame;
+    import.QueueSave = SV_QueueSave;
+    import.SaveMap = SV_GetSaveMap;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
 

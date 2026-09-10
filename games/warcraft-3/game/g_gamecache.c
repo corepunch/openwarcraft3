@@ -3,7 +3,6 @@
 #include "../common/wc3_save.h"
 
 #define GAMECACHE_FILE_SUFFIX ".orcgc"
-#define MAX_GAMECACHE_MEMORY_CACHES 8 // caches; bounded committed campaign handles retained across maps
 
 typedef enum {
     GAMECACHE_STORAGE_DISABLED,
@@ -11,14 +10,45 @@ typedef enum {
     GAMECACHE_STORAGE_DISK,
 } gameCacheStorageMode_t;
 
-typedef struct {
-    BOOL inuse;
-    gameCache_t cache;
-} gameCacheMemorySlot_t;
-
-static gameCacheMemorySlot_t gamecache_memory[MAX_GAMECACHE_MEMORY_CACHES];
-
 static BOOL G_GameCacheValid(LPCVOID data);
+static BOOL G_GameCacheImport(LPSTATEBUFFER buf, void *data);
+
+enum { F_CACHE_WORDS = F_CUSTOM + 32, F_CACHE_BOOL, F_CACHE_STRING, F_CACHE_TAG, F_CACHE_VALUE };
+static STATEIMPORT const cache_import = {
+    .magic = { MAKEFOURCC('O','R','G','C'), MAKEFOURCC('A','C','H','E') }, .decode = G_GameCacheImport,
+};
+/* Main's ORGCACHE v1 wrote little-endian values, length-prefixed strings and tagged payloads. */
+static field_t const cache_old_unit[] = {
+    BZ_SAVE_FIELD(gameCacheUnit_t, class_id, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.level, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.str, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.agi, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.intel, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.xp, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.suspend_xp, F_CACHE_BOOL),
+    BZ_SAVE_FIELD(gameCacheUnit_t, hero.skillpoints, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, abilities, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, health, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, mana, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, unit_color, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheUnit_t, inventory, F_CACHE_WORDS),
+    {0}
+};
+static field_t const cache_old_value[] = {
+    BZ_SAVE_FIELD(gameCacheEntry_t, value.integer, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheEntry_t, value.real, F_CACHE_WORDS),
+    BZ_SAVE_FIELD(gameCacheEntry_t, value.boolean, F_CACHE_BOOL),
+    BZ_SAVE_ARRAY(gameCacheEntry_t, value.unit, 1, cache_old_unit),
+    BZ_SAVE_FIELD(gameCacheEntry_t, value.string, F_CACHE_STRING),
+    {0}
+};
+static field_t const cache_old_entry[] = {
+    BZ_SAVE_FIELD(gameCacheEntry_t, type, F_CACHE_TAG),
+    BZ_SAVE_FIELD(gameCacheEntry_t, mission, F_CACHE_STRING),
+    BZ_SAVE_FIELD(gameCacheEntry_t, key, F_CACHE_STRING),
+    BZ_SAVE_FIELD(gameCacheEntry_t, value, F_CACHE_VALUE),
+    {0}
+};
 
 /* The union contains only values. Like Quake II's raw edict scalars, it needs no per-member schema. */
 static field_t const cache_entry_fields[] = {
@@ -34,19 +64,79 @@ static field_t const cache_fields[] = {
     {0}
 };
 static SAVERECORD const cache_record = {
-    .magic = MAKEFOURCC('W','3','G','C'), .version = 3, .size = sizeof(gameCache_t), .fields = cache_fields, .valid = G_GameCacheValid,
+    .magic = MAKEFOURCC('W','3','G','C'), .version = 3, .size = sizeof(gameCache_t), .footer = MAKEFOURCC('W','3','O','K'), .fields = cache_fields, .valid = G_GameCacheValid,
 };
+
+static BOOL cache_old_word(LPSTATEBUFFER buf, DWORD *value) {
+    BYTE bytes[4];
+    if (!load_bytes(buf, bytes, sizeof(bytes))) return false;
+    *value = (DWORD)bytes[0] | ((DWORD)bytes[1] << 8) | ((DWORD)bytes[2] << 16) | ((DWORD)bytes[3] << 24);
+    return true;
+}
+
+/* Only the legacy tagged union and endian/string conversions need custom productions. */
+static BOOL cache_old_field(LPSAVEIO io, field_t const *field, BYTE *base) {
+    BYTE *ptr = base + field->ofs;
+    DWORD value;
+    switch (field->type) {
+    case F_CACHE_WORDS:
+        for (size_t ofs = 0; ofs < field->size; ofs += sizeof(DWORD)) {
+            if (!cache_old_word(io->buf, &value)) return false;
+            memcpy(ptr + ofs, &value, sizeof(value));
+        }
+        return true;
+    case F_CACHE_BOOL:
+        if (!cache_old_word(io->buf, &value)) return false;
+        *(BOOL *)ptr = value != 0;
+        return true;
+    case F_CACHE_TAG: {
+        BYTE tag;
+        if (!load_bytes(io->buf, &tag, sizeof(tag)) || tag < GAMECACHE_INTEGER || tag > GAMECACHE_STRING) return false;
+        *(gameCacheValueType_t *)ptr = tag;
+        return true;
+    }
+    case F_CACHE_STRING: {
+        BYTE len[2];
+        if (!load_bytes(io->buf, len, sizeof(len))) return false;
+        value = len[0] | ((DWORD)len[1] << 8);
+        if (value >= field->size || !load_bytes(io->buf, ptr, value)) return false;
+        ptr[value] = 0;
+        return true;
+    }
+    case F_CACHE_VALUE: {
+        gameCacheEntry_t *entry = (gameCacheEntry_t *)base;
+        field_t fields[] = { cache_old_value[entry->type - GAMECACHE_INTEGER], {0} };
+        return save_fields(io, fields, base);
+    }
+    default: return false;
+    }
+}
+
+/* Import into unpublished scratch storage; the engine preserves the original until the next commit. */
+static BOOL G_GameCacheImport(LPSTATEBUFFER buf, void *data) {
+    gameCache_t *cache = data;
+    DWORD head[4];
+    FOR_LOOP(i, 4) if (!cache_old_word(buf, head + i)) return false;
+    if (head[0] != cache_import.magic[0] || head[1] != cache_import.magic[1] || head[2] != 1 ||
+        head[3] > MAX_GAMECACHE_ENTRIES) return false;
+    cache->num_entries = head[3];
+    SAVEIO io = { .buf = buf, .reading = true, .special = cache_old_field };
+    FOR_LOOP(i, cache->num_entries)
+        if (!save_fields(&io, cache_old_entry, cache->entries + i)) return false;
+    return buf->pos == buf->size && G_GameCacheValid(cache);
+}
 
 /* Raw values still require tag and string validation before writing or exposing a loaded cache. */
 static BOOL G_GameCacheValid(LPCVOID data) {
     gameCache_t const *cache = data;
-    if (cache->num_entries > MAX_GAMECACHE_ENTRIES) {
+    if (!memchr(cache->campaign, 0, sizeof(cache->campaign)) || cache->num_entries > MAX_GAMECACHE_ENTRIES) {
         fprintf(stderr, "Game cache: invalid entry count %u\n", cache->num_entries);
         return false;
     }
     FOR_LOOP(i, cache->num_entries) {
         gameCacheEntry_t const *entry = cache->entries + i;
-        if (entry->type < GAMECACHE_INTEGER || entry->type > GAMECACHE_STRING ||
+        if (!memchr(entry->mission, 0, sizeof(entry->mission)) || !memchr(entry->key, 0, sizeof(entry->key)) ||
+            entry->type < GAMECACHE_INTEGER || entry->type > GAMECACHE_STRING ||
             (entry->type == GAMECACHE_STRING && !memchr(entry->value.string, 0, sizeof(entry->value.string)))) {
             fprintf(stderr, "Game cache: invalid entry %u (type %u or unterminated string)\n", i, entry->type);
             return false;
@@ -67,50 +157,6 @@ static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
     return GAMECACHE_STORAGE_DISK;
 }
 
-static gameCacheMemorySlot_t *G_GameCacheMemoryFind(LPCSTR campaign) {
-    if (!campaign || !*campaign) return NULL;
-    FOR_LOOP(i, MAX_GAMECACHE_MEMORY_CACHES) {
-        gameCacheMemorySlot_t *slot = gamecache_memory + i;
-        if (slot->inuse && !strcmp(slot->cache.campaign, campaign)) return slot;
-    }
-    return NULL;
-}
-
-static BOOL G_GameCacheMemoryLoad(gameCache_t *cache) {
-    gameCacheMemorySlot_t *slot;
-
-    if (!cache || !cache->campaign[0]) return false;
-    slot = G_GameCacheMemoryFind(cache->campaign);
-    if (!slot) return false;
-    *cache = slot->cache;
-    cache->dirty = false;
-    return true;
-}
-
-static BOOL G_GameCacheMemorySave(gameCache_t const *cache) {
-    gameCacheMemorySlot_t *slot;
-
-    if (!cache || !cache->campaign[0]) return false;
-    slot = G_GameCacheMemoryFind(cache->campaign);
-    if (!slot) {
-        FOR_LOOP(i, MAX_GAMECACHE_MEMORY_CACHES) {
-            if (!gamecache_memory[i].inuse) {
-                slot = gamecache_memory + i;
-                slot->inuse = true;
-                break;
-            }
-        }
-    }
-    if (!slot) {
-        fprintf(stderr, "Game cache: in-memory campaign limit %u reached while saving '%s'\n",
-                (unsigned)MAX_GAMECACHE_MEMORY_CACHES, cache->campaign);
-        return false;
-    }
-    slot->cache = *cache;
-    slot->cache.dirty = false;
-    return true;
-}
-
 static BOOL G_GameCacheKeyFits(LPCSTR value, size_t size, LPCSTR label) {
     if (!value) {
         fprintf(stderr, "Game cache: missing %s\n", label);
@@ -124,7 +170,7 @@ static BOOL G_GameCacheKeyFits(LPCSTR value, size_t size, LPCSTR label) {
     return true;
 }
 
-static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
+static BOOL G_GameCacheKey(LPCSTR campaign, LPSTR out, DWORD out_size) {
     LPCSTR base;
     char safe[MAX_PATHLEN];
     char rel[MAX_PATHLEN];
@@ -157,7 +203,7 @@ static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
         fprintf(stderr, "Game cache: resolved cache name is too long for '%s'\n", campaign);
         return false;
     }
-    gi.UserPath(rel, out, out_size);
+    strlcpy(out, rel, out_size);
     return true;
 }
 
@@ -202,58 +248,46 @@ static gameCacheEntry_t *G_GameCacheGetOrCreate(gameCache_t *cache, LPCSTR missi
     return entry;
 }
 
-/* Cache persistence uses the same field walker and committed envelope as other game records. */
-static BOOL G_GameCacheLoadDisk(gameCache_t *cache) {
+/* Script handles remain private working copies until SaveGameCache publishes the whole value. */
+static SAVERESULT G_GameCacheAcquire(gameCache_t const *cache, LPSTATE state) {
     PATHSTR path;
-    return G_GameCachePath(cache->campaign, path, sizeof(path)) && load_record(path, &cache_record, cache) == SAVE_LOADED;
+    if (!cache || !cache->campaign[0] || !G_GameCacheKey(cache->campaign, path, sizeof(path))) return SAVE_INVALID;
+    /* The basename mapping preserves existing cache aliases and on-disk record names. */
+    STATEDEF def = {
+        .key = path,
+        .life = G_GameCacheStorageMode() == GAMECACHE_STORAGE_MEMORY ? STATE_MEMORY : STATE_CACHE,
+        .record = { .magic = MAKEFOURCC('W','3','G','C'), .version = 4, .size = sizeof(gameCache_t), .valid = G_GameCacheValid },
+        .legacy = &cache_record,
+        .import = &cache_import,
+    };
+    return gi.StateAcquire(&def, state);
 }
 
 void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign) {
-    gameCacheStorageMode_t mode;
-
     if (!cache) return;
     memset(cache, 0, sizeof(*cache));
-    if (!campaign || !*campaign) {
-        fprintf(stderr, "InitGameCache: empty campaign file\n");
-        return;
-    }
-    if (strlen(campaign) >= sizeof(cache->campaign)) {
-        fprintf(stderr, "InitGameCache: campaign file is too long (%zu >= %zu)\n",
-                strlen(campaign), sizeof(cache->campaign));
-        return;
+    if (!campaign || !*campaign || !G_GameCacheKeyFits(campaign, sizeof(cache->campaign), "campaign")) {
+        fprintf(stderr, "InitGameCache: invalid campaign file\n"); return;
     }
     strlcpy(cache->campaign, campaign, sizeof(cache->campaign));
-    mode = G_GameCacheStorageMode();
-    if (mode == GAMECACHE_STORAGE_DISABLED) return;
-    if (G_GameCacheMemoryLoad(cache)) return;
-    if (mode == GAMECACHE_STORAGE_DISK && G_GameCacheLoadDisk(cache)) {
-        G_GameCacheMemorySave(cache);
-    }
-}
-
-static BOOL G_GameCacheSaveDisk(gameCache_t *cache) {
-    PATHSTR path;
-    if (!cache || !cache->campaign[0] || !G_GameCachePath(cache->campaign, path, sizeof(path))) return false;
-    if (!save_record(path, &cache_record, cache)) return false;
+    if (G_GameCacheStorageMode() == GAMECACHE_STORAGE_DISABLED) return;
+    STATE state;
+    SAVERESULT result = G_GameCacheAcquire(cache, &state);
+    if (result == SAVE_LOADED && G_GameCacheValid(state.data)) *cache = *(gameCache_t *)state.data;
+    else if (result == SAVE_INVALID) fprintf(stderr, "InitGameCache: cannot acquire %s\n", campaign);
+    /* ORGCACHE did not store its filename; the acquiring handle owns this logical identity. */
+    strlcpy(cache->campaign, campaign, sizeof(cache->campaign));
     cache->dirty = false;
-    return true;
 }
 
 BOOL G_GameCacheSave(gameCache_t *cache) {
-    gameCacheStorageMode_t const mode = G_GameCacheStorageMode();
-
-    if (mode == GAMECACHE_STORAGE_DISABLED) {
-        if (!cache || !cache->campaign[0]) return false;
-        cache->dirty = false;
-        return true;
+    if (!cache || !cache->campaign[0] || !G_GameCacheValid(cache)) return false;
+    if (G_GameCacheStorageMode() != GAMECACHE_STORAGE_DISABLED) {
+        STATE state;
+        if (G_GameCacheAcquire(cache, &state) == SAVE_INVALID || !gi.StateCommit(state.id, cache)) return false;
     }
-    if (mode == GAMECACHE_STORAGE_MEMORY) {
-        if (!G_GameCacheMemorySave(cache)) return false;
-        cache->dirty = false;
-        return true;
-    }
-    if (!G_GameCacheSaveDisk(cache)) return false;
-    return G_GameCacheMemorySave(cache);
+    cache->dirty = false;
+    return true;
 }
 
 static void G_GameCacheRemoveAt(gameCache_t *cache, DWORD index) {
@@ -425,3 +459,12 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     }
     return unit;
 }
+
+#ifdef BZ_TESTS
+static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD size) {
+    PATHSTR key;
+    if (!G_GameCacheKey(campaign, key, sizeof(key))) return false;
+    gi.UserPath(key, out, size);
+    return true;
+}
+#endif

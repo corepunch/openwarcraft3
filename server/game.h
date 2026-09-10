@@ -1,5 +1,6 @@
 #ifndef game_h
 #define game_h
+#include "common/state.h"
 
 #include "../common/shared.h"
 #include "../common/mpq.h"
@@ -85,8 +86,12 @@ struct game_import {
 
     /* Resolve writable per-game config/state without linking game modules against engine common. */
     void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    SAVERESULT (*StateAcquire)(LPCSTATEDEF def, LPSTATE state);
+    BOOL (*StateCommit)(DWORD id, LPCVOID data);
     /* Resolve save files under the platform's per-user data directory. */
-    void (*SavePath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    BOOL (*SaveGame)(LPCSTR slot);
+    void (*QueueSave)(LPCSTR slot);
+    BOOL (*SaveMap)(LPCSTR slot, LPSTR map, DWORD size);
     /* Enumerate save basenames as a double-NUL-terminated list. */
     DWORD (*ListSaves)(LPSTR out, DWORD out_size);
     /* Delete one save basename from the writable save directory. */
@@ -143,9 +148,9 @@ struct game_export {
     DWORD (*WriteClientDatagram)(LPEDICT ent, LPBYTE data, DWORD size);
     DWORD (*PlayerCreateMap)(void);
     bool (*LoadMap)(LPCSTR mapFilename);
-    BOOL (*SaveGame)(LPCSTR filename);
-    BOOL (*LoadGame)(LPCSTR filename);
-    BOOL (*GetSaveMap)(LPCSTR filename, LPSTR map, DWORD map_size);
+    BOOL (*SaveGame)(LPSTATEBUFFER buf);
+    BOOL (*LoadGame)(LPSTATEBUFFER buf);
+    BOOL (*CheckSave)(LPSTATEBUFFER buf); /* Validate the game payload's revision before map teardown. */
     BOX2 (*GetWorldBounds)(void);
     
     edict_t *edicts;
@@ -157,6 +162,12 @@ struct game_export {
 
 struct game_export *GetGameAPI(struct game_import *game_import);
 
+/* Games without world persistence still supply mandatory, explicitly unsupported callbacks. */
+static inline BOOL game_no_state(LPSTATEBUFFER buf) {
+    (void)buf;
+    fprintf(stderr, "Game: world persistence is not implemented\n");
+    return false;
+}
 /* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
 static inline VECTOR2 input_move_focus(LPCINPUTCMD cmd, LPCPLAYER ps, FLOAT speed) {
     DWORD bits = cmd->move.buttons;

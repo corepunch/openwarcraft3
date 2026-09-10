@@ -146,7 +146,7 @@ test-jass-build: $(JASS_LIB)
 
 # Common flags for standalone test binaries.
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
-TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
+TEST_MENU_CFLAGS := $(TEST_CFLAGS) -DBZ_TESTS -I$(WC3_DIR)/menu
 
 TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_menu_fdf.c \
@@ -159,7 +159,7 @@ TEST_JOBS ?= 16
  test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
-		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_tool_common.c \
+		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_tool_common.c common/tests/t_state.c \
 		$(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_keys.c \
 		common/net.c common/msg.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
@@ -176,7 +176,7 @@ $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-
 $(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
-$(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(WC3_COMMON_HEADERS),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu) $(WC3_DIR)/common/wc3_save.c $(WC3_DIR)/common/wc3_progress.c,-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(WC3_COMMON_HEADERS),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu) $(WC3_DIR)/common/wc3_progress.c,-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)

@@ -2593,7 +2593,7 @@ static field_t const *find_save_field_in(field_t const *schema, LPCSTR name) {
     for (field_t const *field = schema; field->name; field++) {
         if (strlen(field->name) != len || strncmp(field->name, name, len)) continue;
         if (!dot) return field;
-        return field->type == F_STRUCT ? find_save_field_in((field_t const *)field->flags, dot + 1) : NULL;
+        return field->type == F_STRUCT ? find_save_field_in(field->child, dot + 1) : NULL;
     }
     return NULL;
 }
@@ -2778,6 +2778,29 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
 
 static void unknown_save_think(LPEDICT ent) { (void)ent; }
 
+/* Camera targets share entity-domain validation, including null and corrupt serialized references. */
+TEST(wc3_save, client_camera_reference_validation) {
+    reset_entities();
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPGAMECLIENT client = calloc(1, sizeof(*client)); T_NOT_NULL(client);
+    STATEBUFFER buf = {0};
+    FOR_LOOP(i, 2) {
+        client->camera.target_controller = i ? target : NULL;
+        T_ASSERT(WriteClient(&buf, client));
+        client->camera.target_controller = NULL;
+        T_ASSERT(ReadClient(&buf, client));
+        T_ASSERT(client->camera.target_controller == (i ? target : NULL));
+        state_free(&buf);
+    }
+    T_ASSERT(WriteClient(&buf, client));
+    int bad = globals.max_edicts;
+    memcpy(buf.data + offsetof(GAMECLIENT, camera.target_controller), &bad, sizeof(bad));
+    T_ASSERT(!ReadClient(&buf, client)); state_free(&buf);
+    client->camera.target_controller = (LPEDICT)((BYTE *)g_edicts + 1);
+    T_ASSERT(!WriteClient(&buf, client));
+    state_free(&buf); free(client);
+}
+
 TEST(wc3_save, round_trip_entity_c_callbacks) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-cfunctions.bin";
     reset_entities();
@@ -2808,12 +2831,16 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     remove(filename);
 }
 
-TEST(wc3_save, rejects_unknown_c_callback) {
+TEST(wc3_save, rejects_unknown_c_callback_and_preserves_committed_slot) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-unknown-cfunction.bin";
     reset_entities();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->think = monster_think;
+    T_ASSERT(WriteGame(filename));
     unit->think = unknown_save_think;
     T_ASSERT(!WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(unit->think == monster_think);
     remove(filename);
 }
 

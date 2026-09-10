@@ -77,7 +77,7 @@ static LPCSTR const solo_lft[] = {
     NULL,
 };
 
-static CAMPAIGNPROGRESS campaign_progress;
+static LPCCAMPAIGNPROGRESS campaign_progress;
 static SinglePlayerMenu_t single_player;
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static DWORD campaign_count;
@@ -517,28 +517,32 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
 
 /* Refresh from committed game state when entering a menu; never write progress from a launch button. */
 static void SinglePlayer_ReadProgress(void) {
-    PATHSTR path;
-    mi.UserPath(BZ_PROGRESS_FILE, path, sizeof(path));
-    if (progress_load(path, &campaign_progress) == SAVE_MISSING) memset(&campaign_progress, 0, sizeof(campaign_progress));
+    STATE profile;
+    if (mi.StateAcquire(&progress_def, &profile) == SAVE_INVALID) {
+        fprintf(stderr, "WC3 menu: campaign progress unavailable\n");
+        campaign_progress = NULL;
+        return;
+    }
+    campaign_progress = profile.data;
 }
 
 static BOOL SinglePlayer_ShowMission(singlePlayerCampaign_t const *campaign, DWORD index) {
     int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
-    if (id < 0) return false;
-    PROGRESSSTATE state = campaign_progress.campaigns[id].missions[index];
+    if (id < 0 || !campaign_progress) return false;
+    PROGRESSSTATE state = campaign_progress->campaigns[id].missions[index];
     /* Explicit script locks take precedence; starting a map used to set a transient UI cvar instead. */
     return state == PROGRESS_OPEN || (state == PROGRESS_UNSET &&
-        (index == 0 || progress_map_flags(&campaign_progress, campaign->missions[index].map_path)));
+        (index == 0 || progress_map_flags(campaign_progress, campaign->missions[index].map_path)));
 }
 
 static BOOL SinglePlayer_ShowCampaign(singlePlayerCampaign_t const *campaign) {
     int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
-    if (id < 0) return false;
-    PROGRESSSTATE state = campaign_progress.campaigns[id].avail;
+    if (id < 0 || !campaign_progress) return false;
+    PROGRESSSTATE state = campaign_progress->campaigns[id].avail;
     if (state != PROGRESS_UNSET) return state == PROGRESS_OPEN;
     if (campaign->default_open) return true;
     FOR_LOOP(i, campaign->num_missions)
-        if (campaign->missions[i].map_path[0] && progress_map_flags(&campaign_progress, campaign->missions[i].map_path)) return true;
+        if (campaign->missions[i].map_path[0] && progress_map_flags(campaign_progress, campaign->missions[i].map_path)) return true;
     return false;
 }
 
@@ -584,9 +588,9 @@ static void SinglePlayer_AddCinematicItem(singlePlayerCampaign_t const *campaign
         return;
     }
     int id = campaign_index(campaign->key, SinglePlayer_ExpansionEnabled());
-    if (id < 0) return;
-    PROGRESSSTATE state = kind == SINGLE_PLAYER_CINEMATIC_END ? campaign_progress.campaigns[id].ending :
-        campaign_progress.campaigns[id].opening;
+    if (id < 0 || !campaign_progress) return;
+    PROGRESSSTATE state = kind == SINGLE_PLAYER_CINEMATIC_END ? campaign_progress->campaigns[id].ending :
+        campaign_progress->campaigns[id].opening;
     if (kind != SINGLE_PLAYER_CINEMATIC_INTRO && (state == PROGRESS_LOCKED ||
         (kind == SINGLE_PLAYER_CINEMATIC_END && state != PROGRESS_OPEN))) return;
     singlePlayerCinematic_t const *cinematic;

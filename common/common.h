@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "shared.h"
+#include "state.h"
 #include "net.h"
 #include "mpq.h"
 #include "mapinfo.h"
@@ -246,6 +247,9 @@ void SV_StartLobby(LPCSTR pFilename);
 void SV_Map(LPCSTR pFilename);
 BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
 BOOL SV_LoadGame(LPCSTR name, LPCSTR map);
+BOOL SV_SaveGame(LPCSTR name);
+void SV_QueueSave(LPCSTR name);
+SAVERESULT Com_StateAcquire(LPCSTATEDEF def, LPSTATE state);
 #ifdef WOW
 DWORD SV_PlayerCreateMap(void);
 #endif

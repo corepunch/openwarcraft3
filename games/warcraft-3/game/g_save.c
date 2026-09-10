@@ -4,29 +4,29 @@
 
 #define F_METADATA(kind, ...) F_METADATA_INNER(kind, __VA_ARGS__)
 #define F_METADATA_INNER(kind, ...) F_METADATA_##kind(__VA_ARGS__)
-#define F_METADATA_F_STRUCT(count, schema) count, (uintptr_t)(schema)
-#define F_METADATA_F_IGNORE(count, flags) count, flags
-#define F_METADATA_F_INT(...) 0, 0
-#define F_METADATA_F_FLOAT(...) 0, 0
-#define F_METADATA_F_LSTRING(...) 0, 0
-#define F_METADATA_F_GSTRING(...) 0, 0
-#define F_METADATA_F_VECTOR(...) 0, 0
-#define F_METADATA_F_REGION(...) 0, 0
-#define F_METADATA_F_ANGLEHACK(...) 0, 0
-#define F_METADATA_F_EDICT(count, flags) count, flags
-#define F_METADATA_F_ITEM(count, flags) count, flags
-#define F_METADATA_F_TRIGGER(count, flags) count, flags
-#define F_METADATA_F_TIMER(count, flags) count, flags
-#define F_METADATA_F_EVENT(count, flags) count, flags
-#define F_METADATA_F_FUNCTION(...) 0, 0
-#define F_METADATA_F_FUNCTION_LIST(...) 0, 0
-#define F_METADATA_F_CFUNCTION(...) 0, 0
-#define F_METADATA_F_MMOVE(...) 0, 0
-#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
-#define TF(TYPE, x, kind, ...) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
-#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (HANDLE)NULL }
-#define FR(TYPE, x, count, ring) { #x, FOFS(TYPE, x) - (HANDLE)NULL, F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
-#define TFC(TYPE, x, kind, count, count_field) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), count, 0, offsetof(TYPE, count_field) }
+#define F_METADATA_F_STRUCT(n, schema) .array_size = n, .child = schema
+#define F_METADATA_F_IGNORE(n, bits) .array_size = n, .flags = bits
+#define F_METADATA_F_INT(...) .flags = 0
+#define F_METADATA_F_FLOAT(...) .flags = 0
+#define F_METADATA_F_LSTRING(...) .flags = 0
+#define F_METADATA_F_GSTRING(...) .flags = 0
+#define F_METADATA_F_VECTOR(...) .flags = 0
+#define F_METADATA_F_REGION(...) .flags = 0
+#define F_METADATA_F_ANGLEHACK(...) .flags = 0
+#define F_METADATA_F_FUNCTION(...) .flags = 0
+#define F_METADATA_F_FUNCTION_LIST(...) .flags = 0
+#define F_METADATA_F_CFUNCTION(...) .flags = 0
+#define F_METADATA_F_MMOVE(...) .flags = 0
+#define F_METADATA_F_EDICT(n, bits) .array_size = n, .flags = bits
+#define F_METADATA_F_ITEM(n, bits) .array_size = n, .flags = bits
+#define F_METADATA_F_TRIGGER(n, bits) .array_size = n, .flags = bits
+#define F_METADATA_F_TIMER(n, bits) .array_size = n, .flags = bits
+#define F_METADATA_F_EVENT(n, bits) .array_size = n, .flags = bits
+#define F(T, x, k, ...) { .name = #x, .ofs = offsetof(struct T, x), .type = k, .size = sizeof(((struct T *)0)->x), F_METADATA(k, ##__VA_ARGS__), .count_ofs = UINT32_MAX }
+#define TF(T, x, k, ...) { .name = #x, .ofs = offsetof(T, x), .type = k, .size = sizeof(((T *)0)->x), F_METADATA(k, ##__VA_ARGS__), .count_ofs = UINT32_MAX }
+#define FC(T, x, k, n, schema, cnt) BZ_SAVE_COUNTED(struct T, x, n, schema, cnt)
+#define FR(T, x, n, r) { .name = #x, .ofs = offsetof(struct T, x), .type = F_STRUCT_RING, .size = sizeof(((struct T *)0)->x), .array_size = n, .ring = r, .count_ofs = UINT32_MAX }
+#define TFC(T, x, k, n, cnt) { .name = #x, .ofs = offsetof(T, x), .type = k, .size = sizeof(((T *)0)->x), .array_size = n, .count_ofs = offsetof(T, cnt) }
 
 enum {
     FIELD_NONE,
@@ -34,29 +34,78 @@ enum {
 };
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
-static DWORD const save_version = 14; // research event scalar context and JASS snapshot v3
+static DWORD const save_version = 16; // camera targets now use client image fixups; removes the separate target stream
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
-#define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
+/* Move identities are append-only symbols, never addresses or executable-relative offsets. */
+#define BZ_SAVE_MOVES(M) \
+    M(static, wc3_effect_temp_birth) \
+    M(static, wc3_effect_temp_stand) \
+    M(static, wc3_effect_birth) \
+    M(static, wc3_effect_stand) \
+    M(static, wc3_effect_death) \
+    M(static, item_move_pickup) \
+    M(static, tree_move_birth) \
+    M(static, tree_move_stand) \
+    M(static, tree_move_pain) \
+    M(static, tree_move_death) \
+    M(static, unit_move_birth) \
+    M(static, unit_move_stand) \
+    M(static, unit_move_stand_ready) \
+    M(static, unit_move_death) \
+    M(static, unit_move_decay) \
+    M(static, attack_move_walk) \
+    M(static, attack_move_melee_cooldown) \
+    M(static, attack_move_melee) \
+    M(static, attack_move_ranged_cooldown) \
+    M(static, attack_move_ranged) \
+    M(static, attackmove_move_walk) \
+    M(static, build_move_walk) \
+    M(static, battlestations_move_walk) \
+    M(static, harvestgold_move_walk) \
+    M(static, harvestgold_move_walkback) \
+    M(static, harvestgold_move_minegold) \
+    M(static, harvestgold_move_wait) \
+    M(static, harvest_move_walk) \
+    M(static, harvest_move_walkback) \
+    M(static, harvest_move_swing) \
+    M(static, harvest_move_cooldown) \
+    M(static, wisp_harvest_mine) \
+    M(static, wisp_harvest_walk) \
+    M(extern, holdpos_move_stand) \
+    M(extern, holdpos_move_stand_ready) \
+    M(static, move_heal) \
+    M(static, militia_move_walk) \
+    M(static, follow_move_walk) \
+    M(static, move_move_hold) \
+    M(static, move_move_walk) \
+    M(static, patrol_move_walk) \
+    M(static, repair_move_walk) \
+    M(static, repair_move_work) \
+    M(static, repair_generic_move_walk) \
+    M(static, repair_generic_move_work) \
+    M(static, repair_legacy_move_work) \
+    M(static, thunderbolt_projectile_move) \
+    M(static, firebolt_projectile_move) \
+    M(static, spell_cast_move) \
+    M(static, train_move_train)
+#define BZ_DECLARE_MOVE(storage, name) storage umove_t name;
+BZ_SAVE_MOVES(BZ_DECLARE_MOVE)
+#undef BZ_DECLARE_MOVE
 
-/* F_MMOVE anchor: umove_t instances are file-scope statics, so a move pointer
- * survives a save as a signed offset from a fixed symbol in the same data segment. */
-static umove_t umove_reloc;
-
-_Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a validation hash into the pointer field");
-_Static_assert(sizeof(void (*)(LPEDICT)) == 8, "F_CFUNCTION packs a roster index and a name hash into the pointer field");
+_Static_assert(sizeof(void *) == 8, "Native world images require 64-bit reference slots");
 
 typedef struct {
     LPCSTR name;
-    void *func;
-} saveCFunction_t;
+    void *ptr;
+} SAVESYMBOL;
 
-#define SAVE_CFUNCTION(fn) { .name = #fn, .func = (void *)(fn) }
+#define SAVE_CFUNCTION(fn) { .name = #fn, .ptr = (void *)(fn) }
 
 /* Append-only: the 1-based index is part of the save format. Reordering rejects older saves.
  * idle/move/run/attack have no production assignments; they still use F_CFUNCTION so a later
  * assignment must be rostered here or WriteGame fails instead of writing an ASLR address. */
-static saveCFunction_t const save_cfunctions[] = {
+static SAVESYMBOL const save_cfunctions[] = {
     SAVE_CFUNCTION(monster_think),
     SAVE_CFUNCTION(blight_mine_think),
     SAVE_CFUNCTION(G_FreeEdict),
@@ -73,17 +122,19 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(tree_pain),
     SAVE_CFUNCTION(tree_die),
     SAVE_CFUNCTION(human_ability_think),
+    {0}
 };
 
-static int SaveCFunctionIndex(void *func) {
-    if (!func) return 0;
-    FOR_LOOP(i, sizeof(save_cfunctions) / sizeof(save_cfunctions[0]))
-        if (save_cfunctions[i].func == func) return (int)i + 1;
-    return -1;
-}
+#define BZ_MOVE_SYMBOL(storage, name) { #name, &name },
+static SAVESYMBOL const save_moves[] = {
+    BZ_SAVE_MOVES(BZ_MOVE_SYMBOL)
+    {0}
+};
+#undef BZ_MOVE_SYMBOL
+#undef BZ_SAVE_MOVES
 
 typedef struct {
-    DWORD magic, version, edict_size, num_edicts, max_clients;
+    DWORD magic, version, abi, edict_size, num_edicts, max_clients;
     DWORD script_identity, quests, groups, triggers, timers, events;
     PATHSTR map_path;
 } SAVEHEADER;
@@ -332,7 +383,7 @@ static field_t const client_menu_fields[] = {
 };
 
 static field_t const client_camera_fields[] = {
-    TF(clientCamera_s, target_controller, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientCamera_s, target_controller, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -403,45 +454,38 @@ static field_t const client_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags) {
-    for (field_t const *field = fields; field->name; field++) {
-        DWORD count = field->array_size ? field->array_size : 1;
-        size_t size = field->array_size ? field->size / field->array_size : field->size;
-        switch (field->type) {
-        case F_STRUCT:
-            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
-            break;
-        case F_IGNORE:
-            if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
-            break;
-        default: break;
-        }
-    }
+/* Native images have a declared revision plus producer layout/byte-order constraints. */
+static DWORD SaveABI(void) {
+    DWORD const layout[] = { sizeof(void *), sizeof(size_t), sizeof(GAMECLIENT), sizeof(level), sizeof(edict_t), 0x01020304 };
+    return save_hash(0, layout, sizeof(layout));
 }
 
 static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return save_bytes(context, data, size); }
 static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return load_bytes(context, data, size); }
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base);
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base);
-static BOOL WriteString(FILE *f, LPCSTR text);
-static BOOL ReadString(FILE *f, LPSTR *text);
+static BOOL WriteMappedFields(LPSTATEBUFFER f, field_t const *fields, BYTE *base);
+static BOOL ReadMappedFields(LPSTATEBUFFER f, field_t const *fields, BYTE *base);
+static BOOL WriteString(LPSTATEBUFFER f, LPCSTR text);
+static BOOL ReadString(LPSTATEBUFFER f, LPSTR *text);
 static DWORD ActiveEventCount(void);
 
 /* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
-BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
-    FILE *f = fopen(filename, "rb");
+BOOL G_SaveMap(LPSTATEBUFFER f, LPSTR map, DWORD map_size) {
     SAVEHEADER header;
-    DWORD magic, version;
-    if (!f || !map || !map_size) { if (f) fclose(f); return false; }
-    if (!load_footer(f) || !load_bytes(f, &magic, sizeof(magic)) || !load_bytes(f, &version, sizeof(version)) ||
-        magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !load_bytes(f, &header, sizeof(header)) ||
-        !header.map_path[0]) {
-        if (f) fclose(f);
-        return false;
-    }
-    strlcpy(map, header.map_path, map_size);
-    fclose(f);
-    return true;
+    f->pos = 0;
+    BOOL ok = map && map_size && load_bytes(f, &header, sizeof(header)) && header.magic == save_magic &&
+        header.version == save_version && header.abi == SaveABI() && header.edict_size == sizeof(edict_t) && header.map_path[0] &&
+        memchr(header.map_path, 0, sizeof(header.map_path));
+    if (ok) strlcpy(map, header.map_path, map_size);
+    f->pos = 0;
+    return ok;
+}
+
+/* Engine slot metadata selects the map; game layout compatibility must also precede teardown. */
+BOOL G_CheckState(LPSTATEBUFFER buf) {
+    PATHSTR map;
+    BOOL ok = G_SaveMap(buf, map, sizeof(map));
+    if (!ok) fprintf(stderr, "WC3 LoadGame: incompatible world-state header\n");
+    return ok;
 }
 
 void G_ClearSaveRegistries(void) {
@@ -464,13 +508,13 @@ static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWO
 }
 
 /* VM state follows native domains so load-side handle relocation sees restored objects. */
-static BOOL WriteJass(FILE *f) {
+static BOOL WriteJass(LPSTATEBUFFER f) {
     BOOL present = level.vm != NULL;
     JASSSNAPSHOT snapshot = { f, WriteJassBytes };
     return save_bytes(f, &present, sizeof(present)) && (!present || jass_writesnapshot(level.vm, &snapshot));
 }
 
-static BOOL ReadJass(FILE *f) {
+static BOOL ReadJass(LPSTATEBUFFER f) {
     BOOL present;
     JASSSNAPSHOT snapshot = { f, ReadJassBytes };
     if (!load_bytes(f, &present, sizeof(present)) || present > 1 || present != (level.vm != NULL)) {
@@ -522,14 +566,14 @@ static DWORD TriggerCodeCount(TRIGGERACTION const *list) {
     return n;
 }
 
-static BOOL WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
+static BOOL WriteTriggerCodeList(LPSTATEBUFFER f, TRIGGERACTION const *list) {
     DWORD n = TriggerCodeCount(list);
     if (!save_bytes(f, &n, sizeof(n))) return false;
     for (; list; list = list->next) if (!WriteString(f, jass_functionname(list->func))) return false;
     return true;
 }
 
-static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
+static BOOL ReadTriggerCodeList(LPSTATEBUFFER f, TRIGGERACTION **list) {
     DWORD n;
     TRIGGERACTION **tail;
     if (!load_bytes(f, &n, sizeof(n))) return false;
@@ -639,7 +683,7 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     return JassListHandle(domain, id);
 }
 
-static BOOL WriteString(FILE *f, LPCSTR text) {
+static BOOL WriteString(LPSTATEBUFFER f, LPCSTR text) {
     size_t size = text ? strlen(text) + 1 : 0;
     DWORD len;
 
@@ -648,7 +692,7 @@ static BOOL WriteString(FILE *f, LPCSTR text) {
     return save_bytes(f, &len, sizeof(len)) && (!len || save_bytes(f, text, len));
 }
 
-static BOOL ReadString(FILE *f, LPSTR *text) {
+static BOOL ReadString(LPSTATEBUFFER f, LPSTR *text) {
     DWORD len;
     LPSTR value = NULL;
 
@@ -661,124 +705,30 @@ static BOOL ReadString(FILE *f, LPSTR *text) {
     return true;
 }
 
-static BOOL WriteField1(field_t const *field, BYTE *base) {
-    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
-        field->array_size ? field->array_size : 1;
-    size_t size = field->array_size ? field->size / field->array_size : field->size;
-    int index;
-
-    if (field->count_ofs != UINT32_MAX && count > field->array_size) {
-        fprintf(stderr, "WC3 SaveGame: field %s count %u exceeds %u\n", field->name, count, field->array_size); return false;
-    }
-    if (field->type == F_STRUCT) {
-        FOR_LOOP(i, count) {
-            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
-                if (!WriteField1(child, base + field->ofs + i * size)) return false;
+/* Both callback and move slots contain an index and name hash while on disk. */
+static BOOL SaveSymbol(BOOL reading, void *ptr, SAVESYMBOL const *table) {
+    DWORD id[2] = {0};
+    if (reading) {
+        memcpy(id, ptr, sizeof(id));
+        if (!id[0] && !id[1]) { *(void **)ptr = NULL; return true; }
+        for (DWORD i = 0; table[i].name; i++) {
+            if (i + 1 != id[0]) continue;
+            if (save_hash(0, table[i].name, strlen(table[i].name) + 1) != id[1]) return false;
+            *(void **)ptr = table[i].ptr;
+            return true;
         }
-        return true;
-    }
-    if (!size || field->type == F_IGNORE) return true;
-    FOR_LOOP(i, count) {
-        void *p = base + field->ofs + i * size;
-        switch (field->type) {
-        case F_EDICT: {
-            LPEDICT value = *(LPEDICT *)p;
-            uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)g_edicts;
-            if (value && (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts ||
-                (ptr - base) % sizeof(*g_edicts))) {
-                fprintf(stderr, "WC3 SaveGame: field %s[%u] points outside g_edicts (%p)\n",
-                    field->name, i, (void *)value);
-                return false;
-            }
-            index = value ? (int)(value - g_edicts) : -1; *(int *)p = index; break;
-        }
-        case F_MMOVE: {
-            umove_t const *move = *(umove_t *const *)p;
-            memset(p, 0, size);
-            if (!move) break;
-            *(int *)p = (int)((BYTE const *)move - (BYTE const *)&umove_reloc);
-            *(DWORD *)((BYTE *)p + 4) = save_hash(0, move->animation, strlen(move->animation) + 1);
-            break;
-        }
-        case F_CFUNCTION: {
-            void *func = *(void **)p;
-            int index = SaveCFunctionIndex(func);
-            memset(p, 0, size);
-            if (!func) break;
-            if (index < 1) {
-                fprintf(stderr, "WC3 SaveGame: field %s[%u] C callback %p is not in the save roster\n",
-                    field->name, i, func);
-                return false;
-            }
-            *(int *)p = index;
-            *(DWORD *)((BYTE *)p + 4) = save_hash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
-            break;
-        }
-        default: break;
+    } else {
+        void *value = *(void **)ptr;
+        if (!value) { memset(ptr, 0, sizeof(id)); return true; }
+        for (DWORD i = 0; table[i].name; i++) {
+            if (table[i].ptr != value) continue;
+            id[0] = i + 1; id[1] = save_hash(0, table[i].name, strlen(table[i].name) + 1);
+            memcpy(ptr, id, sizeof(id));
+            return true;
         }
     }
-    return true;
-}
-
-/* Restore entity and client pointers after the raw edict block is read. */
-static BOOL ReadField(field_t const *field, BYTE *base) {
-    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
-        field->array_size ? field->array_size : 1;
-    size_t size = field->array_size ? field->size / field->array_size : field->size;
-
-    if (field->count_ofs != UINT32_MAX && count > field->array_size) {
-        fprintf(stderr, "WC3 LoadGame: field %s count %u exceeds %u\n", field->name, count, field->array_size); return false;
-    }
-    if (field->type == F_STRUCT) {
-        FOR_LOOP(i, count) {
-            for (field_t const *child = (field_t const *)field->flags; child->name; child++)
-                if (!ReadField(child, base + field->ofs + i * size)) return false;
-        }
-        return true;
-    }
-    if (!size || field->type == F_IGNORE) return true;
-    FOR_LOOP(i, count) {
-        void *p = base + field->ofs + i * size;
-        int index = *(int *)p;
-        switch (field->type) {
-        case F_EDICT:
-            if (index < -1 || index >= globals.max_edicts) {
-                fprintf(stderr, "WC3 LoadGame: field %s[%u] has invalid edict index %d\n", field->name, i, index);
-                return false;
-            }
-            *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
-            break;
-        case F_MMOVE: {
-            DWORD hash = *(DWORD *)((BYTE *)p + 4);
-            umove_t *move = (umove_t *)((BYTE *)&umove_reloc + index);
-            if (!index && !hash) { *(umove_t **)p = NULL; break; }
-            /* Reject a save written by a different build before dereferencing the move. */
-            if (index < -UMOVE_RELOC_RANGE || index > UMOVE_RELOC_RANGE || (uintptr_t)move % _Alignof(umove_t) ||
-                !move->animation || save_hash(0, move->animation, strlen(move->animation) + 1) != hash) {
-                fprintf(stderr, "WC3 LoadGame: field %s[%u] move offset %d does not resolve in this build\n",
-                    field->name, i, index);
-                return false;
-            }
-            *(umove_t **)p = move;
-            break;
-        }
-        case F_CFUNCTION: {
-            DWORD hash = *(DWORD *)((BYTE *)p + 4);
-            int nfunctions = (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0]));
-            if (!index && !hash) { *(void **)p = NULL; break; }
-            if (index < 1 || index > nfunctions ||
-                save_hash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1) != hash) {
-                fprintf(stderr, "WC3 LoadGame: field %s[%u] C callback index %d does not resolve in this build\n",
-                    field->name, i, index);
-                return false;
-            }
-            *(void **)p = save_cfunctions[index - 1].func;
-            break;
-        }
-        default: break;
-        }
-    }
-    return true;
+    fprintf(stderr, "WC3 state: unresolved %s symbol\n", reading ? "saved" : "live");
+    return false;
 }
 
 /* Convert one schema pointer to its stable save-domain index without mutating the live object. */
@@ -832,86 +782,67 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     }
 }
 
-/* The shared field walker delegates only live game/JASS identity conversions here. */
+/* One identity codec serves mapped payloads and in-place fixups in copied native images. */
 static BOOL GameSaveField(LPSAVEIO io, field_t const *field, BYTE *base) {
-    FILE *f = io->file;
+    LPSTATEBUFFER f = io->buf;
     DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
-    if (io->reading) {
+    FOR_LOOP(i, count) {
+        void *ptr = base + field->ofs + i * size;
         switch (field->type) {
+        case F_CFUNCTION: case F_MMOVE:
+            if (!io->image || !SaveSymbol(io->reading, ptr, field->type == F_MMOVE ? save_moves : save_cfunctions)) return false;
+            break;
         case F_FUNCTION_LIST:
-            if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + field->ofs))) return false;
+            if (!(io->reading ? ReadTriggerCodeList(f, ptr) : WriteTriggerCodeList(f, *(TRIGGERACTION **)ptr))) return false;
             break;
         case F_FUNCTION: {
             LPSTR name = NULL;
-            if (!ReadString(f, &name)) return false;
-            *(LPCJASSFUNC *)(base + field->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
-            if (name && !*(LPCJASSFUNC *)(base + field->ofs)) { free(name); return false; }
-            free(name);
-            break;
-        }
-        case F_LSTRING:
-        case F_GSTRING:
-            if (!ReadString(f, (LPSTR *)(base + field->ofs))) return false;
-            break;
-        case F_EDICT:
-        case F_ITEM:
-        case F_TRIGGER:
-        case F_TIMER:
-        case F_EVENT:
-            FOR_LOOP(i, count) {
-                int index;
-                if (!load_bytes(f, &index, sizeof(index))) return false;
-                if (!ReadMappedIndex(field, base + field->ofs + i * size, index)) {
-                    fprintf(stderr, "WC3 LoadGame: invalid mapped field %s[%u] index=%d\n", field->name, i, index); return false;
-                }
+            if (!io->reading) {
+                if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)ptr))) return false;
+            } else {
+                if (!ReadString(f, &name)) return false;
+                *(LPCJASSFUNC *)ptr = name ? jass_functionbyname(level.vm, name) : NULL;
+                BOOL ok = !name || *(LPCJASSFUNC *)ptr;
+                free(name);
+                if (!ok) return false;
             }
             break;
-        default: return false;
         }
-    } else {
-        switch (field->type) {
-        case F_FUNCTION_LIST:
-            if (!WriteTriggerCodeList(f, *(TRIGGERACTION **)(base + field->ofs))) return false;
+        case F_LSTRING: case F_GSTRING:
+            if (!(io->reading ? ReadString(f, ptr) : WriteString(f, *(LPCSTR *)ptr))) return false;
             break;
-        case F_FUNCTION:
-            if (!WriteString(f, jass_functionname(*(LPCJASSFUNC *)(base + field->ofs)))) return false;
-            break;
-        case F_LSTRING:
-        case F_GSTRING:
-            if (!WriteString(f, *(LPCSTR *)(base + field->ofs))) return false;
-            break;
-        case F_EDICT:
-        case F_ITEM:
-        case F_TRIGGER:
-        case F_TIMER:
-        case F_EVENT:
-            FOR_LOOP(i, count) {
-                int index;
-                if (!WriteMappedIndex(field, base + field->ofs + i * size, &index)) {
-                    fprintf(stderr, "WC3 SaveGame: cannot resolve mapped field %s[%u]\n", field->name, i); return false;
-                }
-                if (!save_bytes(f, &index, sizeof(index))) return false;
+        case F_EDICT: case F_ITEM: case F_TRIGGER: case F_TIMER: case F_EVENT: {
+            int index;
+            if (io->reading) {
+                if (io->image) memcpy(&index, ptr, sizeof(index));
+                else if (!load_bytes(f, &index, sizeof(index))) return false;
+                if (!ReadMappedIndex(field, ptr, index)) return false;
+            } else {
+                if (!WriteMappedIndex(field, ptr, &index)) return false;
+                if (io->image) { memset(ptr, 0, size); memcpy(ptr, &index, sizeof(index)); }
+                else if (!save_bytes(f, &index, sizeof(index))) return false;
             }
             break;
+        }
         default: return false;
         }
     }
     return true;
 }
 
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
-    SAVEIO io = { .file = f, .special = GameSaveField };
+static BOOL WriteMappedFields(LPSTATEBUFFER f, field_t const *fields, BYTE *base) {
+    SAVEIO io = { .buf = f, .special = GameSaveField };
     return save_fields(&io, fields, base);
 }
 
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
-    SAVEIO io = { .file = f, .reading = true, .special = GameSaveField };
+static BOOL ReadMappedFields(LPSTATEBUFFER f, field_t const *fields, BYTE *base) {
+    SAVEIO io = { .buf = f, .reading = true, .special = GameSaveField };
     return save_fields(&io, fields, base);
 }
 
-static BOOL WriteGroups(FILE *f) {
+static BOOL WriteGroups(LPSTATEBUFFER f) {
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = G_JassGroupByIndex(i);
         if (!group || !WriteMappedFields(f, group_fields, (BYTE *)group)) {
@@ -922,7 +853,7 @@ static BOOL WriteGroups(FILE *f) {
     return true;
 }
 
-static BOOL ReadGroups(FILE *f, DWORD count) {
+static BOOL ReadGroups(LPSTATEBUFFER f, DWORD count) {
     if (!G_EnsureJassGroupSlots(count)) return false;
     level.first_free_group = count;
     FOR_LOOP(i, count) {
@@ -940,46 +871,30 @@ static BOOL ReadGroups(FILE *f, DWORD count) {
     return true;
 }
 
-static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
-    edict_t temp = *ent;
-    field_t const *field;
-
-    ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
-    for (field = edict_fields; field->name; field++)
-        if (!WriteField1(field, (BYTE *)&temp)) return false;
-    return save_bytes(f, &temp, sizeof(temp));
+static BOOL WriteEdict(LPSTATEBUFFER f, LPCEDICT ent) {
+    SAVEIO io = { .buf = f, .special = GameSaveField };
+    return state_image(&io, &MAKE(STATEBLOCK, .data = (void *)ent, .size = sizeof(*ent), .fields = edict_fields));
 }
 
-static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
-    GAMECLIENT temp = *client;
-    int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
-
-    /* Client pointers and callbacks are process-owned; text storage remains inline in GAMECLIENT. */
-    ClearRuntimeFields(&temp, client_fields, FIELD_RUNTIME);
-    if (target < -1 || target >= (int)globals.max_edicts) return false;
-    return save_bytes(f, &temp, sizeof(temp)) && save_bytes(f, &target, sizeof(target));
+static BOOL WriteClient(LPSTATEBUFFER f, LPCGAMECLIENT client) {
+    SAVEIO io = { .buf = f, .special = GameSaveField };
+    return state_image(&io, &MAKE(STATEBLOCK, .data = (void *)client, .size = sizeof(*client), .fields = client_fields));
 }
 
-static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
-    if (!load_bytes(f, client, sizeof(*client)) || !load_bytes(f, target, sizeof(*target))) return false;
-    if (*target < -1 || *target >= (int)globals.max_edicts) return false;
+/* Client references use the same schema as edicts; only derived views of inline text need rebinding. */
+static BOOL ReadClient(LPSTATEBUFFER f, LPGAMECLIENT client) {
+    SAVEIO io = { .buf = f, .reading = true, .special = GameSaveField };
+    if (!state_image(&io, &MAKE(STATEBLOCK, .data = client, .size = sizeof(*client), .fields = client_fields))) return false;
     client->ps.name = client->jass.name;
     FOR_LOOP(i, PLAYERTEXT_COUNT) client->ps.texts[i] = client->playerTextCursor[i] ?
         client->playerTextStorage[i][client->playerTextCursor[i] & PLAYER_TEXT_MASK] : NULL;
     client->mapplayer = level.mapinfo && client->ps.number < MAX_PLAYERS ? level.mapinfo->players + client->ps.number : NULL;
-    client->menu.on_entity_selected = NULL; client->menu.on_location_selected = NULL;
-    client->menu.cmdbutton = NULL; client->menu.refresh = NULL;
-    client->camera.target_controller = NULL;
-    client->rally_indicator = NULL;
     return true;
 }
 
-static BOOL ReadEdict(FILE *f, LPEDICT ent) {
-    field_t const *field;
-
-    if (!load_bytes(f, ent, sizeof(*ent))) return false;
-    for (field = edict_fields; field->name; field++)
-        if (!ReadField(field, (BYTE *)ent)) return false;
+static BOOL ReadEdict(LPSTATEBUFFER f, LPEDICT ent) {
+    SAVEIO io = { .buf = f, .reading = true, .special = GameSaveField };
+    if (!state_image(&io, &MAKE(STATEBLOCK, .data = ent, .size = sizeof(*ent), .fields = edict_fields))) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
     if (ent->class_id) {
         G_BindEntityData(ent);
@@ -991,10 +906,9 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     return true;
 }
 
-BOOL WriteGame(LPCSTR filename) {
-    FILE *f = fopen(filename, "w+b");
+BOOL G_WriteState(LPSTATEBUFFER f) {
     SAVEHEADER header = {
-        .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
+        .magic = save_magic, .version = save_version, .abi = SaveABI(), .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
         .quests = ActiveQuestCount(), .groups = level.num_groups, .triggers = level.num_triggers, .timers = level.num_timers,
         .events = ActiveEventCount()
@@ -1007,7 +921,6 @@ BOOL WriteGame(LPCSTR filename) {
         return false;
     }
     BOOL ok = false;
-    if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
     if (!save_bytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
@@ -1025,33 +938,27 @@ BOOL WriteGame(LPCSTR filename) {
         }
     }
     if (!WriteJass(f)) { fprintf(stderr, "WC3 SaveGame: failed at jass\n"); goto done; }
-    if (!save_footer(f)) { fprintf(stderr, "WC3 SaveGame: failed at footer/checksum\n"); goto done; }
     ok = true;
 done:
-    fclose(f);
-    if (!ok) remove(filename);
     return ok;
 }
 
-BOOL ReadGame(LPCSTR filename) {
-    FILE *f = fopen(filename, "rb");
+BOOL G_ReadState(LPSTATEBUFFER f) {
     SAVEHEADER header = { 0 };
     DWORD index;
-    int targets[MAX_CLIENTS];
 
-    if (!f) { fprintf(stderr, "WC3 LoadGame: cannot open %s\n", filename); return false; }
-    if (!load_footer(f)) { fprintf(stderr, "WC3 LoadGame: invalid footer/checksum\n"); fclose(f); return false; }
     if (!load_bytes(f, &header.magic, sizeof(header.magic)) || !load_bytes(f, &header.version, sizeof(header.version)) ||
-        fseek(f, 0, SEEK_SET)) {
-        fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
+        (f->pos = 0)) {
+        fprintf(stderr, "WC3 LoadGame: invalid header\n"); return false;
     }
     if (header.version != save_version || !load_bytes(f, &header, sizeof(header))) {
-        fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
+        fprintf(stderr, "WC3 LoadGame: invalid header\n"); return false;
     }
     {
         DWORD script = level.vm ? jass_programidentity(level.vm) : 0;
         LPCSTR field = NULL;
         if (header.magic != save_magic) field = "magic";
+        else if (header.abi != SaveABI()) field = "abi";
         else if (header.edict_size != sizeof(edict_t)) field = "edict_size";
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
         else if (header.max_clients != game.max_clients) field = "max_clients";
@@ -1071,7 +978,7 @@ BOOL ReadGame(LPCSTR filename) {
                         header.quests, ActiveQuestCount(), header.groups, level.num_groups, header.triggers, level.num_triggers);
             fprintf(stderr, "WC3 LoadGame: timers=%u/%u events=%u/%u map='%s'/'%s'\n",
                         header.timers, level.num_timers, header.events, ActiveEventCount(), header.map_path, level.map_path);
-            fclose(f); return false;
+            return false;
         }
     }
     if (!ReadMappedFields(f, level_fields, (BYTE *)&level) || level.waypoints.count > MAX_WAYPOINTS ||
@@ -1079,14 +986,14 @@ BOOL ReadGame(LPCSTR filename) {
         header.num_edicts < level.waypoints.count ||
         level.waypoints.base > header.num_edicts - level.waypoints.count)) ||
         (!level.waypoints.count && (level.waypoints.base || level.waypoints.cursor))) {
-        fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
+        fprintf(stderr, "WC3 LoadGame: failed at level state\n"); return false;
     }
     G_ResetJassGroupDebug();
-    if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
+    if (!ReadGroups(f, header.groups)) { return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
-    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i, targets + i)) {
-        fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); fclose(f); return false;
+    FOR_LOOP(i, game.max_clients) if (!ReadClient(f, game.clients + i)) {
+        fprintf(stderr, "WC3 LoadGame: failed at client %d\n", i); return false;
     }
     /* The baseline map already linked these same edict addresses. Clear its
      * spatial tree before raw records overwrite their area links, then rebuild
@@ -1097,32 +1004,52 @@ BOOL ReadGame(LPCSTR filename) {
     FOR_LOOP(i, header.num_edicts) {
         BOOL used;
         if (!load_bytes(f, &used, sizeof(used))) {
-            fprintf(stderr, "WC3 LoadGame: failed at edict %d inuse\n", i); fclose(f); return false;
+            fprintf(stderr, "WC3 LoadGame: failed at edict %d inuse\n", i); return false;
         }
         if (!used) continue;
         if (!load_bytes(f, &index, sizeof(index)) || index >= globals.max_edicts || !ReadEdict(f, g_edicts + index)) {
-            fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); fclose(f); return false;
+            fprintf(stderr, "WC3 LoadGame: failed at edict %d data\n", i); return false;
         }
     }
     /* JASS sound-handle playback parameters are transient presentation state,
      * not VM-owned payload bytes. Clear old pointer keys before snapshot handles
      * are reconstructed so a reused allocation cannot inherit stale state. */
     G_JassSoundRuntimeReset();
-    if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
+    if (!ReadJass(f) || f->pos != f->size) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); return false; }
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
-    FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = g_edicts + i;
         if (ent->inuse && ent->rally_indicator && ent->owner && ent->owner->client)
             ent->owner->client->rally_indicator = ent;
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
-    fclose(f);
     /* Client-side decoders are presentation state, not part of the save file.
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */
     FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) G_MusicSyncClient(game.clients + i);
     G_DisableStartingResourceCheatForLoadedGame();
-    fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", filename, header.num_edicts);
+    fprintf(stderr, "WC3 LoadGame: restored %s edicts=%u\n", header.map_path, header.num_edicts);
     return true;
 }
+
+#ifdef BZ_TESTS
+/* Tests exercise the same engine envelope and buffer callbacks as server slot operations. */
+BOOL WriteGame(LPCSTR path) {
+    STATEBUFFER buf = {0};
+    BOOL ok = G_WriteState(&buf) && state_write(path, &buf);
+    state_free(&buf);
+    return ok;
+}
+BOOL ReadGame(LPCSTR path) {
+    STATEBUFFER buf = {0};
+    BOOL ok = state_read(path, &buf) == SAVE_LOADED && G_ReadState(&buf);
+    state_free(&buf);
+    return ok;
+}
+BOOL G_GetSaveMap(LPCSTR path, LPSTR map, DWORD size) {
+    STATEBUFFER buf = {0};
+    BOOL ok = state_read(path, &buf) == SAVE_LOADED && G_SaveMap(&buf, map, size);
+    state_free(&buf);
+    return ok;
+}
+#endif

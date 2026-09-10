@@ -16,6 +16,7 @@
  */
 #ifndef menu_h
 #define menu_h
+#include "common/state.h"
 
 #include "client/tr_public.h"
 
@@ -115,6 +116,8 @@ typedef struct {
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
     void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
     void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size); /* Resolve writable per-user game data */
+    SAVERESULT (*StateAcquire)(LPCSTATEDEF def, LPSTATE state);
+    BOOL (*StateCommit)(DWORD id, LPCVOID data);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);

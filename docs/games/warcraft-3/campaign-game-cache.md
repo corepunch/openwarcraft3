@@ -46,15 +46,14 @@ cache miss by design; the map's own fallback remains authoritative in that case.
 The implementation lives in:
 
 - `games/warcraft-3/game/g_gamecache.c` — cache storage, field schemas, unit snapshots;
-- `games/warcraft-3/common/wc3_save.c` — field traversal, checksums and committed record I/O shared with normal saves;
+- `shared/source/state.c` — engine-owned live blocks, field traversal, checksums and committed record I/O;
 - `games/warcraft-3/game/api/api_misc.h` — JASS native adapters;
 - `games/warcraft-3/game/g_local.h` — bounded runtime representation.
 
 `ggamecache_t` is the JASS handle payload and aliases `gameCache_t`. Each cache is
 bounded to `MAX_GAMECACHE_ENTRIES`; exhaustion is reported to `stderr` rather
-than overwriting another key. Saved in-memory campaign snapshots are also
-bounded (`MAX_GAMECACHE_MEMORY_CACHES`) so map transitions do not create an
-unbounded process-lifetime allocation.
+than overwriting another key. Engine-owned roots share a bounded 256 MiB process budget, including slot/path overhead. Each individual buffer is also
+bounded to 256 MiB.
 
 The typed key is significant. Integer, real, boolean, string, and unit values
 with the same mission/key pair are independent so the matching `HaveStored*`,
@@ -132,30 +131,25 @@ gamecache-Campaigns.w3v.orcgc
 ```
 
 The game module does not link directly against `common` to call that resolver.
-`server/game.h` exposes it as `game_import.UserPath`, and `SV_InitGameProgs()`
-provides `FS_UserPath`. This keeps writable-path ownership on the engine side and
+`server/game.h` exposes `StateAcquire`; its engine implementation qualifies the supplied logical key through `FS_UserPath`. This keeps writable-path ownership on the engine side and
 avoids unresolved engine symbols in `libgame`.
 
 This places writable campaign state under the normal per-game user directory
 (`$XDG_DATA_HOME/warcraft-3/` on Unix when set to an absolute path, otherwise `~/.local/share/warcraft-3/`, with the existing portable `share/warcraft-3/` fallback when no writable per-user directory is available).
 
-The sidecar uses `W3GC` magic and version `3`. `field_t` tables describe the cache
-name, counted entries, entry keys and type tags. Each pointer-free value union is
-written as one `F_BYTES` block, including Hero attributes, abilities, stats and
-inventory. This follows Quake II's raw scalar storage without per-member schemas
-or a union-dispatch serializer. Every entry occupies the full union size, even
-for scalar values. A cache validator checks type tags and string termination on
-both save and load. The shared `save_fields()` walker is also used by `g_save.c`;
-values use native binary layout. The header checks the payload struct size.
-A `W3OK` footer carries an FNV-1a checksum over the preceding bytes.
+The committed engine root writes `W3GC` v4: the complete pointer-free `gameCache_t` value plus an engine `STOK`/FNV envelope.
+The game validates counts, tags and bounded strings; gameplay/JASS handles retain independent working copies. `StateCommit`
+publishes a supplied working copy only after the engine transaction succeeds. The previous private eight-slot memory cache
+and game-owned disk writer are removed. Process-memory mode uses engine memory-only roots, and disabled mode retains only
+the script handle's edits.
 
-`save_record()` writes a temporary file, preserves the previous file as a backup,
-then installs the completed file, restoring the backup if installation fails.
-`load_record()` validates the checksum and schema into scratch storage before
-replacing the caller's cache. Earlier `ORGCACHE` and `W3GC` sidecars are rejected with a
-diagnostic; there is no migration. These are private records, not retail `.w3v`
-binaries. The backup/rename sequence protects reported write failures; it is
-not a claim of crash-durable transactional storage.
+The old v3 mapped schema and `W3OK` footer are read-only imports. Originals survive until the first successful new commit.
+Main's `ORGCACHE` v1 sidecars are also imported by their exact magic using a table-driven little-endian decoder, including
+all five value kinds and Hero/item state. Malformed legacy data rejects acquisition and cannot overwrite the original.
+Private native records require explicit version
+changes for layout changes; these are not retail `.w3v` files. See the
+[engine persistence contract](../../architecture/persistence-plan.md#implemented-migration-2026-09-10) for transaction guarantees
+and restore behavior.
 
 Campaign names are reduced to their basename and unsafe filename characters are
 replaced when constructing the private sidecar path. The JASS-visible campaign

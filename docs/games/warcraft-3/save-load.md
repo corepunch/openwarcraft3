@@ -1,12 +1,18 @@
 # Warcraft III Save/Load
 
+For engine storage ownership, format migration and remaining extensions, see the
+[persistence plan](../../architecture/persistence-plan.md). The contract below describes the current implementation.
+
 ## Contract
 
-The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadGame` callbacks through `server/game.h`; the JASS `SaveGame` and `LoadGame` natives use the same callbacks and resolve names through `gi.SavePath`.
+The engine owns save buffers, files, `SLOT` v1 game/map metadata and slot transactions. `GetGameAPI()` exposes buffer-based
+`SaveGame`, `LoadGame` and `CheckSave` callbacks through `server/game.h`. Metadata is readable before loading the game module;
+`CheckSave` validates the game payload revision before map teardown. WC3 owns its schemas and identity codecs. JASS `SaveGame`
+queues a safe-point engine command; `LoadGame` requests the deferred session transition. Neither native opens a file.
 
-`WriteGame()` writes the current game state to a versioned binary file. The file contains:
+`G_WriteState()` writes the current game state to an engine memory buffer. The file contains:
 
-- `W3SV` magic, format version 14, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 16, native ABI/layout signature, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -14,9 +20,13 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the fixed point-order waypoint edict ring and its circular allocation cursor;
 - one used flag per entity slot and a raw `edict_t` block for used slots;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
-- a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
+- an engine `STOK` commit footer and FNV-1a checksum over the complete preceding payload.
 
-`WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
+The engine builds and validates the complete checksum envelope before exposing bytes to WC3. Writes sync and close a temporary
+file before replacing the previous slot; serialization or write failure preserves that slot. `G_ReadState()` checks format,
+ABI, script and native-registry contracts, then restores resources/references. The engine keeps the validated buffer across
+map teardown. Late semantic failures stop the incomplete session; full pre-teardown staging remains unimplemented. A header
+mismatch names the failing field and prints saved versus live counts.
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load.
@@ -33,11 +43,11 @@ Groups use reusable stable ordinals in a growable pointer table: `level.num_grou
 
 Groups, timers, triggers, and event handlers may grow after `main()`. The header accepts a save that has *at least* as many of those objects as the freshly initialized map, then `RestoreRegistrySlots()` allocates the extras. A live count higher than the save still rejects. Quests remain an exact match because they are restored in place.
 
-The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `ReadGame()`. Before raw edict records replace the freshly loaded map baseline, `ReadGame()` clears the baseline spatial tree and then links each restored entity exactly once. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
+The current format is process-independent for entity relationships: `F_EDICT` fields and camera targets are written as entity indexes and resolved back to `g_edicts[index]` by `G_ReadState()`. Before raw edict records replace the freshly loaded map baseline, `G_ReadState()` clears the baseline spatial tree and then links each restored entity exactly once. Client pointers are restored from player slots, player names from inline JASS name storage, and map-player rows from the loaded map plus `PLAYER.number`. Malformed headers, truncated records, and entity indexes reject the load; client pointers are never read from the file as addresses.
 
 Groups, triggers, timers, and events use deterministic handle ordinals. Group objects are dynamically allocated behind a growable pointer table; membership is stored as entity indexes and each serialized record persists `inuse` so destroyed holes remain distinguishable from live empty groups. Each trigger stores its disabled flag plus action/condition function names so a trigger created after `main()` still has its callbacks after load. Timers preserve their handler name, duration, remaining time, periodic/paused/running flags, and resume relative to the load time. Timer callbacks and timer-expire trigger actions enter the normal coroutine queue and retain `GetExpiredTimer()` context.
 
-Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHER_EFFECTS]`, `next_weather_id`, each slot's rawcode, rectangle, enabled flag, and renderer handle ID are serialized as level state. A non-null JASS `weathereffect` snapshots as its fixed slot index, so globals keep pointer identity across load. `ReadGame()` restores the registry before the JASS snapshot and replays it to connected clients; reconnecting clients also receive the same full weather sync from `G_ClientBegin()`. See [Weather](weather.md).
+Weather effects use the same stable-slot rule. `level.weather_effects[MAX_WEATHER_EFFECTS]`, `next_weather_id`, each slot's rawcode, rectangle, enabled flag, and renderer handle ID are serialized as level state. A non-null JASS `weathereffect` snapshots as its fixed slot index, so globals keep pointer identity across load. `G_ReadState()` restores the registry before the JASS snapshot and replays it to connected clients; reconnecting clients also receive the same full weather sync from `G_ClientBegin()`. See [Weather](weather.md).
 
 Event handler registrations store type, subject entity index, trigger index, timer index, region, range, game-state ID, `limitop`, and limit value. The extra condition fields preserve `TriggerRegisterGameStateEvent` time-of-day registrations across save/load. The unread portion of the bounded gameplay event ring preserves event type, subject/source entity indexes, and the target registration ordinal. Consumed queue entries are not saved. Loads reject queue overflow and unresolved entity or registration IDs.
 
@@ -56,7 +66,7 @@ The snapshot never writes parser pointers, dictionary links, refcount addresses,
 
 Handle encoding dispatches value handles, VM-owned payloads, and function handles before consulting the game host. A failed host lookup means null only for host-owned native domains, such as a removed unit; applying that rule to VM-owned handles would silently replace valid sounds, camera setups, rects, locations, forces, and game caches with null.
 
-JASS sound handle payloads remain part of the VM snapshot, but one-shot presentation parameters currently maintained by the game host (`SetSoundVolume`, `SetSoundPosition`, and `AttachSoundToUnit`) are transient. `ReadGame()` clears that host-side table before reconstructed sound handles can reuse an old pointer value. Scripts that need those presentation parameters after restore must set them again before the next `StartSound`; continuous playback state is not yet serialized.
+JASS sound handle payloads remain part of the VM snapshot, but one-shot presentation parameters currently maintained by the game host (`SetSoundVolume`, `SetSoundPosition`, and `AttachSoundToUnit`) are transient. `G_ReadState()` clears that host-side table before reconstructed sound handles can reuse an old pointer value. Scripts that need those presentation parameters after restore must set them again before the next `StartSound`; continuous playback state is not yet serialized.
 
 Point-order waypoints follow Quake II's body-queue/TRAIL pattern: 256 classless, collisionless, `SVF_NOCLIENT` edicts are reserved before map entities and recycled as a ring. Its base, count, and cursor live in serialized level state. Consequently `goalentity` and other waypoint references use the ordinary `F_EDICT` index relocation path; there is only one entity pointer address domain.
 
@@ -173,14 +183,10 @@ Regression test: `wc3_save.load_restores_server_clock_onto_saved_time` in
 when it is NULL, so a unit that loads without it does not move, stand, animate, or advance its order
 queue — the whole world stands frozen while scripted units walk off to stale goals.
 
-Quake II solves this with `F_MMOVE` and we copy it exactly: every `umove_t` is a file-scope static in
-`libgame`, so the pointer is saved as a signed byte offset from an anchor symbol in the same data
-segment (`mmove_reloc` there, `umove_reloc` here) and re-added on load.
-
-We add one guard Q2 does not have. A save written by a different build would decode to a wild
-pointer, so the unused upper half of the 8-byte pointer field carries an FNV hash of the move's
-animation name; `ReadField` range-checks the offset and compares the hash before dereferencing, and
-fails the load loudly on a mismatch rather than resuming with a corrupt behavior.
+`BZ_SAVE_MOVES` is the append-only roster of live `umove_t` symbols. `SaveSymbol` packs a one-based index and the symbol
+name's FNV hash into each eight-byte pointer slot in the copied image. Load checks the index and hash before installing the
+rostered pointer; null uses zero/zero. Version 15 replaces the former executable-relative offset representation. Unrostered
+moves fail serialization and preserve the previously committed slot.
 
 `animation` stays a runtime field: `M_MoveFrame` already rebuilds it via `unit_setmove` when it finds
 a NULL animation, so `currentmove` is the only pointer that has to survive.
@@ -191,11 +197,11 @@ a NULL animation, so `currentmove` is the only pointer that has to survive.
 Edict C callbacks cannot use that path; `monster_think`, `G_EffectThink`, and `blight_mine_think` are
 C symbols, not JASS names.
 
-`F_CFUNCTION` is the Q2 analog for those pointers. `WriteField1` looks the pointer up in
+`F_CFUNCTION` is the Q2 analog for those pointers. `SaveSymbol` looks the pointer up in
 `save_cfunctions[]` and packs a 1-based roster index plus an FNV name hash into the 8-byte pointer
-slot of the memcpy'd edict blob (same packing shape as `F_MMOVE`). `ReadField` restores the function
+slot of the memcpy'd edict blob (same packing shape as `F_MMOVE`). `SaveSymbol` restores the function
 from that index after the hash matches. NULL stays 0/0. An unrostered pointer fails `WriteGame` with
-`C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
+`WC3 state: unresolved live symbol`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
 The roster is append-only because the index is in the file. Production assignments retained by version 10:
@@ -250,7 +256,8 @@ submission. The timestamp avoids characters rejected by the save-path validator.
 `FS_ListSaves()` enumerates `.sav` basenames under the directory derived by `FS_SavePath()` and returns a double-NUL list ordered by
 filesystem modification time, newest first. Equal modification times fall back to a case-insensitive basename sort for deterministic
 ordering. This keeps recently written or overwritten saves at the top even when the player replaces the timestamp with a custom name.
-The list is exposed to game modules through `gi.ListSaves`. The WC3 menu only publishes entries for which `G_GetSaveMap()` can read a map identity.
+The list is exposed to game modules through `gi.ListSaves`. The WC3 menu only publishes entries for which `gi.SaveMap()` can
+read a map identity from the engine slot metadata.
 The basename `quick` is rendered as `Quick Save`, preserving the F6/console quick slot alongside named files.
 
 Menu-entered names are trimmed, optional `.sav` is removed, length is capped to `CMDARG_LEN - 1`, and path/control characters are
@@ -260,7 +267,7 @@ the rows. The authored overwrite-confirm panel remains disabled.
 
 Loading remains a session boundary. `menu_load_named` calls `G_RequestLoadGameNamed()`, which queues `MenuAction("load", name)`. The
 client resolves the saved map and calls `SV_LoadGame()` on the following frame, after the gameplay-window callback has returned. Do
-not call `ReadGame()` directly from an in-game button callback.
+not call `G_ReadState()` directly from an in-game button callback.
 
 The client forwards a `close_window_command` suffix before releasing the modal window, so a save request can execute while
 `client_s.modal_flags` still contains the ESC-menu owner. Treat `modal_flags` and `quest_dialog_open` as `FIELD_RUNTIME`: they describe
@@ -345,15 +352,12 @@ The authored selectable list supports wheel, arrow, track, and thumb-drag scroll
 
 ## Shared Persistent Record Machinery
 
-`games/warcraft-3/common/wc3_save.h` owns `field_t`, `SAVEIO`, and the
-nested/count/ring schema contracts, plus `F_BYTES` for pointer-free native blocks. `wc3_save.c`
-owns byte I/O, field traversal, checksum/footer validation, and small-record
-read/write staging. `g_save.c` delegates mapped records to this walker and keeps
-its entity, trigger, timer, event and JASS pointer-domain conversions in
-`GameSaveField`. Raw edict/client fixups remain game-owned. The normal save's
-version 14 envelope and lifecycle remain separate from profile records.
+`common/state.h` owns `field_t`, `SAVEIO`, and explicit nested/count/ring contracts. The single engine implementation in
+`shared/source/state.c` supplies bounded byte buffers, one field walker, copied-image traversal, checksums and replacement
+transactions. `games/warcraft-3/common/wc3_save.h` contains only game reference-domain IDs. `GameSaveField` resolves those
+identities for both raw images and mapped records. Game codecs never receive filenames or `FILE *` handles.
 
-[Campaign game caches](campaign-game-cache.md) and [campaign progress](campaign-progress.md)
-use this same walker with value-only schemas and private file headers. No
-campaign progress is represented by cvars. See the separate guide for native
-numbering, first-mission defaults, and frontend consumption.
+[Campaign game caches](campaign-game-cache.md) and [campaign progress](campaign-progress.md) acquire separate engine-owned
+value roots. Old mapped profile/cache schemas remain read-only importers. World format v16 retains its existing level/VM
+coverage, while all three lifetimes now share the engine envelope and commit implementation. See the
+[persistence migration](../../architecture/persistence-plan.md) for ownership, compatibility and remaining world-state gaps.
