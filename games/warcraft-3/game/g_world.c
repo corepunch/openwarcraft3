@@ -25,9 +25,12 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 #define MemFree G_WorldMemFree
 #define PF_TextRemoveBom G_WorldTextRemoveBom
 #define Com_Error(code, ...) gi.error(__VA_ARGS__)
+/* ELF otherwise binds server world calls to the executable's client copy, leaving routing state uninitialized. */
+#pragma GCC visibility push(hidden)
 #include "common/world.c"
 #include "common/world_w3.c"
 #include "games/warcraft-3/common/routing.c"
+#pragma GCC visibility pop
 
 #undef FS_ReadFile
 #undef FS_FreeFile

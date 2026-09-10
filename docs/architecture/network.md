@@ -237,6 +237,16 @@ In-engine input tests must set client collision bounds explicitly: game test-wor
 The `client_world` regression checks terrain-cell lookup, replacement, and teardown. `nm build/bin/openwarcraft3`
 should show defined text symbols for `CM_LoadMapFormat`, `CM_SetupPathMap`, and `CM_GetPathingFlagsAt`.
 
+Keep the implementations included by `games/warcraft-3/game/g_world.c` under hidden symbol visibility.
+The executable and game deliberately own separate `world` records, map readers, and path buffers. ELF symbol
+interposition otherwise redirects game calls to identically named executable functions. Linux CI diagnostics
+confirmed `CM_SetupTestPathmap(64, 64, ...)` entered the client initializer and left game routing at `0x0` with
+NULL storage, causing movement/footprint failures and a crash; macOS's normal symbol binding masked the error.
+Hide the whole game world implementation, including its state, rather than only the two pathmap functions.
+`wc3_pathfinding.terrain_flags_and_routing_share_game_storage` checks blocked/open replacement through both
+flag and routing queries; the existing client-world tests independently exercise the engine copy. On Linux,
+`readelf -Ws build/lib/libgame-wc3-test.so` should show game `CM_*` implementations and `world` as local symbols.
+
 For a bounded two-terminal reproduction, write a host script and start the second terminal during its wait:
 
 ```sh
