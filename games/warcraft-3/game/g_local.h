@@ -408,6 +408,7 @@ struct client_s {
     struct clientCamera_s {
         CAMERASETUP state;
         CAMERASETUP old_state;
+        FLOAT target_height;
         DWORD start_time;
         DWORD end_time;
         VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */

@@ -507,6 +507,11 @@ VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset) {
     return (VECTOR3){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
 }
 
+/* Compose the camera look-at from its retained terrain reference; retail does not resample it during a setup transition. */
+static VECTOR3 G_MakeCameraOrigin(LPGAMECLIENT client, FLOAT x, FLOAT y, FLOAT z_offset) {
+    return (VECTOR3){ x, y, client->camera.target_height + z_offset };
+}
+
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
     VECTOR2 clamped = position ? *position : (VECTOR2){ 0, 0 };
     BOX2 bounds = level.camera_bounds;
@@ -526,7 +531,7 @@ static void G_ReclampClientCamera(LPGAMECLIENT client) {
     if (!client) return;
     position = (VECTOR2){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     position = G_ClampCameraPosition(client, &position);
-    client->ps.vieworigin = G_MakeServerOrigin(position.x, position.y, client->camera.state.z_offset);
+    client->ps.vieworigin = G_MakeCameraOrigin(client, position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
     client->camera.old_state.position = position;
     position = G_ClampCameraPosition(client, &client->camera.state.position);
@@ -615,7 +620,7 @@ static void G_RunClients(void) {
             LPCCAMERASETUP a = &client->camera.old_state;
             LPCCAMERASETUP b = &client->camera.state;
             VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
-            client->ps.vieworigin = G_MakeServerOrigin(p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
+            client->ps.vieworigin = G_MakeCameraOrigin(client, p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently. Angle fields use
              * the game's periodic-degree rule; WC3 takes the shortest arc. */
             client->ps.viewangles = (VECTOR3){
@@ -629,7 +634,8 @@ static void G_RunClients(void) {
                 .znear = LerpNumber(a->near_z, b->near_z, k),
                 .zfar = LerpNumber(a->far_z, b->far_z, k) });
         } else {
-            client->ps.vieworigin = G_MakeServerOrigin(client->camera.state.position.x, client->camera.state.position.y, client->camera.state.z_offset);
+            client->ps.vieworigin = G_MakeCameraOrigin(client, client->camera.state.position.x,
+                                                       client->camera.state.position.y, client->camera.state.z_offset);
             client->ps.viewangles = client->camera.state.viewangles;
             client->ps.distance = client->camera.state.target_distance;
             player_set_lens(&client->ps, &(gameCamera_t){

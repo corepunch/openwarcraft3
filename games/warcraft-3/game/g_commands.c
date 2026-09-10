@@ -2322,6 +2322,7 @@ void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
         return;
     clamped = G_ClampCameraPosition(ent->client, position);
     G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
+    ent->client->camera.target_height = ent->client->ps.vieworigin.z;
     ent->client->camera.old_state = ent->client->camera.state;
     ent->client->camera.state.position = clamped;
     ent->client->camera.start_time = G_Time();

@@ -590,6 +590,7 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     gc->ps.number = 0;
     gc->camera.state.position = MAKE(VECTOR2, 0.0f, 0.0f);
     gc->camera.state.z_offset = 0.0f;
+    gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
     gc->camera.old_state = gc->camera.state;
     level.time = 100;
     currentplayer = &gc->ps;
@@ -607,7 +608,7 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     G_RunClients();
     T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
     T_FEQ(gc->ps.vieworigin.y, 150.0f, 0.001f);
-    T_FEQ(gc->ps.vieworigin.z, G_MakeServerOrigin(100.0f, 150.0f, 200.0f).z, 0.001f);
+    T_FEQ(gc->ps.vieworigin.z, gc->camera.target_height + 200.0f, 0.001f);
     currentplayer = NULL;
 }
 

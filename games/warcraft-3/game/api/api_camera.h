@@ -43,15 +43,19 @@ static VECTOR3 G_CameraEyePosition(LPCPLAYER playerstate) {
 }
 
 /* Mirror low authored AoA values above the target while preserving their world-facing orbit. */
-static FLOAT G_CameraAuthoredToPitch(FLOAT value) { return value < 90 ? 90 - value : -90 - value; }
-static FLOAT G_CameraPitchToAuthored(FLOAT value) { return value < 0 ? -90 - value : 90 - value; }
-static FLOAT G_CameraAuthoredToYaw(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
-static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch >= 0 ? 270 - value : 90 - value; }
+static FLOAT G_CameraAuthoredToPitch(FLOAT value) { return value < 90 ? 90 + value : -90 - value; }
+static FLOAT G_CameraPitchToAuthored(FLOAT value) {
+    return value >= 90 ? value - 90 : value >= 0 ? 90 - value : -90 - value;
+}
+static FLOAT G_CameraAuthoredToYaw(FLOAT value, FLOAT pitch) { return pitch < 0 ? 450 - value : 270 - value; }
+static FLOAT G_CameraYawToAuthored(FLOAT value, FLOAT pitch) { return pitch < 0 ? 450 - value : 270 - value; }
 /* Convert the client Euler yaw back to Warcraft's authored rotation field. */
 static FLOAT G_CameraRotation(LPCPLAYER p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
 /* Recover the authored target offset from the terrain-composed runtime target height. */
 static FLOAT G_CameraZOffset(LPCPLAYER p) {
-    return p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
+    LPGAMECLIENT gc = G_CurrentCameraClient("G_CameraZOffset");
+    return gc ? p->vieworigin.z - gc->camera.target_height
+              : p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
 }
 
 /* Emit event-only camera samples for retail/OpenRealm comparisons without changing map JASS. */
@@ -92,6 +96,7 @@ static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
     position = G_ClampCameraPosition(gc, &position);
     G_ClearCameraTarget(gc, func);
     gc->camera.old_state = gc->camera.state;
+    gc->camera.target_height = gc->ps.vieworigin.z;
     gc->camera.state.position = position;
     if (set_z) {
         gc->camera.state.z_offset = z_offset;
@@ -255,7 +260,12 @@ DWORD CameraSetupSetField(LPJASS j) {
         case CAMERA_FIELD_TARGET_DISTANCE: whichSetup->target_distance = value; break;
         case CAMERA_FIELD_FARZ: whichSetup->far_z = value; break;
         case CAMERA_FIELD_NEARZ: whichSetup->near_z = value; break;
-        case CAMERA_FIELD_ANGLE_OF_ATTACK: whichSetup->viewangles.x = G_CameraAuthoredToPitch(value); break;
+        case CAMERA_FIELD_ANGLE_OF_ATTACK: {
+            FLOAT rotation = G_CameraYawToAuthored(whichSetup->viewangles.z, whichSetup->viewangles.x);
+            whichSetup->viewangles.x = G_CameraAuthoredToPitch(value);
+            whichSetup->viewangles.z = G_CameraAuthoredToYaw(rotation, whichSetup->viewangles.x);
+            break;
+        }
         case CAMERA_FIELD_FIELD_OF_VIEW: whichSetup->fov = G_CameraHorizontalToVerticalFov(value); break;
         case CAMERA_FIELD_ROLL: whichSetup->viewangles.y = value; break;
         case CAMERA_FIELD_ROTATION: whichSetup->viewangles.z = G_CameraAuthoredToYaw(value, whichSetup->viewangles.x); break;
@@ -323,6 +333,9 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
     }
     G_ClearCameraTarget(gc, "CameraSetupApply");
     gc->camera.old_state = gc->camera.state;
+    if (apply_position && (setup->position.x != gc->camera.old_state.position.x ||
+                           setup->position.y != gc->camera.old_state.position.y))
+        gc->camera.target_height = gc->ps.vieworigin.z;
     gc->camera.state = *setup;
     if (!apply_position) {
         gc->camera.state.position = gc->camera.old_state.position;
