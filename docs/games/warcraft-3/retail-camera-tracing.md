@@ -28,7 +28,7 @@ make mpqtool
 export OPENREALM_ROOT=/path/to/open-realm
 trace="$OPENREALM_ROOT/build/retail-camera-trace"
 mkdir -p "$trace/Human02Interlude-original" "$trace/Human02Interlude-instrumented"
-build/bin/mpqtool -mpq "$OPENREALM_ROOT/data/Warcraft III/War3.mpq" \
+build/bin/mpqtool -mpq "$OPENREALM_ROOT/data/Warcraft III/War3Local.mpq" \
   cat 'Maps/Campaign/Human02Interlude.w3m' > "$trace/Human02Interlude-original/Human02Interlude.w3m"
 build/bin/mpqtool -mpq "$trace/Human02Interlude-original/Human02Interlude.w3m" \
   cat 'war3map.j' > "$trace/Human02Interlude-original/war3map.j"
@@ -37,6 +37,33 @@ cp "$trace/Human02Interlude-original/Human02Interlude.w3m" \
 cp "$trace/Human02Interlude-original/war3map.j" \
    "$trace/Human02Interlude-instrumented/war3map.j"
 ```
+
+Campaign maps in this installation are in `War3Local.mpq`, not `War3.mpq`.
+Extract the untouched control first and verify it in retail before editing or
+repacking anything:
+
+```sh
+control="$trace/retail-original/Human02Interlude.w3m"
+mkdir -p "$(dirname "$control")"
+build/bin/mpqtool -mpq "$OPENREALM_ROOT/data/Warcraft III/War3Local.mpq" \
+  cat 'Maps/Campaign/Human02Interlude.w3m' > "$control"
+build/bin/mpqtool -mpq "$control" ls
+```
+
+For ROC 1.29, use `-loadfile` without `-launch`; this build otherwise returned
+to the main menu. Use `-window -graphicsapi OpenGL2` under Wine when the
+default renderer produces a black screen:
+
+```sh
+wine "$WAR3_EXE" -window -graphicsapi OpenGL2 \
+  -loadfile "Z:$control"
+```
+
+Keep the Linux path and Wine path on one physical shell line. If the untouched
+extracted control does not load, stop debugging JASS or repacking; the
+installation, Wine launch, or map path is the problem. The successful control
+run differed from the earlier `Human02Interlude-original` build artifact,
+proving that artifact was not the untouched retail source.
 
 `mpqtool pack-legacy` is not an in-place update operation. It creates a new
 MPQ containing only the files passed to that command, so using it against a
@@ -62,11 +89,11 @@ build/bin/mpqtool -mpq \
   "$trace/Human02Interlude-instrumented/Human02Interlude-CAMTRACE-legacy.w3m" ls
 ```
 
-For this map the legacy wrapper is 512 bytes, the footer is 260 bytes, and
-the payload created by `smpq -M 1` contains the map files plus the generated
-`(listfile)` and `(attributes)` entries. The final `mpqtool ls` check must show
-the normal root-level `war3map.*` names. Keep the original map and its wrapper
-as comparison inputs; do not repack the campaign archive in place.
+For this map the legacy wrapper is 512 bytes and the footer is 260 bytes. The
+repacker used here is the apt-installed `/usr/bin/smpq` 1.6 using StormLib
+9.30. The final `mpqtool ls` check must show the normal root-level
+`war3map.*` names. Keep the MPQ-extracted control map and its wrapper as
+comparison inputs; do not repack the campaign archive in place.
 
 The JASS edits belong at these stable generated-script locations:
 
@@ -179,11 +206,12 @@ simple `test -f` plus `winepath -w` check was less error-prone.
 ## Packing lessons
 
 The 1.29 client was sensitive to the map package shape. The reliable package
-was the legacy 512-byte Warcraft map wrapper followed by an MPQ payload with
-the expected generated `(attributes)` and `(listfile)` entries. The compressed
-development package was rejected by 1.29, and several other wrapper/payload
-variants loaded the loading screen and then crashed before the map became
-playable.
+was the legacy 512-byte Warcraft map wrapper followed by a complete MPQ
+payload. The compressed development package was rejected by 1.29, and several
+other wrapper/payload variants loaded the loading screen and then crashed
+before the map became playable. Always test the untouched map extracted from
+`War3Local.mpq` first; a derived copy going to the menu does not prove that
+the retail installation or launch command is wrong.
 
 Do not overwrite the campaign map in `data/Warcraft III`. Pack into a separate
 file with a distinct name and preserve the original extracted files for binary
