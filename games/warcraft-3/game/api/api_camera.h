@@ -62,6 +62,7 @@ static FLOAT G_CameraZOffset(LPCPLAYER p) {
 static void G_CameraTraceSnapshot(LPCSTR label) {
     LPGAMECLIENT gc;
     LPCPLAYER p;
+    LPCAMERASETUP s;
     VECTOR3 eye;
     static DWORD sample;
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
@@ -70,15 +71,19 @@ static void G_CameraTraceSnapshot(LPCSTR label) {
     gc = G_CurrentCameraClient("G_CameraTraceSnapshot");
     if (!gc) return;
     p = &gc->ps;
+    s = &gc->camera.state;
     eye = G_CameraEyePosition(p);
+    /* Retail exposes newly applied setup fields immediately, while its eye and
+     * target getters continue to report the realized camera until the next
+     * client update. Keep both halves of that contract in the trace. */
     fprintf(stderr,
             "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f\n",
             (unsigned)++sample, G_Time() / 1000.0f, label ? label : "camera-event",
             p->vieworigin.x, p->vieworigin.y, p->vieworigin.z, eye.x, eye.y, eye.z,
-            p->distance, G_CameraDegreesToRadians(G_CameraPitchToAuthored(p->viewangles.x)),
-            G_CameraDegreesToRadians(G_CameraRotation(p)),
-            G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(p->fov)),
-            G_CameraDegreesToRadians(p->viewangles.y), G_CameraZOffset(p), p->zfar);
+            s->target_distance, G_CameraDegreesToRadians(G_CameraPitchToAuthored(s->viewangles.x)),
+            G_CameraDegreesToRadians(G_CameraYawToAuthored(s->viewangles.z, s->viewangles.x)),
+            G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(s->fov)),
+            G_CameraDegreesToRadians(s->viewangles.y), s->z_offset, s->far_z);
 }
 
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y,
