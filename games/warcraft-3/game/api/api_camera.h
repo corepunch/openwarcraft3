@@ -64,6 +64,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     LPCAMERASETUP s;
     LPCVECTOR3 ang;
     FLOAT dist, fov, roll, zoff, farz;
+    FLOAT k;
     VECTOR3 eye;
     static DWORD sample;
     LPCSTR enabled = gi.CvarString("wc3_camera_trace", "0");
@@ -73,11 +74,15 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     p = &gc->ps;
     s = &gc->camera.state;
     if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
+        k = (G_Time() - gc->camera.start_time) /
+            (FLOAT)(gc->camera.end_time - gc->camera.start_time);
         ang = &p->viewangles;
         dist = p->distance;
         fov = p->fov;
         roll = p->viewangles.y;
-        zoff = G_CameraZOffset(p);
+        /* Report the logical interpolated offset; deriving it from vieworigin
+         * uses the stale target height while a transition is in progress. */
+        zoff = LerpNumber(gc->camera.old_state.z_offset, gc->camera.state.z_offset, k);
         farz = p->zfar;
     } else {
         if (gc->camera.end_time > gc->camera.start_time)
