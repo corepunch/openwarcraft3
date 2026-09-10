@@ -274,6 +274,11 @@ bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     return true;
 }
 
+bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
+    (void)entity; (void)bounds;
+    return false;
+}
+
 /* Build a stable top/front light for WoW UI model-camera previews. */
 static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
     MATRIX4 proj;

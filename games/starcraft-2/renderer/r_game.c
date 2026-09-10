@@ -303,6 +303,11 @@ bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     return false;
 }
 
+bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
+    (void)entity; (void)bounds;
+    return false;
+}
+
 bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     (void)entity;
     (void)origin;
