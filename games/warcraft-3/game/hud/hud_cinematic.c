@@ -114,7 +114,8 @@ static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
     UI_WriteEnd(ent);
 }
 
-static void FormatGameplayTransmissionMessage(LPGAMECLIENT client, LPSTR message, size_t size) {
+/* Format the active transmission exactly as it appears in the gameplay message layer. */
+static void format_gameplay_transmission_message(LPGAMECLIENT client, LPSTR message, size_t size) {
     LPCSTR speaker, dialogue;
 
     if (!message || !size) return;
@@ -132,11 +133,12 @@ static void FormatGameplayTransmissionMessage(LPGAMECLIENT client, LPSTR message
     }
 }
 
+/* Retain a non-empty transmission in the player's bounded Message Log history. */
 void UI_RecordTransmissionMessage(LPEDICT ent) {
     char message[1200];
 
     if (!ent || !ent->client) return;
-    FormatGameplayTransmissionMessage(ent->client, message, sizeof(message));
+    format_gameplay_transmission_message(ent->client, message, sizeof(message));
     if (*message) UI_MessageLogAppend(ent, UI_FormatMessageText(message));
 }
 
@@ -144,7 +146,7 @@ static void WriteGameplayTransmissionMessage(LPEDICT ent) {
     char message[1200];
 
     if (!ent || !ent->client) return;
-    FormatGameplayTransmissionMessage(ent->client, message, sizeof(message));
+    format_gameplay_transmission_message(ent->client, message, sizeof(message));
     WriteMessageLayer(ent, NULL, UI_FormatMessageText(message));
 }
 
