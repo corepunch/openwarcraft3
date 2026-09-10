@@ -206,9 +206,10 @@ typedef struct {
     DWORD fow_width, fow_height, fow_generation;
     BYTE const *fow_data;
     FRUSTUM3 frustum;
-    /* Linear scene fog (matches the original's fixed-function glFog* setup:
-     * GL_FOG_MODE=LINEAR, GL_FOG_START/END, GL_FOG_COLOR).  Used by the glue
-     * menu scene for its atmospheric haze. */
+    /* Generic linear scene-distance fog. Game renderers decide which world
+     * surfaces consume it; producers that carry richer style/density state
+     * reduce that state to this start/end/color contract until the renderer
+     * exposes additional equations. */
     BOOL fogEnable;
     float fogStart;
     float fogEnd;

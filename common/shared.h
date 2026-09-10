@@ -267,6 +267,9 @@ enum {
     CS_ENTITY_LIGHT_MODEL = 10, // decimal CS_MODELS index; optional entity environment light model
     CS_ORDER_MARKER = 11, // model path; server-authored point-order confirmation
     CS_ASSET_SCOPE = 12, // archive/directory scope for map-owned media, available before world registration
+    /* Generic scene-distance fog: "style start end density r g b".  Style 0 disables;
+     * positive styles currently share the renderer's linear start/end path. */
+    CS_SCENE_FOG = 13,
     CS_MAXCLIENTS = 30,
     CS_MAPCHECKSUM = 31,        // for catching cheater maps
     CS_MODELS = 32,

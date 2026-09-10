@@ -2539,6 +2539,23 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
             .initialized = true,
         },
     };
+    level.environment_fog = (wc3EnvironmentFog_t){
+        .active = {
+            .style = WC3_ENV_FOG_LINEAR,
+            .start = 1500.0f,
+            .end = 6500.0f,
+            .density = 0.2f,
+            .color = { 0.15f, 0.25f, 0.35f },
+        },
+        .defaults = {
+            .style = WC3_ENV_FOG_EXPONENTIAL_1,
+            .start = 500.0f,
+            .end = 9000.0f,
+            .density = 0.1f,
+            .color = { 0.4f, 0.5f, 0.6f },
+        },
+        .defaults_valid = true,
+    };
     level.started = true;
     level.scriptsStarted = true;
     game.clients[0].jass.race_pref = 2;
@@ -2596,6 +2613,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     saved_quest->completed = true;
     saved_item->completed = false;
     memset(&level.timeofday, 0, sizeof(level.timeofday));
+    memset(&level.environment_fog, 0, sizeof(level.environment_fog));
     T_ASSERT(ReadGame(filename));
     /* The sleeping unit's persistent ACsp overlay is a linked, non-selectable
      * edict and is included in the raw world query after save/load. */
@@ -2618,6 +2636,21 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(level.timeofday.false_time.minute, 45);
     T_EQ(level.timeofday.false_time.ticks_remaining, 321);
     T_ASSERT(level.timeofday.false_time.active && level.timeofday.false_time.initialized);
+    T_EQ(level.environment_fog.active.style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(level.environment_fog.active.start, 1500.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.end, 6500.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.density, 0.2f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.x, 0.15f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.y, 0.25f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.z, 0.35f, 0.001f);
+    T_EQ(level.environment_fog.defaults.style, WC3_ENV_FOG_EXPONENTIAL_1);
+    T_FEQ(level.environment_fog.defaults.start, 500.0f, 0.001f);
+    T_FEQ(level.environment_fog.defaults.end, 9000.0f, 0.001f);
+    T_FEQ(level.environment_fog.defaults.density, 0.1f, 0.001f);
+    T_FEQ(level.environment_fog.defaults.color.x, 0.4f, 0.001f);
+    T_FEQ(level.environment_fog.defaults.color.y, 0.5f, 0.001f);
+    T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
+    T_ASSERT(level.environment_fog.defaults_valid);
     T_ASSERT(level.started && level.scriptsStarted);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);

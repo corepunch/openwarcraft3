@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 15; // persistent natural creep-sleep state
+static DWORD const save_version = 16; // persistent environmental terrain-fog state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -250,6 +250,17 @@ static field_t const level_fields[] = {
     F(level_locals, timeofday.false_time.ticks_remaining, F_INT),
     F(level_locals, timeofday.false_time.active, F_INT),
     F(level_locals, timeofday.false_time.initialized, F_INT),
+    F(level_locals, environment_fog.active.style, F_INT),
+    F(level_locals, environment_fog.active.start, F_FLOAT),
+    F(level_locals, environment_fog.active.end, F_FLOAT),
+    F(level_locals, environment_fog.active.density, F_FLOAT),
+    F(level_locals, environment_fog.active.color, F_VECTOR),
+    F(level_locals, environment_fog.defaults.style, F_INT),
+    F(level_locals, environment_fog.defaults.start, F_FLOAT),
+    F(level_locals, environment_fog.defaults.end, F_FLOAT),
+    F(level_locals, environment_fog.defaults.density, F_FLOAT),
+    F(level_locals, environment_fog.defaults.color, F_VECTOR),
+    F(level_locals, environment_fog.defaults_valid, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
     F(level_locals, scriptsStarted, F_INT),
@@ -1235,6 +1246,9 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
+    /* Configstrings were rebuilt while reloading the map. Re-publish the
+     * restored authoritative scene fog before client-side presentation resumes. */
+    G_EnvironmentFogPublish();
     /* Client-side decoders are presentation state, not part of the save file.
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */

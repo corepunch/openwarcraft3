@@ -231,6 +231,9 @@ const shader_desc_t sd_default = {
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(fogEnable,      UT_BOOL,       PRECISION_LOW),
+        UNIFORM(fogColor,       UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(fogParams,      UT_FLOAT_VEC2, PRECISION_LOW),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -325,6 +328,12 @@ const shader_desc_t sd_default = {
         "#else\n"
         "  col.rgb *= get_lighting();\n"
         "#endif\n"
+        "  if (u_fogEnable) {\n"
+        "    float fogRange = u_fogParams.y - u_fogParams.x;\n"
+        "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n"
+        "    float fogFactor = abs(fogRange) > 0.0001 ? clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) : (depth <= u_fogParams.x ? 1.0 : 0.0);\n"
+        "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
+        "  }\n"
         "  return col;\n"
         "}\n",
 };
@@ -484,10 +493,12 @@ const shader_desc_t sd_model = {
         "#else\n"
         "    col.rgb *= light;\n"
         "#endif\n"
-        "    if (u_fogEnable) {\n"
-        "      float fogFactor = clamp((u_fogParams.y - gl_FragCoord.z / gl_FragCoord.w) / (u_fogParams.y - u_fogParams.x), 0.0, 1.0);\n"
-        "      col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
-        "    }\n"
+        "  }\n"
+        "  if (u_fogEnable) {\n"
+        "    float fogRange = u_fogParams.y - u_fogParams.x;\n"
+        "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n"
+        "    float fogFactor = abs(fogRange) > 0.0001 ? clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) : (depth <= u_fogParams.x ? 1.0 : 0.0);\n"
+        "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
         "  }\n"
         "  if (u_alphaKey) {\n"
         "#ifndef BZ_USE_MSAA\n"

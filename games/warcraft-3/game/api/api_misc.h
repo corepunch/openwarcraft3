@@ -1173,6 +1173,7 @@ DWORD SetTerrainFog(LPJASS j) {
     return 0;
 }
 DWORD ResetTerrainFog(LPJASS j) {
+    G_EnvironmentFogReset();
     return 0;
 }
 DWORD SetUnitFog(LPJASS j) {
@@ -1184,13 +1185,15 @@ DWORD SetUnitFog(LPJASS j) {
     return 0;
 }
 DWORD SetTerrainFogEx(LPJASS j) {
-    //LONG style = jass_checkinteger(j, 1);
-    //FLOAT zstart = jass_checknumber(j, 2);
-    //FLOAT zend = jass_checknumber(j, 3);
-    //FLOAT density = jass_checknumber(j, 4);
-    //FLOAT red = jass_checknumber(j, 5);
-    //FLOAT green = jass_checknumber(j, 6);
-    //FLOAT blue = jass_checknumber(j, 7);
+    LONG style = jass_checkinteger(j, 1);
+    FLOAT zstart = jass_checknumber(j, 2);
+    FLOAT zend = jass_checknumber(j, 3);
+    FLOAT density = jass_checknumber(j, 4);
+    FLOAT red = jass_checknumber(j, 5);
+    FLOAT green = jass_checknumber(j, 6);
+    FLOAT blue = jass_checknumber(j, 7);
+
+    G_EnvironmentFogSet(style, zstart, zend, density, red, green, blue);
     return 0;
 }
 DWORD SetWaterBaseColor(LPJASS j) {

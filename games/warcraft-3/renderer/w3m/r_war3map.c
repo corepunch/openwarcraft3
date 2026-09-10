@@ -299,6 +299,12 @@ void _W3M_DrawTerrainShadows(void) {
     R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
 }
 
+static void _W3M_SetSceneFog(void) {
+    tr.shader_default.state.fogEnable = tr.viewDef.fogEnable;
+    tr.shader_default.state.fogColor = tr.viewDef.fogColor;
+    tr.shader_default.state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+}
+
 void _W3M_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
@@ -306,6 +312,7 @@ void _W3M_DrawWorld(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
+    _W3M_SetSceneFog();
 
     {
         MODELLIGHTING lighting;
@@ -340,6 +347,7 @@ void _W3M_DrawAlphaSurfaces(void) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
+    _W3M_SetSceneFog();
 
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
