@@ -8,7 +8,7 @@
 [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml)
 [![Platform: Windows, Linux, macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#)
 [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#)
-[![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/5W66nrcaB)
+[![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/vFMXf36E9)
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
@@ -16,7 +16,7 @@ It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoin
 
 ## Community
 
-Join the <a href="https://discord.gg/5W66nrcaB">Discord server</a> to discuss development, ask questions, share screenshots, and contribute:
+Join the <a href="https://discord.gg/vFMXf36E9">Discord server</a> to discuss development, ask questions, share screenshots, and contribute:
 
 ## Download
 
