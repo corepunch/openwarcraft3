@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 #define SFILE_OPEN_FROM_MPQ 0
+#define MPQ_CREATE_LEGACY 0x00000001u // flag; use sector compression for legacy Warcraft III MPQ readers
 #define SFILE_INVALID_POS ((DWORD)-1)
 
 #ifndef MAX_PATH
