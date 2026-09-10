@@ -261,7 +261,8 @@ static DWORD SV_LoadingText(LPSIZEBUF out, DWORD limit) {
         frame.buffer.size = (BYTE)MSG_ReadByte(&src);
         frame.buffer.data = src.data + src.readcount;
         src.readcount += frame.buffer.size;
-        if (frame.text && frame.text[0] != '#' && strlen(frame.text) > limit) {
+        if (frame.text && frame.text[0] != '#' && !(frame.flagsvalue & UIFLAG_MINIMAP_PREVIEW) && strlen(frame.text) > limit) {
+            /* Static minimap text is an archive reference, not display text; never shorten its path. */
             DWORD len = limit;
             /* Do not end a displayed string inside a UTF-8 character. */
             while (len && ((BYTE)frame.text[len] & 0xc0) == 0x80) len--;
@@ -276,7 +277,7 @@ static DWORD SV_LoadingText(LPSIZEBUF out, DWORD limit) {
     return trimmed;
 }
 
-/* The persistent loading layout occupies exactly two binary configstrings, including its text. */
+/* The persistent loading layout occupies a fixed range of binary configstrings, including its text. */
 BOOL SV_BuildLoadingConfigstrings(void) {
     BYTE data[BZ_LOADING_SCREEN_SIZE], buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = sv.multicast.data + 1, .cursize = sv.multicast.cursize - 1 };
@@ -313,7 +314,7 @@ BOOL SV_BuildLoadingConfigstrings(void) {
     return true;
 }
 
-/* Loading dependencies precede the second slot, which commits the complete screen on the client. */
+/* Loading dependencies precede the final slot, which commits the complete screen on the client. */
 void SV_SendLoadingConfigstrings(LPCLIENT cl) {
     if (!*sv.configstrings[CS_LOADINGSCREEN1]) {
         Com_Error(ERR_DROP, "Missing initial loading presentation");

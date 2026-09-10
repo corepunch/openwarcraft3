@@ -106,6 +106,17 @@ static void capture_sky_configstring(DWORD index, LPCSTR value) {
 
 static void capture_pause(BOOL paused) { captured_pause = paused; }
 
+/* Retail common.ai passes VERSION_FROZEN_THRONE as a version handle during hero selection. */
+TEST(wc3_api, version_queries_accept_typed_handles) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(VersionCompatible(ConvertVersion(0)), \"ROC compatible\")\n"
+        "  call BJassAssert(VersionSupported(ConvertVersion(0)), \"ROC supported\")\n"
+        "  call BJassAssert(not VersionCompatible(ConvertVersion(1)), \"current compatibility policy\")\n"
+        "  call BJassAssert(not VersionSupported(ConvertVersion(1)), \"current support policy\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
     void (*old_set_paused)(BOOL) = gi.SetPaused;
 

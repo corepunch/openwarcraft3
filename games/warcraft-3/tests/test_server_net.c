@@ -985,7 +985,7 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     while (msg.readcount < msg.cursize) {
         T_EQ(MSG_ReadByte(&msg), svc_configstring);
         int index = MSG_ReadShort(&msg);
-        if (index == CS_LOADINGSCREEN1 || index == CS_LOADINGSCREEN2) {
+        if (BZ_IS_LOADING_CONFIGSTRING(index)) {
             T_ASSERT(model && image && font);
             T_EQ(index, CS_LOADINGSCREEN1 + slots++);
             MSG_Read(&msg, packed + (index - CS_LOADINGSCREEN1) * MAX_PATHLEN, MAX_PATHLEN);
@@ -1019,7 +1019,7 @@ TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_clie
     test_client_stubs_set_cvar("dedicated", "0");
 }
 
-TEST(server_net, loading_configstrings_preserve_all_512_bytes) {
+TEST(server_net, loading_configstrings_preserve_all_binary_slots) {
     BYTE data[BZ_LOADING_SCREEN_SIZE];
     FOR_LOOP(i, sizeof(data)) data[i] = (BYTE)i;
     reset_server_state(1);

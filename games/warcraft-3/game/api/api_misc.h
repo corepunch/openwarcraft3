@@ -1651,9 +1651,12 @@ DWORD VersionGet(LPJASS j) {
     *version = 0;
     return 1;
 }
+/* Version enums are typed handles from ConvertVersion, not integer arguments. */
 DWORD VersionCompatible(LPJASS j) {
-    return jass_pushboolean(j, jass_checkinteger(j, 1) == 0);
+    LPDWORD version = jass_checkhandle(j, 1, "version");
+    return jass_pushboolean(j, version && *version == 0);
 }
 DWORD VersionSupported(LPJASS j) {
-    return jass_pushboolean(j, jass_checkinteger(j, 1) == 0);
+    LPDWORD version = jass_checkhandle(j, 1, "version");
+    return jass_pushboolean(j, version && *version == 0);
 }

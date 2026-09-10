@@ -25,7 +25,7 @@ void R_Shutdown(void);
 void R_SetupTextureMatrix(void);
 
 /* Draw the game's minimap into the given UI-space rect. Each game owns its content. */
-void R_DrawMinimap(LPCRECT screen);
+void R_DrawMinimap(LPCRECT screen, LPCSTR map);
 
 void R_RegisterMap(LPCSTR mapFileName);
 void R_SetupEnvironmentLighting(void);

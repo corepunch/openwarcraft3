@@ -472,16 +472,15 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     return true;
 }
 
-void R_DrawMinimapScene(LPCRECT screen) {
+void R_DrawMinimapScene(LPCRECT screen, LPCSTR map) {
     if (!screen) {
         return;
     }
 
-    tr.minimapRect = *screen;
-    tr.hasMinimap = true;
+    if (!map) { tr.minimapRect = *screen; tr.hasMinimap = true; }
 
     /* Each game owns its minimap content and authoritative texture source. */
-    R_DrawMinimap(screen);
+    R_DrawMinimap(screen, map);
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

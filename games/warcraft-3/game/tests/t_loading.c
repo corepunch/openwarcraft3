@@ -4,7 +4,8 @@
 #include "../hud/hud_local.h"
 
 typedef struct {
-    DWORD sprites, bar, back, texts, sent, bytes;
+    DWORD sprites, bar, back, texts, sent, bytes, previews, names, rows;
+    UIFRAME preview;
     LONG opcode, layer;
     UIFRAME progress;
     char anim[32];
@@ -30,7 +31,10 @@ static void loading_write(pfWriteType_t type, void const *data) {
             strlcpy(loadcap.anim, frame->text, sizeof(loadcap.anim));
         }
     }
+    if (frame->flags.type == FT_BACKDROP) loadcap.rows++;
+    if (frame->flags.type == FT_MINIMAP) { loadcap.previews++; loadcap.preview = *frame; }
     if (frame->flags.type == FT_TEXT && frame->text) {
+        if (!strcmp(frame->text, "Alice") || !strcmp(frame->text, "Computer (Normal)")) loadcap.names++;
         if (!strcmp(frame->text, "Chapter")) loadcap.texts |= 1;
         if (!strcmp(frame->text, "Subtitle")) loadcap.texts |= 2;
         if (!strcmp(frame->text, "Description")) loadcap.texts |= 4;
@@ -53,6 +57,10 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
     MAPINFO info = { .mapName = "Chapter", .loadingScreenTitle = "Chapter",
                     .loadingScreenSubtitle = "Subtitle", .loadingScreenText = "Description" };
 
+    info.players[0] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeHuman, .playerName = "Alice" };
+    info.players[2] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeComputer, .playerName = "Computer (Normal)" };
+    info.players[3] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeNone, .playerName = "Closed" };
+    info.players[12] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeNeutral, .playerName = "Neutral" };
     UI_ResetHud(); UI_LoadHudLoading();
     T_NOT_NULL(hud.loading.Loading); T_NOT_NULL(hud.loading.LoadingBar);
     T_NOT_NULL(hud.loading.LoadingBackground);
@@ -66,13 +74,30 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
         memset(&loadcap, 0, sizeof(loadcap));
         UI_WriteLoadingLayout(g_edicts, &info);
         T_EQ(loadcap.opcode, svc_layout); T_EQ(loadcap.layer, LAYER_LOADING); T_EQ(loadcap.sent, 1);
-        T_EQ(loadcap.sprites, 2); T_NE(loadcap.bar, 0); T_NE(loadcap.back, 0); T_EQ(loadcap.texts, 7);
+        T_EQ(loadcap.sprites, 2); T_NE(loadcap.bar, 0); T_NE(loadcap.back, 0); T_EQ(loadcap.texts, i == 3 ? 1 : 7);
+        T_EQ(loadcap.previews, i == 3 ? 1 : 0);
+        T_EQ(loadcap.names, i == 3 ? 2 : 0);
+        if (i == 3) {
+            T_ASSERT(loadcap.preview.flagsvalue & UIFLAG_MINIMAP_PREVIEW);
+            T_FEQ(loadcap.preview.size.width, 0.16f, 0.0001f);
+        }
         T_STREQ(gi.GetConfigstring(CS_MODELS + loadcap.back), cases[i].model);
         T_STREQ(gi.GetConfigstring(CS_MODELS + loadcap.bar), "UI\\Glues\\Loading\\LoadBar\\LoadBar.mdx");
         T_STREQ(loadcap.anim, cases[i].anim);
         T_FEQ(loadcap.progress.size.width, 0, 0.00001f); T_FEQ(loadcap.progress.size.height, 0, 0.00001f);
         T_EQ(loadcap.progress.points.y[FPP_MAX].offset, (SHORT)(0.0025f * UI_FRAMEPOINT_SCALE));
     }
+    info.flags |= hide_minimap_in_preview_screens;
+    memset(&loadcap, 0, sizeof(loadcap));
+    UI_WriteLoadingLayout(g_edicts, &info);
+    T_EQ(loadcap.previews, 0); T_EQ(loadcap.names, 2);
+    info.flags = 0;
+    FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE)
+        info.players[i] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeHuman, .playerName = "Alice" };
+    memset(&loadcap, 0, sizeof(loadcap));
+    UI_WriteLoadingLayout(g_edicts, &info);
+    T_EQ(loadcap.previews, 1); T_EQ(loadcap.rows, PLAYER_NEUTRAL_AGGRESSIVE);
+    T_EQ(loadcap.names, PLAYER_NEUTRAL_AGGRESSIVE);
     gi.Write = old_write; gi.unicast = old_send; level.mapinfo = old_info;
     UI_ResetHud();
 }

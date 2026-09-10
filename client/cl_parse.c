@@ -196,7 +196,7 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         return;
     }
     olds[0] = '\0';
-    if (index == CS_STATUSBAR || index == CS_LOADINGSCREEN1 || index == CS_LOADINGSCREEN2) {
+    if (index == CS_STATUSBAR || BZ_IS_LOADING_CONFIGSTRING(index)) {
         if (!MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings))) {
             Com_Error(ERR_DROP, "Truncated binary configstring %d", index);
             return;
@@ -205,7 +205,7 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         snprintf(olds, sizeof(olds), "%s", cl.configstrings[index]);
         MSG_ReadString(msg, cl.configstrings[index]);
     }
-    if (index == CS_LOADINGSCREEN2 && !cl.refresh_prepped) CL_ParseLoadingScreen();
+    if (index == CS_LOADINGSCREEN_LAST && !cl.refresh_prepped) CL_ParseLoadingScreen();
     if (index >= CS_GENERAL && index < CS_GENERAL + CS_MAX_NAMES / ENT_NAMES_PER_CS)
         entity_name_pool_decode(cl.configstrings[index]);
     if (cl.refresh_prepped)

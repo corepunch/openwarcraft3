@@ -253,7 +253,7 @@ typedef struct {
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
     void (*DrawBackdrop)(LPCDRAWBACKDROP drawBackdrop);
-    void (*DrawMinimap)(LPCRECT screen);
+    void (*DrawMinimap)(LPCRECT screen, LPCSTR map);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
     bool (*DrawCursor)(float x, float y, COLOR32 tint);

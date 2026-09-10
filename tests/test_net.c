@@ -30,6 +30,9 @@
 /* Pull in the net types + common types without game state. */
 #include "../client/client.h"
 
+static LPCSTR minimap_map;
+static void capture_minimap(LPCRECT screen, LPCSTR map) { (void)screen; minimap_map = map; }
+
 void test_client_stubs_init(void);
 void test_client_stubs_set_window_size(DWORD width, DWORD height);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
@@ -3038,8 +3041,12 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     CL_ParseServerMessage(&msg);
     T_NULL(cl.layout[LAYER_LOADING]); T_EQ(test_model_loads, 0); T_EQ(test_tex_loads, 0);
     SZ_Clear(&msg); msg.readcount = 0;
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
-    MSG_Write(&msg, packed + MAX_PATHLEN, MAX_PATHLEN);
+    for (DWORD i = 1; i < BZ_LOADING_SCREEN_SLOTS; i++) {
+        MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1 + i);
+        MSG_Write(&msg, packed + i * MAX_PATHLEN, MAX_PATHLEN);
+        CL_ParseServerMessage(&msg);
+        SZ_Clear(&msg); msg.readcount = 0;
+    }
     CL_ParseServerMessage(&msg);
     T_EQ(test_model_loads, 1); T_EQ(test_tex_loads, 1);
     T_NOT_NULL(cl.models[1]); T_NOT_NULL(cl.pics[1]); T_ASSERT(!cl.precache_ready);
@@ -3060,19 +3067,23 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     SCR_ClearLayoutLayer(LAYER_LOADING); scr_initialized = old_init;
 }
 
-/* Neither corrupt compressed data nor a partial second slot can publish a loading screen. */
+/* Neither corrupt compressed data nor a partial final slot can publish a loading screen. */
 TEST(net, loading_configstrings_reject_corrupt_and_partial_payloads) {
     BYTE buf[1024], packed[BZ_LOADING_SCREEN_SIZE] = { 0 };
     sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
     test_client_stubs_init();
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1);
     MSG_Write(&msg, packed, MAX_PATHLEN);
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
-    MSG_Write(&msg, packed + MAX_PATHLEN, MAX_PATHLEN);
+    for (DWORD i = 1; i < BZ_LOADING_SCREEN_SLOTS; i++) {
+        MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN1 + i);
+        MSG_Write(&msg, packed + i * MAX_PATHLEN, MAX_PATHLEN);
+        CL_ParseServerMessage(&msg);
+        SZ_Clear(&msg); msg.readcount = 0;
+    }
     CL_ParseServerMessage(&msg);
     T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
     SZ_Clear(&msg); msg.readcount = 0;
-    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN2);
+    MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_LOADINGSCREEN_LAST);
     MSG_Write(&msg, packed, MAX_PATHLEN - 1);
     CL_ParseServerMessage(&msg);
     T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
@@ -3092,4 +3103,27 @@ TEST(net, keepalive_preserves_loading_state_and_continues_packet) {
     cls.netchan.message.readcount = 0;
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     T_STREQ(MSG_ReadString2(&cls.netchan.message), "baselines 25");
+}
+
+/* Preserve the high preview flag across the actual wire codec and client draw dispatch. */
+TEST(net, loading_minimap_dispatches_static_map_after_delta_decode) {
+    BYTE data[256];
+    sizeBuf_t msg = make_msg_buf(data, sizeof(data));
+    UIFRAME empty = {0}, input = { .number = 1, .flags.type = FT_MINIMAP,
+        .text = "Maps\\FrozenThrone\\(2)BanditRidge.w3x" }, output = {0};
+    DWORD bits;
+    test_client_stubs_init();
+    __typeof__(re.DrawMinimap) old_draw = re.DrawMinimap;
+    input.flagsvalue |= UIFLAG_MINIMAP_PREVIEW;
+    MSG_WriteDeltaUIFrame(&msg, &empty, &input, true);
+    DWORD num = MSG_ReadEntityBits(&msg, &bits);
+    MSG_ReadDeltaUIFrame(&msg, &output, num, bits);
+    re.DrawMinimap = capture_minimap;
+    CL_LayoutDrawMinimap(&output, &(RECT){0, 0, 0.16f, 0.16f});
+    T_ASSERT(output.flagsvalue & UIFLAG_MINIMAP_PREVIEW);
+    T_STREQ(minimap_map, input.text);
+    output.flagsvalue &= ~UIFLAG_MINIMAP_PREVIEW;
+    CL_LayoutDrawMinimap(&output, &(RECT){0, 0, 0.16f, 0.16f});
+    T_NULL(minimap_map);
+    re.DrawMinimap = old_draw;
 }

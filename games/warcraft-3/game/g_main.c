@@ -1130,6 +1130,8 @@ static bool G_PrepareMap(LPCSTR filename) {
     if (!CM_ReadMapInfo(filename, &info)) return false;
     UI_ResetHud();
     UI_LoadHudLoading();
+    /* Loading precedes LoadMap: resolve the same lobby roster before publishing its presentation. */
+    gi.ApplyLobbySettings(&info);
     gi.configstring(CS_ASSET_SCOPE, filename);
     UI_WriteLoadingLayout(NULL, &info);
     CM_FreeMapInfo(&info);

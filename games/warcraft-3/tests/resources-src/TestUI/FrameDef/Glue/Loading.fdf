@@ -119,4 +119,6 @@ Frame "FRAME" "LoadingPlayerSlot" {
         Frame "TEXT" "LoadingPlayerSlotRace" INHERITS "StandardValueTextTemplate" {
             UseActiveContext,
             SetPoint RIGHT, "LoadingPlayerSlot", RIGHT, -0.024, 0.0,
-   
+        }
+    }
+}

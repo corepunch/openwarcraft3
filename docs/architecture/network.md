@@ -169,7 +169,7 @@ bounded by `BZ_SIGNON_SIZE` (1400 bytes, leaving UDP/IP header room within a 150
 retains the engine message budget. `svc_mirror` asks for the next `configstrings <index>` or `baselines <index>`
 page. The final baseline reply is `precache`, which opens the client registration gate; registration then queues `begin`. Opening that
 gate at the first baseline request would let registration and gameplay overtake the remaining entity pages.
-The early loading presentation still puts its media before the two binary loading-layout configstrings.
+The early loading presentation still puts its media before the eight binary loading-layout configstrings.
 
 `SV_SetConfigString` does not queue live resynchronization while `ss_loading`: every connecting client fetches
 those values through signon. Runtime changes in `ss_game` still mark the slot for broadcast. Broadcasting the
@@ -211,7 +211,7 @@ world models, sound sets and UI, but is not a minimal dependency list:
   require distinct entries. The figures above describe this map/edition, not a fixed protocol budget.
 
 To repeat the audit, temporarily log nonempty entries and `SV_ConfigStringWireSize` at the first
-`SV_Configstrings_f` request, excluding `CS_LOADINGSCREEN1/2`, then run the bounded paired reproduction below.
+`SV_Configstrings_f` request, excluding `CS_LOADINGSCREEN1` through `CS_LOADINGSCREEN_LAST`, then run the bounded paired reproduction below.
 Inspect raw keys as well as `ge->GetThemeValue` output to distinguish aliases from duplicate registration;
 remove the instrumentation and rebuild afterward.
 
