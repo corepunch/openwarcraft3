@@ -166,6 +166,9 @@ typedef struct DEFAULTSTATE {
     int texture;
     int shadowmap;
     int fogOfWar;
+    bool fogEnable;
+    VECTOR3 fogColor;
+    VECTOR2 fogParams;
 } DEFAULTSTATE;
 typedef struct DEFAULTSTATE *LPDEFAULTSTATE;
 typedef const struct DEFAULTSTATE *LPCDEFAULTSTATE;

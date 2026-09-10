@@ -121,6 +121,12 @@ generic `UI_PLAYERSTAT_ENV_PHASE` clock onto `viewDef_t`. It does not include a 
 evaluates those optional inputs into `ENVIRONLIGHT` samples (`terrainLight` / `entityLight`); draw paths consume the samples, not
 the MDX handles. See [Environment Lighting](environment-lighting.md).
 
+`CS_SCENE_FOG` is another low fixed generic presentation contract. Its payload is `style start end density r g b`; style 0 disables
+scene-distance fog and positive styles enable it. `client/cl_view.c` parses the payload without game headers and reduces enabled values
+to `viewDef_t`'s generic linear `fogStart` / `fogEnd` / `fogColor` fields. Richer producer-owned style/density semantics stay outside
+the client until the renderer has a proven generic equation for them. Game renderers decide which world surfaces consume the view
+sample; see WC3 [Environmental Terrain Fog](../games/warcraft-3/environmental-fog.md) for the first producer.
+
 Server-authored text frames may also bind to live snapshot values instead of forcing a complete layout resend whenever a number changes.
 `playerState.stats[16]` is the generic environment/day-phase clock (`UI_PLAYERSTAT_ENV_PHASE`).
 `playerState.stats[18..21]` are reserved generic selection-UI slots (current/max health and current/max mana), serialized as the two

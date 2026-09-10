@@ -1,5 +1,7 @@
 # Warcraft III Fog And Cinematic Visibility
 
+> This document covers gameplay fog of war (exploration/current sight). Atmospheric distance mist from `SetTerrainFogEx` is a separate renderer/environment system; see [Environmental Terrain Fog](environmental-fog.md).
+
 ## Contract
 
 Camera position, fog state, and entity visibility are independent systems. Camera natives move the gameplay camera without changing

@@ -1314,6 +1314,27 @@ typedef struct {
     FALSE_TIMEOFDAY false_time;
 } TIMEOFDAY;
 
+typedef enum {
+    WC3_ENV_FOG_NONE = 0,
+    WC3_ENV_FOG_LINEAR,
+    WC3_ENV_FOG_EXPONENTIAL_1,
+    WC3_ENV_FOG_EXPONENTIAL_2,
+} wc3EnvironmentFogStyle_t;
+
+typedef struct {
+    LONG style;
+    FLOAT start;
+    FLOAT end;
+    FLOAT density;
+    VECTOR3 color;
+} wc3EnvironmentFogState_t;
+
+typedef struct {
+    wc3EnvironmentFogState_t active;
+    wc3EnvironmentFogState_t defaults;
+    BOOL defaults_valid;
+} wc3EnvironmentFog_t;
+
 struct level_locals {
     LPJASS vm;
     ggroup_t **groups;
@@ -1358,6 +1379,7 @@ struct level_locals {
     BOOL quest_paused;
     BOOL modal_paused;
     TIMEOFDAY timeofday;
+    wc3EnvironmentFog_t environment_fog;
     BOX2 camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     BOOL started;
     BOOL scriptsStarted;
@@ -1501,6 +1523,12 @@ void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
 BOOL G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 BOOL G_IsNight(void);
+
+// g_environment_fog.c
+void G_EnvironmentFogInitMap(void);
+void G_EnvironmentFogSet(LONG style, FLOAT start, FLOAT end, FLOAT density, FLOAT red, FLOAT green, FLOAT blue);
+void G_EnvironmentFogReset(void);
+void G_EnvironmentFogPublish(void);
 
 // g_creep_sleep.c
 BOOL G_UnitCanSleep(LPCEDICT);

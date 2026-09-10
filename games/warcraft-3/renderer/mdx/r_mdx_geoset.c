@@ -512,6 +512,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
          * the fog colour or they turn into solid fog-coloured quads. */
         {
             BOOL layerFog = tr.viewDef.fogEnable &&
+                !(layer->flags & MODEL_GEO_UNFOGGED) &&
                 (layer->blendMode == BLEND_MODE_NONE ||
                  layer->blendMode == BLEND_MODE_ALPHAKEY ||
                  layer->blendMode == BLEND_MODE_BLEND);

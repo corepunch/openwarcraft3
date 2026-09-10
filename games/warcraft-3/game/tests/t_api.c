@@ -76,6 +76,9 @@ static DWORD sky_model_index_calls;
 static DWORD sky_configstring_calls;
 static DWORD sky_configstring_index;
 static char sky_configstring_value[16];
+static DWORD scene_fog_configstring_calls;
+static DWORD scene_fog_configstring_index;
+static char scene_fog_configstring_value[MAX_PATHLEN];
 
 static int capture_dnc_model_index(LPCSTR modelName) {
     (void)modelName;
@@ -102,6 +105,12 @@ static void capture_sky_configstring(DWORD index, LPCSTR value) {
     sky_configstring_calls++;
     sky_configstring_index = index;
     snprintf(sky_configstring_value, sizeof(sky_configstring_value), "%s", value ? value : "");
+}
+
+static void capture_scene_fog_configstring(DWORD index, LPCSTR value) {
+    scene_fog_configstring_calls++;
+    scene_fog_configstring_index = index;
+    snprintf(scene_fog_configstring_value, sizeof(scene_fog_configstring_value), "%s", value ? value : "");
 }
 
 static void capture_pause(BOOL paused) { captured_pause = paused; }
@@ -1004,6 +1013,126 @@ TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
     T_STREQ(dnc_configstring_value[1], "42");
 
     gi.ModelIndex = old_model_index;
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_environment_fog, set_terrain_fog_ex_publishes_runtime_state) {
+    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    int style = -1;
+    FLOAT start = 0.0f, end = 0.0f, density = 0.0f;
+    FLOAT red = 0.0f, green = 0.0f, blue = 0.0f;
+
+    scene_fog_configstring_calls = 0;
+    scene_fog_configstring_index = 0;
+    scene_fog_configstring_value[0] = '\0';
+    gi.configstring = capture_scene_fog_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetTerrainFogEx(0, 1000.0, 5000.0, 0.25, 0.2, 0.3, 0.4)\n"
+        "endfunction\n"));
+
+    T_EQ(level.environment_fog.active.style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(level.environment_fog.active.start, 1000.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.end, 5000.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.density, 0.25f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.x, 0.2f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.y, 0.3f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.z, 0.4f, 0.001f);
+    T_EQ(scene_fog_configstring_calls, 1);
+    T_EQ(scene_fog_configstring_index, CS_SCENE_FOG);
+    T_EQ(sscanf(scene_fog_configstring_value, "%d %f %f %f %f %f %f",
+                &style, &start, &end, &density, &red, &green, &blue), 7);
+    T_EQ(style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(start, 1000.0f, 0.001f);
+    T_FEQ(end, 5000.0f, 0.001f);
+    T_FEQ(density, 0.25f, 0.001f);
+    T_FEQ(red, 0.2f, 0.001f);
+    T_FEQ(green, 0.3f, 0.001f);
+    T_FEQ(blue, 0.4f, 0.001f);
+
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_environment_fog, reset_terrain_fog_restores_default_state) {
+    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+
+    level.environment_fog.defaults = (wc3EnvironmentFogState_t){
+        .style = WC3_ENV_FOG_LINEAR,
+        .start = 2500.0f,
+        .end = 9000.0f,
+        .density = 0.125f,
+        .color = { 0.1f, 0.2f, 0.3f },
+    };
+    level.environment_fog.defaults_valid = true;
+    level.environment_fog.active = (wc3EnvironmentFogState_t){
+        .style = WC3_ENV_FOG_EXPONENTIAL_2,
+        .start = 1.0f, .end = 2.0f, .density = 3.0f,
+        .color = { 0.9f, 0.8f, 0.7f },
+    };
+    scene_fog_configstring_calls = 0;
+    scene_fog_configstring_value[0] = '\0';
+    gi.configstring = capture_scene_fog_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ResetTerrainFog()\n"
+        "endfunction\n"));
+
+    T_EQ(level.environment_fog.active.style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(level.environment_fog.active.start, 2500.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.end, 9000.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.density, 0.125f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.x, 0.1f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.y, 0.2f, 0.001f);
+    T_FEQ(level.environment_fog.active.color.z, 0.3f, 0.001f);
+    T_EQ(scene_fog_configstring_calls, 1);
+    T_EQ(scene_fog_configstring_index, CS_SCENE_FOG);
+
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_environment_fog, reset_without_default_is_noop) {
+    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+
+    level.environment_fog.defaults_valid = false;
+    level.environment_fog.active = (wc3EnvironmentFogState_t){
+        .style = WC3_ENV_FOG_LINEAR,
+        .start = 1200.0f,
+        .end = 6400.0f,
+        .density = 0.5f,
+        .color = { 0.25f, 0.5f, 0.75f },
+    };
+    scene_fog_configstring_calls = 0;
+    gi.configstring = capture_scene_fog_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ResetTerrainFog()\n"
+        "endfunction\n"));
+
+    T_EQ(level.environment_fog.active.style, WC3_ENV_FOG_LINEAR);
+    T_FEQ(level.environment_fog.active.start, 1200.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.end, 6400.0f, 0.001f);
+    T_FEQ(level.environment_fog.active.density, 0.5f, 0.001f);
+    T_EQ(scene_fog_configstring_calls, 0);
+
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_environment_fog, invalid_extended_style_disables_scene_fog) {
+    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+
+    scene_fog_configstring_calls = 0;
+    scene_fog_configstring_value[0] = '\0';
+    gi.configstring = capture_scene_fog_configstring;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetTerrainFogEx(99, 1.0, 2.0, 3.0, 0.4, 0.5, 0.6)\n"
+        "endfunction\n"));
+    T_EQ(level.environment_fog.active.style, WC3_ENV_FOG_NONE);
+    T_ASSERT(scene_fog_configstring_value[0] == '0');
+
     gi.configstring = old_configstring;
 }
 

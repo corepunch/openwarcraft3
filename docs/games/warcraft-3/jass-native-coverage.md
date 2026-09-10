@@ -53,6 +53,8 @@ covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIn
 
 `SetUnitColor` now publishes a per-unit replaceable team-color override without changing unit ownership. The override is packed into unused `effect_flags` presentation bits as `playercolor + 1`, so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state. This mirrors Warsmash's `RenderUnit.setPlayerColor` behavior and allows campaign scripts such as Prologue01 to give completed Circle of Power checkpoints their authored neutral-passive look.
 
+`SetTerrainFogEx` and `ResetTerrainFog` now own persistent WC3 environmental distance-fog state and publish it through the generic `CS_SCENE_FOG` presentation contract. `SetTerrainFogEx` retains style/start/end/density/RGB, while `ResetTerrainFog` restores the merged `[DefaultZFog]` RoC/TFT row. The renderer currently uses Warsmash-compatible linear start/end blending for every enabled style; legacy `SetTerrainFog`, true exponential equations, and particle fog remain separate gaps. See [Environmental Terrain Fog](environmental-fog.md).
+
 Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
 `AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
 [Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued

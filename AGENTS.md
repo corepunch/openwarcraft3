@@ -43,6 +43,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 game save/load format, entity pointer fixups, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
+| WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |

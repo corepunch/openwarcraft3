@@ -39,6 +39,30 @@ static LPCMODEL V_ConfigSkyModel(void) {
     return cl.models[index];
 }
 
+/* CS_SCENE_FOG is a generic server-authored distance-fog contract. Games may
+ * leave the slot empty. Positive styles share the renderer's linear start/end
+ * path until a producer proves and exposes additional equations. */
+static void V_UpdateSceneFog(viewDef_t *view, BOOL world) {
+    int style = 0;
+    FLOAT start = 0.0f, end = 0.0f, density = 0.0f;
+    FLOAT red = 0.0f, green = 0.0f, blue = 0.0f;
+
+    if (!view) return;
+    view->fogEnable = false;
+    view->fogStart = view->fogEnd = 0.0f;
+    view->fogColor = (VECTOR3){0};
+    if (!world || !*cl.configstrings[CS_SCENE_FOG]) return;
+    if (sscanf(cl.configstrings[CS_SCENE_FOG], "%d %f %f %f %f %f %f",
+               &style, &start, &end, &density, &red, &green, &blue) != 7) return;
+    (void)density;
+    if (style <= 0) return;
+
+    view->fogEnable = true;
+    view->fogStart = start;
+    view->fogEnd = end;
+    view->fogColor = (VECTOR3){ red, green, blue };
+}
+
 /* Client copies sampling inputs and the day-phase stat. The game renderer
  * evaluates those into viewDef.terrainLight / entityLight; this path must
  * not include a game header or compile-guard the clock slot. */
@@ -46,6 +70,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
     if (!view) return;
     view->terrainLight = (ENVIRONLIGHT){0};
     view->entityLight = (ENVIRONLIGHT){0};
+    V_UpdateSceneFog(view, world);
     if (!world) {
         view->terrainLightModel = NULL;
         view->entityLightModel = NULL;
