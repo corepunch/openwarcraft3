@@ -398,6 +398,7 @@ field_t edict_fields[] = {
     F(edict_s, construction, F_STRUCT, 1, construction_fields),
     F(edict_s, rally, F_STRUCT, 1, rally_fields),
     F(edict_s, revival, F_STRUCT, 1, revival_fields),
+    F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_STRUCT, 1, goldmine_fields),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, cargo, F_STRUCT, 1, cargo_fields),
