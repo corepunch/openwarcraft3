@@ -67,6 +67,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     LPCAMERASETUP s;
     LPCVECTOR3 ang;
     FLOAT dist, fov, roll, zoff, farz;
+    FLOAT terrain, eye_terrain;
     FLOAT k;
     VECTOR3 eye, realized_target;
     static DWORD sample;
@@ -76,6 +77,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     if (!gc) return;
     p = &gc->ps;
     s = &gc->camera.state;
+    terrain = CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y);
     if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
         k = (G_Time() - gc->camera.start_time) /
             (FLOAT)(gc->camera.end_time - gc->camera.start_time);
@@ -103,17 +105,25 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
         realized_target = p->vieworigin;
         eye = G_CameraEyePositionFromState(&realized_target, &p->viewangles, p->distance);
     }
+    eye_terrain = CM_GetHeightAtPoint(eye.x, eye.y);
     /* Retail exposes newly applied setup fields immediately, while its eye and
      * target getters continue to report the realized camera until the next
      * client update. Keep both halves of that contract in the trace. */
     fprintf(stderr,
-            "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f\n",
+            "CAMTRACE n=%u t=%.3f label=%s tx=%.3f ty=%.3f tz=%.3f ex=%.3f ey=%.3f ez=%.3f dist=%.3f aoa=%.3f rot=%.3f fov=%.3f roll=%.3f zoff=%.3f farz=%.3f terrain=%.3f targetbase=%.3f\n",
             (unsigned)++sample, G_Time() / 1000.0f, label ? label : "camera-event",
             p->vieworigin.x, p->vieworigin.y, p->vieworigin.z, eye.x, eye.y, eye.z,
             dist, G_CameraDegreesToRadians(G_CameraPitchToAuthored(ang->x)),
             G_CameraDegreesToRadians(G_CameraYawToAuthored(ang->z, ang->x)),
             G_CameraDegreesToRadians(G_CameraVerticalToHorizontalFov(fov)),
-            G_CameraDegreesToRadians(roll), zoff, farz);
+            G_CameraDegreesToRadians(roll), zoff, farz, terrain, gc->camera.target_height);
+    fprintf(stderr, "CAMHEIGHT eye-terrain eye=(%.3f,%.3f) terrain=%.3f targetbase=%.3f\n",
+            eye.x, eye.y, eye_terrain, gc->camera.target_height);
+    if (fabsf(p->vieworigin.x + 4909.3f) < 0.1f && fabsf(p->vieworigin.y - 2474.5f) < 0.1f)
+        fprintf(stderr, "CAMHEIGHT neighborhood t=(%.3f,%.3f) n=%.3f s=%.3f e=%.3f w=%.3f\n",
+                p->vieworigin.x, p->vieworigin.y,
+                CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y + 64), CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y - 64),
+                CM_GetHeightAtPoint(p->vieworigin.x + 64, p->vieworigin.y), CM_GetHeightAtPoint(p->vieworigin.x - 64, p->vieworigin.y));
 }
 
 void G_CameraTraceSnapshot(LPCSTR label) {
@@ -372,6 +382,10 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
     }
     G_ClearCameraTarget(gc, "CameraSetupApply");
     gc->camera.old_state = gc->camera.state;
+    fprintf(stderr, "CAMHEIGHT apply pos=(%.3f,%.3f) old_view_z=%.3f terrain=%.3f old_target=%.3f setup_zoff=%.3f duration=%.3f\n",
+            setup->position.x, setup->position.y, gc->ps.vieworigin.z,
+            CM_GetHeightAtPoint(setup->position.x, setup->position.y), gc->camera.target_height,
+            setup->z_offset, duration_ms / 1000.0f);
     if (apply_position && (setup->position.x != gc->camera.old_state.position.x ||
                            setup->position.y != gc->camera.old_state.position.y)) {
         gc->camera.target_height = gc->ps.vieworigin.z;
