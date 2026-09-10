@@ -949,6 +949,7 @@ CLIENTCOMMAND(Kill) {
     G_CheatPrintf(clent, "WC3: selected unit killed");
 }
 
+/* Parse a non-negative Hero stat amount and clamp it to the authored maximum. */
 static BOOL G_ParseHeroStatAmount(LPCSTR text, FLOAT maximum, FLOAT *value) {
     unsigned long amount;
 
@@ -958,6 +959,7 @@ static BOOL G_ParseHeroStatAmount(LPCSTR text, FLOAT maximum, FLOAT *value) {
     return true;
 }
 
+/* Apply the selected controllable Hero cheat without bypassing normal state ownership. */
 CLIENTCOMMAND(Hero) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     LPEDICT hero;
@@ -989,7 +991,7 @@ CLIENTCOMMAND(Hero) {
         G_SetHealth(hero, value);
         G_CheatPrintf(clent, "WC3: selected hero health set to %.0f / %.0f",
                 hero->health.value, hero->health.max_value);
-        Get_Portrait_f(clent);
+        G_InvalidateUnitInfoPanel(hero);
         return;
     }
 
@@ -1002,7 +1004,7 @@ CLIENTCOMMAND(Hero) {
         hero->mana.value = value;
         G_CheatPrintf(clent, "WC3: selected hero mana set to %.0f / %.0f",
                 hero->mana.value, hero->mana.max_value);
-        Get_Portrait_f(clent);
+        G_InvalidateUnitInfoPanel(hero);
         return;
     }
 
@@ -1016,8 +1018,8 @@ CLIENTCOMMAND(Hero) {
 
     G_CheatPrintf(clent, "WC3: selected hero set to level %u with %u skill points",
             (unsigned)hero->hero.level, (unsigned)hero->hero.skillpoints);
-    Get_Commands_f(clent);
-    Get_Portrait_f(clent);
+    G_InvalidateCommands(client);
+    G_InvalidateUnitInfoPanel(hero);
 }
 
 /* Keep the instant-build cheat scoped to the issuing player's live client state. */
@@ -1047,6 +1049,7 @@ static BOOL G_ParseCheatToggle(LPCSTR value, BOOL current, BOOL *out) {
     return false;
 }
 
+/* Parse and apply the issuing player's instant-build toggle. */
 static BOOL G_CheatInstantBuild(LPEDICT clent, LPCSTR value, LPCSTR usage) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     BOOL enabled;
@@ -1066,6 +1069,7 @@ static BOOL G_CheatInstantBuild(LPEDICT clent, LPCSTR value, LPCSTR usage) {
     return true;
 }
 
+/* Parse and apply the issuing player's instant-kill toggle. */
 static BOOL G_CheatInstantKill(LPEDICT clent, LPCSTR value) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     BOOL enabled;
@@ -1094,6 +1098,7 @@ CLIENTCOMMAND(InstantBuild) {
     G_CheatInstantBuild(clent, argc == 2 ? argv[1] : NULL, "warpten");
 }
 
+/* Dispatch the grouped instant cheats while keeping their player-local state independent. */
 CLIENTCOMMAND(Instant) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     BOOL enabled;

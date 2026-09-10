@@ -2,6 +2,14 @@
 
 static void whirlwind_think(LPEDICT ent);
 
+typedef struct {
+    LPEDICT caster;
+    spellTarget_t target;
+    spell_info_t const *spell;
+    FLOAT scale;
+    BOOL random_jumps;
+} bounceParams_t;
+
 BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code) {
     if (!unit) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
@@ -205,7 +213,13 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     S_SpellDamage(st.entity, caster, (int)MAX(1.0f, st.entity->health.value));
 }
 
-static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell, FLOAT scale, BOOL random_jumps) {
+/* Resolve chained damage jumps while keeping target selection separate from spell metadata. */
+static void bounce_execute(bounceParams_t const *params) {
+    LPEDICT caster = params->caster;
+    spellTarget_t st = params->target;
+    spell_info_t const *spell = params->spell;
+    FLOAT scale = params->scale;
+    BOOL random_jumps = params->random_jumps;
     DWORD level = S_SpellLevel(caster, spell->code), hits = (DWORD)S_SpellData(spell->code, level, 2);
     FLOAT damage = S_SpellData(spell->code, level, 1);
     LPEDICT current = st.entity, visited[32] = {0};
@@ -229,11 +243,15 @@ static void bounce_execute(LPEDICT caster, spellTarget_t st, spell_info_t const 
 
 static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    bounce_execute(caster, st, spell, 1.0f - S_SpellData(spell->code, level, 3), true);
+    bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
+        .scale = 1.0f - S_SpellData(spell->code, level, 3), .random_jumps = true };
+    bounce_execute(&params);
 }
 
 static void forked_lightning_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
-    bounce_execute(caster, st, spell, 1.0f, false);
+    bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
+        .scale = 1.0f, .random_jumps = false };
+    bounce_execute(&params);
 }
 
 static void animate_dead_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {

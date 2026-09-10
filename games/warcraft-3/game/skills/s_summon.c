@@ -39,6 +39,7 @@ void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
     FOR_LOOP(i, count) summon_unit(caster, unit_id, i, count, duration);
 }
 
+/* Replace only the caster's prior Feral Spirit summons before spawning the new cast. */
 static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level, unit_id, count;
     FLOAT duration, distance;
