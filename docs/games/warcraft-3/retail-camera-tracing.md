@@ -222,11 +222,33 @@ the states immediately before and after the `TowerHigh` and `TowerLow`
 applications, and the Scene 1 end/skip paths. It does not change camera calls,
 waits, transmissions, units, terrain, fog, game speed, or trigger order.
 
-`BJDebugMsg` was the only initially reliable output channel. Warcraft JASS has
-no general filesystem-write native, so the first trace had to be copied from
-the game UI. The values are raw retail getter values: angular fields and FOV
-appeared as radians in the trace, while distance and positions remained world
-units.
+`BJDebugMsg` was the first reliable output channel. The retail build also
+validated the `PreloadGen*` file-generation natives. The file-backed trace uses
+the following additional calls:
+
+```jass
+call PreloadGenClear()
+call PreloadGenStart()
+call Preload(msg)
+call PreloadGenEnd("camtrace.txt")
+```
+
+`PreloadGenStart()` is called when tracing starts, each snapshot passes its
+completed `CAMTRACE` string to `Preload(msg)`, and `PreloadGenEnd()` is called
+when tracing stops. Retail writes the result below the Wine Documents tree at
+`Documents/Warcraft III/CustomMapData/camtrace.txt`; the exact Linux path
+depends on the Wine prefix.
+
+The output is a generated JASS preload script, not raw text. Warcraft inserts
+its own asset preload calls and the map path between the camera samples, so
+consumers must retain only lines containing `CAMTRACE`. The validated output
+contained the start sample, `DummyStart`, `TowerLow`, `TowerHigh`, and final
+stop snapshots with the same values shown by `BJDebugMsg`. The file is written
+when the cinematic reaches the stop path, and a later run overwrites the same
+filename.
+
+The values are raw retail getter values: angular fields and FOV appeared as
+radians in the trace, while distance and positions remained world units.
 
 ## Retail launch
 
@@ -294,8 +316,9 @@ the packer/package is the problem, not JASS instrumentation.
   `-window -graphicsapi OpenGL2` made the client usable for this test.
 - Wine's NTLM warnings (`ntlm_auth`/winbind) were startup noise, not the cause
   of the map crash.
-- `BJDebugMsg` did not create a trace file. It only displayed messages in the
-  game UI, and the long camera line wrapped visually.
+- `BJDebugMsg` alone did not create a trace file. It only displayed messages
+  in the game UI, and the long camera line wrapped visually. `PreloadGen*` is
+  the validated retail file-output route.
 - Starting OpenRealm with a temporary data directory containing only selected
   archives did not load the map reliably. The complete Warcraft data layout and
   the expected map path are safer for OpenRealm runs.
@@ -324,14 +347,14 @@ call CameraTraceSnapshot("after-tower-high")
 ```
 
 The sampler should remain optional and local-player-only. Do not add permanent
-per-frame `BJDebugMsg` calls to production engine code. A future file-output
-experiment could investigate the 1.29 `PreloadGen*` natives, but that was not
-validated here and must not be treated as a reliable logging backend without a
-controlled test.
+per-frame `BJDebugMsg` or `Preload` calls to production engine code. The
+validated file-output route is intended for the copied retail instrumentation
+map only.
 
 ## Parsing
 
-Save copied messages as `retail-camtrace.txt` and run:
+For the on-screen output, save copied messages as `retail-camtrace.txt` and
+run:
 
 ```sh
 python3 tools/retail_camera_trace.py retail-camtrace.txt -o retail-camtrace.csv
@@ -340,6 +363,16 @@ python3 tools/retail_camera_trace.py retail-camtrace.txt -o retail-camtrace.csv
 The parser retains the raw fields and adds `dx`, `dy`, `dz`, horizontal
 distance, and Euclidean eye-to-target distance. These derived values are
 diagnostics only; they do not replace the retail camera fields.
+
+For a generated preload file, first extract only the camera lines from the
+wrapper, then use the same parser:
+
+```sh
+grep 'call Preload( "CAMTRACE ' camtrace.txt \
+  | sed -E 's/^.*Preload\( "([^"]+)" \).*$/\1/' \
+  > retail-camtrace.txt
+python3 tools/retail_camera_trace.py retail-camtrace.txt -o retail-camtrace.csv
+```
 
 ## OpenRealm engine-side trace
 
