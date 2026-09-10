@@ -326,12 +326,12 @@ void SV_SendLoadingConfigstrings(LPCLIENT cl) {
     FOR_LOOP(i, sizeof(loading_pools) / sizeof(*loading_pools))
         for (DWORD j = 1; j < sv.loading_end[i]; j++) {
             DWORD index = loading_pools[i].base + j;
-            if (cl->netchan.message.cursize + SV_ConfigStringWireSize(index) > cl->netchan.message.maxsize)
+            if (cl->netchan.message.cursize + SV_ConfigStringWireSize(index) > SV_SignonLimit(&cl->netchan))
                 Netchan_Transmit(NS_SERVER, &cl->netchan);
             SV_WriteConfigString(&cl->netchan.message, index);
         }
     FOR_LOOP(i, BZ_LOADING_SCREEN_SLOTS) {
-        if (cl->netchan.message.cursize + SV_ConfigStringWireSize(CS_LOADINGSCREEN1 + i) > cl->netchan.message.maxsize)
+        if (cl->netchan.message.cursize + SV_ConfigStringWireSize(CS_LOADINGSCREEN1 + i) > SV_SignonLimit(&cl->netchan))
             Netchan_Transmit(NS_SERVER, &cl->netchan);
         SV_WriteConfigString(&cl->netchan.message, CS_LOADINGSCREEN1 + i);
     }

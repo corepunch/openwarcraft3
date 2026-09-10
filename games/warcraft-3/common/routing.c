@@ -1524,31 +1524,3 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
     CM_SetupPathMap(width, height, cells);
 }
 #endif
-
-#ifndef TOOL_COMMON_NO_MPQ
-void CM_ReadPathMap(HANDLE archive) {
-    HANDLE file;
-    DWORD header, version;
-    DWORD width, height;
-    LPBYTE cells;
-    heatmap_cache_invalidate();
-    if (!SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file)) {
-        CM_SetupPathMap(world.map ? world.map->width : 0, world.map ? world.map->height : 0, NULL);
-        return;
-    }
-    SFileReadFile(file, &header, 4, NULL, NULL);
-    SFileReadFile(file, &version, 4, NULL, NULL);
-    SFileReadFile(file, &width, 4, NULL, NULL);
-    SFileReadFile(file, &height, 4, NULL, NULL);
-    if (!width || !height) {
-        SFileCloseFile(file);
-        CM_SetupPathMap(0, 0, NULL);
-        return;
-    }
-    cells = MemAlloc(width * height);
-    SFileReadFile(file, cells, width * height, 0, 0);
-    SFileCloseFile(file);
-    CM_SetupPathMap(width, height, cells);
-    MemFree(cells);
-}
-#endif /* !TOOL_COMMON_NO_MPQ */

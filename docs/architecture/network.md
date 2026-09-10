@@ -156,3 +156,118 @@ a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_ne
 ## See Also
 
 - [Server-Authored UI Payloads](ui-payloads.md) — `svc_layout` frame payload contract and unsigned size-byte handling
+
+## LAN lobby and startup
+
+Waiting connections receive pending messages or `svc_nop` at a one-second interval, including the listen
+server's loopback client. `ss_lobby` runs transport without advancing the simulation. Keepalives continue
+for `cs_connected` peers while other players are already running the map; cancelling still uses the normal
+disconnect/shutdown path. The client's ordinary timeout remains enabled for a vanished host.
+
+Startup follows Quake II's client-requested configstring and baseline pages. Remote startup messages are
+bounded by `BZ_SIGNON_SIZE` (1400 bytes, leaving UDP/IP header room within a 1500-byte LAN MTU); loopback
+retains the engine message budget. `svc_mirror` asks for the next `configstrings <index>` or `baselines <index>`
+page. The final baseline reply is `precache`, which opens the client registration gate; registration then queues `begin`. Opening that
+gate at the first baseline request would let registration and gameplay overtake the remaining entity pages.
+The early loading presentation still puts its media before the two binary loading-layout configstrings.
+
+`SV_SetConfigString` does not queue live resynchronization while `ss_loading`: every connecting client fetches
+those values through signon. Runtime changes in `ss_game` still mark the slot for broadcast. Broadcasting the
+initial table as well as serving signon pages defeats the packet budget by filling a connected client's pending
+message before its next request.
+
+The September 10 reproduction used two macOS processes and `Maps/(2)PlunderIsle.w3m`. The idle host timed out
+after 10,034 ms without server traffic. The remote configstring reply was 25,395 bytes and failed `sendto`
+with `EMSGSIZE` (40); paging exposed 10,772 bytes of queued initial-table updates already included in that reply. A subsequent remote-only
+world-registration crash resolved to `G_WorldReadFile` calling an uninitialized game import. A listen server
+masks that boundary error because it initializes the game module before client registration.
+
+An instrumented two-process audit of the same ROC map measured the complete configstring reply's table
+at 14,612 bytes, including each entry's opcode, index and string terminator (excluding the early binary loading slots):
+
+| Pool | Entries | Wire bytes |
+|------|--------:|-----------:|
+| Models | 54 | 2,066 |
+| Sounds | 111 | 4,950 |
+| Images | 129 | 7,301 |
+| Font/size pairs | 7 | 173 |
+| World/scope and other metadata | 7 | 122 |
+| Total | 308 | 14,612 |
+
+The original packet decomposes exactly as `10,772 + 14,612 + 11 = 25,395`: queued duplicate updates,
+the table, and `svc_mirror` plus `"baselines"` and its terminator. These are indexed resource names and metadata,
+not asset-file contents. After suppressing loading-time live updates, the audit observed zero pending bytes
+at the first configstring request. The table volume is reasonable for the map's units, creeps, projectiles,
+world models, sound sets and UI, but is not a minimal dependency list:
+
+- Loading preparation registers 2 models, 59 images and 4 font styles (3,780 wire bytes). Its media is sent
+  early and again in the complete table. Native `Loading.fdf` includes `StandardTemplates.fdf`; eagerly
+  indexing these declarations accounts for 3,580 bytes of images, including unused button/scrollbar templates.
+  A future reduction belongs in registration of consumed FDF resources, not filtering arbitrary network entries.
+- Sixteen image entries (914 bytes) resolve to paths also used by other entries. They are distinct raw skin keys
+  or a literal path versus a skin key, not repeated registrations of the same key. `SV_FindIndex` deduplicates
+  raw keys; merging resolved paths would change their independently addressable configstring identity.
+- `CS_WORLD` and `CS_ASSET_SCOPE` legitimately repeat the map path for different consumers; font sizes likewise
+  require distinct entries. The figures above describe this map/edition, not a fixed protocol budget.
+
+To repeat the audit, temporarily log nonempty entries and `SV_ConfigStringWireSize` at the first
+`SV_Configstrings_f` request, excluding `CS_LOADINGSCREEN1/2`, then run the bounded paired reproduction below.
+Inspect raw keys as well as `ge->GetThemeValue` output to distinguish aliases from duplicate registration;
+remove the instrumentation and rebuild afterward.
+
+Reference implementations: [Quake II server sending](https://github.com/id-Software/Quake-2/blob/master/server/sv_send.c)
+(`SV_SendClientMessages`) and [startup commands](https://github.com/id-Software/Quake-2/blob/master/server/sv_user.c)
+(`SV_Configstrings_f`, `SV_Baselines_f`). These lifecycle rules use this engine's existing messages; the raw
+UDP transport is not Quake II's complete sequenced/reliable netchan implementation.
+
+Regression coverage lives in `games/warcraft-3/tests/test_server_net.c` (idle loopback/UDP keepalives,
+loading-time versus runtime updates, complete paged UDP configstrings/baselines) and `tests/test_net.c`
+(the precache gate). `make test-server-net` requires permission to bind local UDP sockets.
+
+WC3 builds `common/world_w3.c` into the executable with `BZ_CLIENT_WORLD`. The engine's `CM_LoadMapFormat`
+therefore uses engine filesystem/allocation functions. The same WPM reader feeds either the client's terrain-cell
+storage (placement previews) or the game's routing buffers; routing jobs and edict-dependent obstacle handling
+remain in `common/routing.c`, compiled only into the game module. `CM_SetupPathMap` and
+`CM_GetPathingFlagsAt` have client implementations for this reason. Do not fix remote registration by initializing
+a local server, skipping WPM data, or guarding NULL game imports. The crash originally traversed
+`CL_PrepRefresh -> CM_LoadMap -> G_WorldReadFile` with `gi.ReadFile == NULL`; compiling only the map-format reader
+without its path-data consumer still reaches `G_WorldMemAlloc` through `CM_ReadPathMap` and crashes.
+
+In-engine input tests must set client collision bounds explicitly: game test-world bounds are not the client world.
+The `client_world` regression checks terrain-cell lookup, replacement, and teardown. `nm build/bin/openwarcraft3`
+should show defined text symbols for `CM_LoadMapFormat`, `CM_SetupPathMap`, and `CM_GetPathingFlagsAt`.
+
+For a bounded two-terminal reproduction, write a host script and start the second terminal during its wait:
+
+```sh
+python3 - <<'PYLAN'
+from pathlib import Path
+Path('/tmp/lan-check.cfg').write_text(
+    'wait\n' * 10 +
+    'lobby_start "Maps/(2)PlunderIsle.w3m"\n'
+    'lobby_config 2 2 PlunderIsle\n'
+    'lobby_slot 0 1 0 1 1 0 0 Host\n'
+    'lobby_slot 1 1 1 0 1 1 1 Open\n' +
+    'wait\n' * 600 + 'map "Maps/(2)PlunderIsle.w3m"\n')
+PYLAN
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +set vid_hidden 1 +com_maxfps 30 +com_frame_limit 1500 +exec /tmp/lan-check.cfg
+# Second terminal, after the host prints "Lobby initialized":
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -connect 127.0.0.1:27910 +set vid_hidden 1 +com_maxfps 30 +com_frame_limit 1500
+```
+
+Use an installed melee map path on both processes. `127.0.0.1` exercises UDP; `localhost` selects the in-process
+loopback transport. Omit the final `map` command to verify an idle lobby. `+set vid_hidden 1` is required for a
+hidden window; `+vid_hidden 1` alone can be parsed too late to hide it. Mac display access and local socket
+permissions are required even for these hidden runs. Both peers must run the updated binary for `svc_nop` and
+the final `precache` handshake.
+
+Verification on September 10: a bounded idle lobby survived 800 frames at 30 fps (about 26 seconds); the
+PlunderIsle UDP guest and host both sent `begin`, the server called `G_ClientBegin` for players 0 and 1 at distinct
+start locations, and both processes exited normally. `make test` passed 2,927 tests / 61,017 assertions.
+
+For hidden-window gameplay screenshots, set `cl_camera_edge_scroll` to `0`; otherwise the inactive window's
+pointer can pan the camera into unexplored fog. For a command-line guest, also use
+`+set cl_start_menu menu_ingame +screenshot 5`: `CL_Connect` defers the startup command tail until the first
+active frame, so the default queued `menu_main` would otherwise reopen after loading. This CLI-only diagnostic
+setting is unnecessary when joining through the LAN menu. Final engine screenshots confirmed the blue guest
+and red host at their respective bases with terrain, units, fog, and HUD visible.

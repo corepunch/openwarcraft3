@@ -3047,7 +3047,15 @@ TEST(net, loading_batch_registers_media_before_full_precache) {
     MSG_WriteByte(&msg, svc_configstring); MSG_WriteShort(&msg, CS_MODELS + 2); MSG_WriteString(&msg, "World.mdx");
     MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "baselines");
     CL_ParseServerMessage(&msg);
-    T_ASSERT(cl.precache_ready); T_NULL(cl.models[2]); T_EQ(test_model_loads, 1);
+    T_ASSERT(!cl.precache_ready); T_NULL(cl.models[2]); T_EQ(test_model_loads, 1);
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "baselines 25");
+    CL_ParseServerMessage(&msg);
+    T_ASSERT(!cl.precache_ready);
+    SZ_Clear(&msg); msg.readcount = 0;
+    MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "precache");
+    CL_ParseServerMessage(&msg);
+    T_ASSERT(cl.precache_ready);
     MemFree(cl.layout[LAYER_LOADING]); cl.layout[LAYER_LOADING] = NULL;
     SCR_ClearLayoutLayer(LAYER_LOADING); scr_initialized = old_init;
 }
@@ -3068,4 +3076,20 @@ TEST(net, loading_configstrings_reject_corrupt_and_partial_payloads) {
     MSG_Write(&msg, packed, MAX_PATHLEN - 1);
     CL_ParseServerMessage(&msg);
     T_NULL(cl.layout[LAYER_LOADING]); T_ASSERT(!cl.precache_ready);
+}
+
+/* Transport keepalives must not replace lobby presentation or stop parsing the next message. */
+TEST(net, keepalive_preserves_loading_state_and_continues_packet) {
+    BYTE buf[64];
+    sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
+    test_client_stubs_init();
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, sizeof(cls.netchan.message_buf));
+    cl.loading_progress = 0.4f;
+    MSG_WriteByte(&msg, svc_nop);
+    MSG_WriteByte(&msg, svc_mirror); MSG_WriteString(&msg, "baselines 25");
+    CL_ParseServerMessage(&msg);
+    T_FEQ(cl.loading_progress, 0.4f, 0.001f); T_ASSERT(!cl.precache_ready);
+    cls.netchan.message.readcount = 0;
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&cls.netchan.message), "baselines 25");
 }

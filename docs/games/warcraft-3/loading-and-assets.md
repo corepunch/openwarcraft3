@@ -20,9 +20,9 @@ The initial transport order is:
 1. Loading-phase configstrings: destination, asset scope, models, images, and fonts.
 2. `CS_LOADINGSCREEN1`, then `CS_LOADINGSCREEN2`: receiving the second slot decodes the frame tree, registers
    the preceding media, and repaints immediately.
-3. Full configstrings (excluding the already-sent loading slots), then the existing `svc_mirror "baselines"`
-   handshake transition: permit normal world/model/image/sound registration.
-4. Baselines/player info/`begin`, then the first usable frame activates gameplay.
+3. Full configstring pages (excluding the already-sent loading slots), then baseline pages.
+4. The final `svc_mirror "precache"` permits world/model/image/sound registration; completion queues `begin`,
+   then the first usable frame activates gameplay.
 
 `SV_BuildLoadingConfigstrings` stores the presentation in two consecutive 256-byte **binary** configstrings,
 using the same fixed-size transport convention as `CS_STATUSBAR`. All 512 bytes survive, including embedded NULs
@@ -48,7 +48,7 @@ WC3's background/bar are models, so moving only images earlier is insufficient.
 For a listen server, `SV_Map` establishes the connection and sends these configstrings before `ge->LoadMap`, then
 calls `CL_LoadingFrame`. This limited packet pump invokes no command buffer, client tick, server tick, or gameplay
 callback. `cl.precache_ready` prevents the early layout/`CS_WORLD` from starting bulk registration until the full
-configstring handshake advances to baselines. Dedicated servers skip the presentation pump.
+configstring/baseline handshake reaches `precache`. Dedicated servers skip the presentation pump.
 
 `CS_ASSET_SCOPE` and `re.SetAssetScope` establish map-import resolution before renderer world registration.
 This matters for custom loading MDX models whose companion textures live inside the destination archive.
@@ -251,7 +251,7 @@ between model and image indices.
 
 The shared `net.loading_batch_registers_media_before_full_precache` test verifies that the first binary slot alone
 cannot publish the screen, initial model/image handles become available after the second slot, later world media
-remains deferred, and the existing baselines handshake opens the full-table gate. Corrupt compressed data and partial
+remains deferred, and only the final `precache` reply opens the registration gate. Corrupt compressed data and partial
 binary slots are rejected. `server_net.loading_batch_precedes_world_and_retains_resource_indices` exercises a later
 connection against the retained resource endpoints. Additional server tests verify all 512 binary bytes survive and
 oversized display text shrinks without changing geometry, texture coordinates, or animation directives.
@@ -267,3 +267,5 @@ A bounded console-script run also exercised Human02 → Human02 → Human01, wit
 commands. All three reached `G_ClientBegin`, and early screenshots showed the correct chapter/sequence at zero
 progress, including the same-map reload. Use actual `map` commands in an `exec` config for this check: repeated
 startup `+map` arguments are cvar assignments, so the last value wins instead of scheduling multiple transitions.
+
+LAN loading uses bounded startup pages and an engine-owned client map reader; see [LAN lobby and startup](../../architecture/network.md#lan-lobby-and-startup) for the timeout, UDP-size, and remote-only import-crash fixes.

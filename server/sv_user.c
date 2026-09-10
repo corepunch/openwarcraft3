@@ -1,74 +1,60 @@
 #include "server.h"
+#include <stdlib.h>
 
 static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
 
-static void SV_FlushSpawnMessage(LPCLIENT cl, LPCSTR phase, DWORD count) {
-    if (cl->netchan.message.cursize == 0) {
-        return;
+/* Continuation indexes come from the peer; reject malformed requests before indexing server tables. */
+static int SV_SignonStart(int argc, LPCSTR *argv, DWORD count) {
+    if (argc == 1) return 0;
+    char *end;
+    long start = argc == 2 ? strtol(argv[1], &end, 10) : -1;
+    if (start < 0 || start > count || !argv[1][0] || *end) {
+        fprintf(stderr, "SV_SignonStart: invalid %s continuation\n", argv[0]);
+        return -1;
     }
-    if (cl->netchan.message.overflowed) {
-        fprintf(stderr,
-                "SV_%s_f: transmitting overflowed batch count=%u bytes=%u max=%u\n",
-                phase,
-                (unsigned)count,
-                (unsigned)cl->netchan.message.cursize,
-                (unsigned)cl->netchan.message.maxsize);
-    }
-    Netchan_Transmit(NS_SERVER, &cl->netchan);
+    return (int)start;
 }
 
+/* Q2-style request pacing bounds UDP packets and avoids flooding the receiver during registration. */
 void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
-    DWORD batch_count = 0;
-
-    (void)argc;
-    (void)argv;
-
+    int start = SV_SignonStart(argc, argv, MAX_CONFIGSTRINGS);
+    DWORD limit = SV_SignonLimit(&cl->netchan);
+    if (cl->state != cs_connected || start < 0) return;
     if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
-    FOR_LOOP(i, MAX_CONFIGSTRINGS) {
-        if (i == CS_LOADINGSCREEN1 || i == CS_LOADINGSCREEN2 || !*sv.configstrings[i])
-            continue;
-        if (cl->netchan.message.cursize + SV_ConfigStringWireSize(i) + 16 >= cl->netchan.message.maxsize) {
-            SV_FlushSpawnMessage(cl, "Configstrings", batch_count);
-            batch_count = 0;
-        }
-        SV_WriteConfigString(&cl->netchan.message, i);
-        batch_count++;
+    for (; start < MAX_CONFIGSTRINGS; start++) {
+        if (start == CS_LOADINGSCREEN1 || start == CS_LOADINGSCREEN2 || !*sv.configstrings[start]) continue;
+        /* The engine buffer is much larger than a UDP datagram; reserve room for the next request too. */
+        if (cl->netchan.message.cursize + SV_ConfigStringWireSize(start) + 32 > limit) break;
+        SV_WriteConfigString(&cl->netchan.message, start);
     }
-    if (cl->netchan.message.cursize + 16 >= cl->netchan.message.maxsize) {
-        SV_FlushSpawnMessage(cl, "Configstrings", batch_count);
-    }
+    char next[32];
+    if (start == MAX_CONFIGSTRINGS) strlcpy(next, "baselines", sizeof(next));
+    else snprintf(next, sizeof(next), "configstrings %d", start);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
-    MSG_WriteString(&cl->netchan.message, "baselines");
+    MSG_WriteString(&cl->netchan.message, next);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
+/* Baselines share the configstring continuation contract, so begin cannot overtake later entity pages. */
 void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
-    entityState_t nullstate;
-    DWORD batch_count = 0;
-
-    (void)argc;
-    (void)argv;
-
-    memset(&nullstate, 0, sizeof(entityState_t));
-    FOR_LOOP(index, ge->num_edicts) {
-        edict_t *e = EDICT_NUM(index);
-        if (e->svflags & SVF_NOCLIENT)
-            continue;
-        if (cl->netchan.message.cursize + 512 >= cl->netchan.message.maxsize) {
-            SV_FlushSpawnMessage(cl, "Baselines", batch_count);
-            batch_count = 0;
-        }
+    entityState_t empty = { 0 };
+    int start = SV_SignonStart(argc, argv, ge->num_edicts);
+    DWORD limit = SV_SignonLimit(&cl->netchan);
+    if (cl->state != cs_connected || start < 0) return;
+    for (; start < ge->num_edicts; start++) {
+        edict_t *ent = EDICT_NUM(start);
+        if (ent->svflags & SVF_NOCLIENT) continue;
+        if (cl->netchan.message.cursize + 512 + 32 > limit) break;
         MSG_WriteByte(&cl->netchan.message, svc_spawnbaseline);
-        MSG_WriteDeltaEntity(&cl->netchan.message, &nullstate, &e->s, true);
-        batch_count++;
+        MSG_WriteDeltaEntity(&cl->netchan.message, &empty, &ent->s, true);
     }
-    if (cl->netchan.message.cursize + 16 >= cl->netchan.message.maxsize) {
-        SV_FlushSpawnMessage(cl, "Baselines", batch_count);
-    }
+    char next[32];
+    if (start == ge->num_edicts) strlcpy(next, "precache", sizeof(next));
+    else snprintf(next, sizeof(next), "baselines %d", start);
     MSG_WriteByte(&cl->netchan.message, svc_mirror);
-    MSG_WriteString(&cl->netchan.message, "playerinfo");
+    MSG_WriteString(&cl->netchan.message, next);
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 

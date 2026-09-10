@@ -955,8 +955,20 @@ TEST(client_input, smart_entity_trace_precedes_ground_trace) {
     cl.playerstate.client_ui_state = old_ui; input.focus = old_focus;
 }
 
+/* A remote client owns its collision world; input tests cannot borrow a previous game-module fixture. */
+static void CL_TestWorldBounds(BOOL set) {
+#ifdef BZ_CLIENT_WORLD
+    extern void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+    BOX2 bounds = { .min = { 0, 0 }, .max = { 1024, 768 } };
+    CM_SetupTestWorldBounds(set ? &bounds : NULL);
+#else
+    (void)set;
+#endif
+}
+
 /* Minimap focus is shared input: selection capacity cannot change its packet or drag lifecycle. */
 TEST(client_input, minimap_focus_and_release_are_selection_independent) {
+    CL_TestWorldBounds(true);
     BYTE data[256];
     __typeof__(cl.selection) old_sel = cl.selection;
     __typeof__(cl.camera_prediction) old_pred = cl.camera_prediction;
@@ -1010,10 +1022,12 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     Cvar_SetValue("cl_selection_limit", old_limit);
     re = saved; cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
     cl.playerstate.client_ui_state = old_ui;
+    CL_TestWorldBounds(false);
 }
 
 /* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
 TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
+    CL_TestWorldBounds(true);
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
     refExport_t old_re = re;
@@ -1093,6 +1107,7 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     if (add_up) Cmd_RemoveCommand("-select");
     Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_context_cursor", old_cursor);
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    CL_TestWorldBounds(false);
 }
 
 TEST(client_input, pan_uses_configured_surface) {

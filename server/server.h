@@ -9,6 +9,11 @@
 #define EDICT_NUM(n) ((edict_t *)((LPSTR)ge->edicts + ge->edict_size*(n)))
 #define NUM_FOR_EDICT(e) (DWORD)(((LPSTR)(e)-(LPSTR)ge->edicts) / ge->edict_size)
 
+#define BZ_SIGNON_SIZE 1400 // bytes; fits a 1500-byte LAN MTU with UDP/IP headers; bounds remote startup batches
+
+/* Loopback accepts engine-sized messages; UDP startup must fit an individual datagram. */
+static inline DWORD SV_SignonLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE); }
+
 KNOWN_AS(client_frame, CLIENTFRAME);
 KNOWN_AS(client, CLIENT);
 
@@ -97,6 +102,7 @@ extern struct server {
     BOOL paused;
     DWORD next_frame_msec; /* real-time deadline for the next simulation frame */
     DWORD pause_msec; /* wall-clock accumulator used only for paused keepalive snapshots */
+    DWORD keepalive; /* real-time deadline for connected clients without gameplay snapshots */
     LPENTITYSTATE baselines;
     WORD loading_end[3]; /* first gameplay index in each loading media pool: models, images, fonts */
     sizeBuf_t multicast;

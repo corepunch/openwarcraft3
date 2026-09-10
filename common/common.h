@@ -84,6 +84,7 @@ enum svc_ops {
     svc_lobby_chat,              // [byte own] [string text]
     svc_set_selection,           // [byte count] [count * long entity]
     svc_console_print,           // [string text] server/game command feedback for the local console
+    svc_nop,                     // transport keepalive; no payload or presentation change
 };
 
 // client to server
