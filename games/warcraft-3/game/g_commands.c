@@ -949,22 +949,60 @@ CLIENTCOMMAND(Kill) {
     G_CheatPrintf(clent, "WC3: selected unit killed");
 }
 
+static BOOL G_ParseHeroStatAmount(LPCSTR text, FLOAT maximum, FLOAT *value) {
+    unsigned long amount;
+
+    if (!value || !text || !G_DebugIsNumber(text) || text[0] == '-') return false;
+    amount = strtoul(text, NULL, 10);
+    *value = MIN((FLOAT)amount, MAX(0.0f, maximum));
+    return true;
+}
+
 CLIENTCOMMAND(Hero) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     LPEDICT hero;
     DWORD max_level, spent_points = 0, expected_points;
+    FLOAT value;
 
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
-    if (argc != 2 || strcasecmp(argv[1], "max")) {
-        G_CheatPrintf(clent, "WC3: usage: hero max");
+    if (argc < 2 || argc > 3 ||
+            (strcasecmp(argv[1], "max") && strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana")) ||
+            (!strcasecmp(argv[1], "max") && argc != 2)) {
+        G_CheatPrintf(clent, "WC3: usage: hero max | hero health [amount] | hero mana [amount]");
         return;
     }
     hero = client ? G_GetMainSelectedUnit(client) : NULL;
     if (!hero || !G_UnitCanControl(client, hero) || !G_UnitIsHero(hero)) {
-        G_CheatPrintf(clent, "WC3: hero max requires a selected friendly hero");
+        G_CheatPrintf(clent, "WC3: hero cheat requires a selected friendly hero");
+        return;
+    }
+
+    if (!strcasecmp(argv[1], "health")) {
+        value = hero->health.max_value;
+        if (argc == 3 && !G_ParseHeroStatAmount(argv[2], hero->health.max_value, &value)) {
+            G_CheatPrintf(clent, "WC3: hero health amount must be a non-negative integer");
+            return;
+        }
+        G_SetHealth(hero, value);
+        G_CheatPrintf(clent, "WC3: selected hero health set to %.0f / %.0f",
+                hero->health.value, hero->health.max_value);
+        Get_Portrait_f(clent);
+        return;
+    }
+
+    if (!strcasecmp(argv[1], "mana")) {
+        value = hero->mana.max_value;
+        if (argc == 3 && !G_ParseHeroStatAmount(argv[2], hero->mana.max_value, &value)) {
+            G_CheatPrintf(clent, "WC3: hero mana amount must be a non-negative integer");
+            return;
+        }
+        hero->mana.value = value;
+        G_CheatPrintf(clent, "WC3: selected hero mana set to %.0f / %.0f",
+                hero->mana.value, hero->mana.max_value);
+        Get_Portrait_f(clent);
         return;
     }
 
