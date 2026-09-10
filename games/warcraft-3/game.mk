@@ -107,7 +107,8 @@ $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
-$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz))
+# The remote client loads collision data before any game imports exist; compile its format reader into the engine.
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD,-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
 
 # ---------------------------------------------------------------------------
 # In-engine tests (see CONTRIBUTING.md)
@@ -124,7 +125,7 @@ GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c' ! -name 'routing.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
@@ -170,7 +171,7 @@ TEST_JOBS ?= 16
 		test-wow-wmo test-menu test-wc3-engine
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
-$(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c,-lshared -lm $(LIBS),))

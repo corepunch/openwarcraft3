@@ -111,7 +111,6 @@ TEST(server_net, scheduler_clamps_multi_tick_wall_clock_backlog) {
     T_EQ(SV_ClampSimulationDeadline(180, 100), 100);
 }
 
-void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) { (void)msg; (void)client; }
 void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) { (void)client; (void)msg; }
 
 static struct game_export test_ge;
@@ -1066,4 +1065,94 @@ TEST(server_net, loading_configstrings_bound_text_without_changing_geometry) {
     number = MSG_ReadEntityBits(&msg, &bits);
     MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
     T_EQ(frame.flags.type, FT_SPRITE); T_STREQ(frame.text, "#!123");
+}
+
+/* An idle lobby must keep both loopback and UDP peers alive without advancing simulation or rebuilding UI. */
+TEST(server_net, idle_lobby_sends_keepalives_without_simulating) {
+    BYTE buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    netadr_t from;
+    NET_Shutdown(); reset_server_state(2);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 20));
+    int sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    send_connect_oob(sock, PORT_SERVER + 20); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
+    SV_ClientConnect(); drain_client_packets();
+    sv.state = ss_lobby;
+    FOR_LOOP(i, 20) {
+        SV_Frame(1000);
+        T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+        T_EQ(msg.cursize, 1); T_EQ(MSG_ReadByte(&msg), svc_nop);
+        T_EQ(recv(sock, buf, sizeof(buf), 0), 1); T_EQ(buf[0], svc_nop);
+        T_EQ(sv.framenum, 0); T_EQ(sv.time, 0); T_EQ(svs.num_clients, 2);
+    }
+    close(sock); NET_Shutdown();
+}
+
+/* Map creation populates the signon table; replaying it as a live multicast bypassed UDP paging. */
+TEST(server_net, loading_configstrings_do_not_queue_duplicate_live_updates) {
+    NET_Shutdown(); reset_server_state(1);
+    sv.state = ss_loading;
+    SV_SetConfigString(CS_MODELS + 1, "Initial.mdx", sizeof("Initial.mdx"));
+    T_ASSERT(sv.syncstrings[CS_MODELS + 1]);
+    sv.state = ss_game;
+    SV_SetConfigString(CS_MODELS + 1, "Changed.mdx", sizeof("Changed.mdx"));
+    T_ASSERT(!sv.syncstrings[CS_MODELS + 1]);
+}
+
+/* Exercise the real command dispatcher over UDP with enough startup data to exceed the old datagram limit. */
+TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines) {
+    BYTE buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    char next[64] = "configstrings";
+    DWORD strings = 0, bases = 0, pages = 0;
+    NET_Shutdown(); reset_server_state(2);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 21));
+    int sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    struct timeval timeout = { .tv_sec = 1 };
+    T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    send_connect_oob(sock, PORT_SERVER + 21); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
+    sv.state = ss_game;
+    FOR_LOOP(i, 200) {
+        memset(sv.configstrings[CS_MODELS + i + 1], 'a' + i % 26, MAX_PATHLEN - 1);
+        test_edicts[i].s = (entityState_t){ .number = i, .model = i + 1, .origin = { i, i + 1, i + 2 } };
+    }
+    ge->num_edicts = 200;
+    while (strcmp(next, "precache")) {
+        T_ASSERT(pages++ < 300);
+        SZ_Clear(&msg); msg.readcount = 0;
+        MSG_WriteString(&msg, next);
+        SV_ExecuteUserCommand(&msg, &svs.clients[0]);
+        int size = recv(sock, buf, sizeof(buf), 0);
+        T_ASSERT(size > 0 && size <= BZ_SIGNON_SIZE);
+        if (size <= 0 || size > BZ_SIGNON_SIZE) break;
+        msg.cursize = size; msg.readcount = 0; next[0] = 0;
+        while (msg.readcount < msg.cursize) {
+            int op = MSG_ReadByte(&msg);
+            if (op == svc_configstring) {
+                int index = MSG_ReadShort(&msg);
+                T_EQ(index, CS_MODELS + ++strings);
+                T_STREQ(MSG_ReadString2(&msg), sv.configstrings[index]);
+            } else if (op == svc_spawnbaseline) {
+                DWORD bits;
+                entityState_t ent = { 0 };
+                int num = MSG_ReadEntityBits(&msg, &bits);
+                MSG_ReadDeltaEntity(&msg, &ent, num, bits);
+                T_EQ(num, bases); T_EQ(ent.model, bases + 1); T_FEQ(ent.origin.x, bases, 0.01f);
+                bases++;
+            } else {
+                T_EQ(op, svc_mirror);
+                MSG_ReadStringN(&msg, next, sizeof(next));
+            }
+        }
+        T_ASSERT(next[0]);
+        T_EQ(svs.clients[0].state, cs_connected);
+    }
+    T_EQ(strings, 200); T_EQ(bases, 200); T_ASSERT(pages > 2);
+    close(sock); NET_Shutdown();
 }

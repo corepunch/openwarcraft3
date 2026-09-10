@@ -2,6 +2,35 @@
 #include "common/ui_constants.h"
 #include <float.h>
 
+#ifdef BZ_CLIENT_WORLD
+/* The engine needs terrain pathing for placement previews, without game-owned routing jobs or imports. */
+static struct {
+    DWORD width, height;
+    BYTE *cells;
+} cl_path;
+
+/* Keep only client terrain cells; routing work buffers belong to the game module. */
+void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
+    SAFE_DELETE(cl_path.cells, MemFree);
+    cl_path.width = width; cl_path.height = height;
+    if (!width || !height) return;
+    cl_path.cells = MemAlloc(width * height);
+    if (cells) memcpy(cl_path.cells, cells, width * height);
+    else memset(cl_path.cells, 0, width * height);
+}
+
+/* Client collision circles add live blockers; this lookup supplies the map's authored terrain flags. */
+BOOL CM_GetPathingFlagsAt(LPCVECTOR2 pos, LPBYTE flags) {
+    if (flags) *flags = 0;
+    if (!pos || !flags || !cl_path.cells) return false;
+    VECTOR2 n = CM_GetNormalizedMapPosition(pos->x, pos->y);
+    int x = (int)floorf(n.x * cl_path.width), y = (int)floorf(n.y * cl_path.height);
+    if (x < 0 || y < 0 || x >= cl_path.width || y >= cl_path.height) return false;
+    *flags = cl_path.cells[x + y * cl_path.width];
+    return true;
+}
+#endif
+
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
     *camera = (gameCamera_t){
@@ -287,3 +316,50 @@ BOX2 CM_GetWorldBounds(void) {
             .y = (world.map->height - 1) * TILE_SIZE + world.map->center.y,
         });
 }
+
+#ifndef TOOL_COMMON_NO_MPQ
+/* Both worlds read the same WPM bytes; each module owns its path-data consumer. */
+void CM_ReadPathMap(HANDLE archive) {
+    HANDLE file;
+    DWORD header, version;
+    DWORD width, height;
+    LPBYTE cells;
+    if (!SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file)) {
+        CM_SetupPathMap(world.map ? world.map->width : 0, world.map ? world.map->height : 0, NULL);
+        return;
+    }
+    SFileReadFile(file, &header, 4, NULL, NULL);
+    SFileReadFile(file, &version, 4, NULL, NULL);
+    SFileReadFile(file, &width, 4, NULL, NULL);
+    SFileReadFile(file, &height, 4, NULL, NULL);
+    if (!width || !height) {
+        SFileCloseFile(file);
+        CM_SetupPathMap(0, 0, NULL);
+        return;
+    }
+    cells = MemAlloc(width * height);
+    SFileReadFile(file, cells, width * height, 0, 0);
+    SFileCloseFile(file);
+    CM_SetupPathMap(width, height, cells);
+    MemFree(cells);
+}
+#endif /* !TOOL_COMMON_NO_MPQ */
+
+#if defined(BZ_CLIENT_WORLD) && defined(BZ_TESTS)
+#include "shared/test.h"
+
+/* Client path queries must use their own cells and replace them cleanly between maps. */
+TEST(client_world, terrain_path_flags_survive_load_replace_and_clear) {
+    BYTE cells[] = { 2, 4, 8, 16 }, flags = 0;
+    CM_SetupTestWorldBounds(&(BOX2){ .min = { 0, 0 }, .max = { 64, 64 } });
+    CM_SetupPathMap(2, 2, cells);
+    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 48, 16 }, &flags)); T_EQ(flags, 4);
+    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 16, 48 }, &flags)); T_EQ(flags, 8);
+    T_ASSERT(!CM_GetPathingFlagsAt(&(VECTOR2){ 64, 16 }, &flags));
+    CM_SetupPathMap(1, 1, cells);
+    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 48, 48 }, &flags)); T_EQ(flags, 2);
+    CM_SetupPathMap(0, 0, NULL);
+    T_ASSERT(!CM_GetPathingFlagsAt(&(VECTOR2){ 16, 16 }, &flags));
+    CM_SetupTestWorldBounds(NULL);
+}
+#endif

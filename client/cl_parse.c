@@ -670,8 +670,8 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     if (!strcmp(buf, "begin")) {
         return;
     }
-    /* The existing spawn handshake advances only after the full configstring table has arrived. */
-    if (!strcmp(buf, "baselines")) cl.precache_ready = true;
+    /* Paged baselines must finish before registration can queue begin and enable gameplay snapshots. */
+    if (!strcmp(buf, "precache")) { cl.precache_ready = true; return; }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, buf);
 }
@@ -961,6 +961,8 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
+            case svc_nop:
+                break;
             case svc_bad:
                 goto done;
             case svc_playerinfo:

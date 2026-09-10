@@ -16,6 +16,8 @@ struct game_export *ge;
 struct server sv;
 struct server_static svs;
 
+#define BZ_KEEPALIVE_MSEC 1000 // milliseconds; Quake 2's interval; keeps clients alive while waiting to spawn
+
 BOOL SV_IsActive(void) {
     return svs.initialized && (sv.state == ss_lobby || sv.state == ss_game);
 }
@@ -35,8 +37,8 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
     if (len > max) len = max;
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
-    /* Connected clients otherwise retain the old value because true means that slot was already sent. */
-    sv.syncstrings[index] = false;
+    /* Q2 publishes loading-time values through signon, not a second bulk live update that overflows UDP. */
+    sv.syncstrings[index] = sv.state == ss_loading;
 }
 
 /* Batch bounds must account for fixed binary slots as well as theme-decorated strings. */
@@ -66,7 +68,7 @@ static void SV_SendClientDatagram(LPCLIENT client) {
 /* Flush any un-synced config strings to all clients, then send a per-frame
  * datagram to every spawned client containing the current entity snapshot. */
 static void SV_SendClientMessages(void) {
-    FOR_LOOP(i, MAX_CONFIGSTRINGS) {
+    for (DWORD i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
         if (*sv.configstrings[i] && !sv.syncstrings[i]) {
             SV_WriteConfigString(&sv.multicast, i);
             SV_Multicast(&(VECTOR3){0,0,0}, MULTICAST_ALL_R);
@@ -74,10 +76,17 @@ static void SV_SendClientMessages(void) {
     }
     FOR_LOOP(i, svs.num_clients) {
         LPCLIENT client = &svs.clients[i];
-        if (client->state == cs_spawned) {
+        if (client->state == cs_spawned && sv.state == ss_game) {
             SV_SendClientDatagram(client);
+        } else if (client->state == cs_connected || client->state == cs_spawned) {
+            /* Q2 sends pending messages or a one-second keepalive while a client has no gameplay frames. */
+            if (client->netchan.message.cursize || svs.realtime >= sv.keepalive) {
+                if (!client->netchan.message.cursize) MSG_WriteByte(&client->netchan.message, svc_nop);
+                Netchan_Transmit(NS_SERVER, &client->netchan);
+            }
         }
     }
+    if (svs.realtime >= sv.keepalive) sv.keepalive = svs.realtime + BZ_KEEPALIVE_MSEC;
 }
 
 static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
@@ -223,6 +232,8 @@ void SV_Frame(DWORD msec) {
     SV_ReadPackets();
 
     if (sv.state == ss_lobby) {
+        /* An unchanged lobby previously sent nothing and timed out even its own loopback host. */
+        SV_SendClientMessages();
         return;
     }
 

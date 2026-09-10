@@ -176,7 +176,7 @@ endef
 define app_schema
 $(1): $(2) | $$(BIN_DIR) install-share
 	@echo "[$(3)]"
-	@$$(call UNITY,client server common sound,! -name 'stb_vorbis.c') | \
+	@$$(call UNITY,client server common sound $(6),! -name 'stb_vorbis.c') | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
 endef
 
