@@ -1802,6 +1802,7 @@ void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 void UI_ShowTransientText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_RecordTransmissionMessage(LPEDICT);
 void UI_ClearTextMessages(LPEDICT);
 void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);

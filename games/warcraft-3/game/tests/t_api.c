@@ -1212,6 +1212,25 @@ TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {
     T_FEQ(scaled->s.scale, 1.5f, 0.001f);
 }
 
+TEST(wc3_api, narrator_and_hint_text_share_message_log) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    memset(&gc->message_log, 0, sizeof(gc->message_log));
+    level.time = 100;
+    gc->ps.client_ui_state = CLIENT_UI_GAME;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call SetCinematicScene(0, PLAYER_COLOR_RED, \"Narrator\", \"Select a peon.\", 3.0, 2.0)\n"
+        "  endif\n"
+        "  call DisplayTimedTextToPlayer(Player(0), 0.0, 0.0, 3.0, \"HINT - Build a Burrow.\")\n"
+        "endfunction\n"));
+
+    T_EQ(gc->message_log.count, 2);
+    T_STREQ(gc->message_log.entries[0], "|cffffcc00Narrator:|r Select a peon.");
+    T_STREQ(gc->message_log.entries[1], "HINT - Build a Burrow.");
+}
+
 TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
     LPGAMECLIENT gc = &game.clients[0];
     EDICT ent = { .client = gc };

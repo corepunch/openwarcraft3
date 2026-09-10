@@ -173,6 +173,7 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration);
 void UI_ShowGameInterface(LPEDICT ent);
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
 void UI_ShowTransientText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
+void UI_RecordTransmissionMessage(LPEDICT ent);
 void UI_ClearTextMessages(LPEDICT ent);
 void UI_InvalidateDialoguePresentation(LPEDICT ent);
 void UI_WriteDialoguePresentation(LPEDICT ent);

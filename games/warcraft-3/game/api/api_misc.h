@@ -1455,6 +1455,7 @@ DWORD SetCinematicScene(LPJASS j) {
         DWORD now = G_Time();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
+        UI_RecordTransmissionMessage(PLAYER_ENT(currentplayer));
         currentplayer->cinematic_portrait = 0;
         /* The renderer currently owns 16 replaceable team-color textures.
          * Keep unsupported extended player colors deterministic instead of

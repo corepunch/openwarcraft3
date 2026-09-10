@@ -8,8 +8,9 @@ server-authored HUD dialogs.
 - The quest model (`level.quests`) owns quest state. The dialog only renders
   enabled, discovered quests and their objectives.
 - `DisplayText*` owns one transient `LAYER_MESSAGE` presentation slot per
-  player. A separate bounded `client_s.message_log` retains the text after the
-  transient message expires or `ClearTextMessages` clears it.
+  player. A separate bounded `client_s.message_log` retains both that text and
+  triggered transmission dialogue after the transient presentation expires or
+  `ClearTextMessages` clears it.
 - Command errors use `UI_ShowTransientText` and do not enter the Message Log.
 - `UpperButtonBarQuestsButton` sends the existing `quests` client command.
 - `UpperButtonBarChatButton` currently sends `log`, implementing the
@@ -138,9 +139,24 @@ resolve TRIGSTR / level string
         -> presentation_dirty flushes LAYER_MESSAGE
 ```
 
+`SetCinematicScene` uses the same retained history without creating a second
+transient `client_s.message`:
+
+```text
+resolve speaker/dialogue
+        -> store active transmission state
+        -> format the gameplay line as yellow speaker + dialogue
+        -> append the formatted line to client_s.message_log
+        -> presentation_dirty flushes the active dialogue presentation
+```
+
+This records narrator/tutorial transmissions alongside nearby `DisplayText*`
+hints. Empty `SetCinematicScene` clear state is ignored rather than adding a
+blank history row.
+
 `client_s.message_log` is a 128-entry ring. When full, the oldest entry is
 replaced. This implements bounded Warcraft-style history without coupling the
-history lifetime to transient HUD messages.
+history lifetime to transient HUD messages or the active transmission.
 
 `ClearTextMessages` only clears `client_s.message`:
 
