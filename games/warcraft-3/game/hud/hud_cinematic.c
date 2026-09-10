@@ -114,23 +114,37 @@ static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
     UI_WriteEnd(ent);
 }
 
-static void WriteGameplayTransmissionMessage(LPEDICT ent) {
-    LPGAMECLIENT client;
+static void FormatGameplayTransmissionMessage(LPGAMECLIENT client, LPSTR message, size_t size) {
     LPCSTR speaker, dialogue;
-    char message[1200];
 
-    if (!ent || !ent->client) return;
-    client = ent->client;
+    if (!message || !size) return;
+    message[0] = '\0';
+    if (!client) return;
     speaker = client->ps.texts[PLAYERTEXT_SPEAKER];
     dialogue = client->ps.texts[PLAYERTEXT_DIALOGUE];
 
     if (speaker && *speaker && dialogue && *dialogue) {
-        snprintf(message, sizeof(message), "|cffffcc00%s:|r %s", speaker, dialogue);
+        snprintf(message, size, "|cffffcc00%s:|r %s", speaker, dialogue);
     } else if (speaker && *speaker) {
-        snprintf(message, sizeof(message), "|cffffcc00%s|r", speaker);
-    } else {
-        snprintf(message, sizeof(message), "%s", dialogue && *dialogue ? dialogue : "");
+        snprintf(message, size, "|cffffcc00%s|r", speaker);
+    } else if (dialogue && *dialogue) {
+        snprintf(message, size, "%s", dialogue);
     }
+}
+
+void UI_RecordTransmissionMessage(LPEDICT ent) {
+    char message[1200];
+
+    if (!ent || !ent->client) return;
+    FormatGameplayTransmissionMessage(ent->client, message, sizeof(message));
+    if (*message) UI_MessageLogAppend(ent, UI_FormatMessageText(message));
+}
+
+static void WriteGameplayTransmissionMessage(LPEDICT ent) {
+    char message[1200];
+
+    if (!ent || !ent->client) return;
+    FormatGameplayTransmissionMessage(ent->client, message, sizeof(message));
     WriteMessageLayer(ent, NULL, UI_FormatMessageText(message));
 }
 

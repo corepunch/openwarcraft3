@@ -17,8 +17,9 @@ The server owns transmission/message state in `games/warcraft-3/game/client_s`:
 - `cinematic_end_time` — end of the complete transmission scene.
 - `message` — one ordinary transient `DisplayText*` message, including
   position and expiry time.
-- `message_log` — bounded historical `DisplayText*` entries used by the
-  single-player Message Log; its lifetime is independent from `message`.
+- `message_log` — bounded historical `DisplayText*` and transmission entries
+  used by the single-player Message Log; its lifetime is independent from
+  `message` and the active transmission.
 
 `G_SetPlayerText` preserves an actual empty string. Do not normalize cinematic
 clear state to a single space: `UI_WriteCinematicLayer` and the gameplay
@@ -137,8 +138,11 @@ The current HUD intentionally retains one **active** ordinary message per
 player because `LAYER_MESSAGE` is a single server-authored layer. A new
 ordinary message replaces the previous transient message state. Independently,
 `UI_ShowText` appends the formatted text to the bounded `message_log` history.
-`ClearTextMessages` clears only the active message and leaves that historical
-log intact.
+`SetCinematicScene` records the same speaker/dialogue formatting used by the
+gameplay transmission overlay when a transmission starts, so narrator/tutorial
+speech and `DisplayText*` hints share the retained F12 history. Blank cinematic
+clear calls are not recorded. `ClearTextMessages` clears only the active
+ordinary message and leaves that historical log intact.
 
 Command errors are deliberately different: `G_ShowCommandErrorText` uses
 `UI_ShowTransientText`, which shares the transient presentation path without
