@@ -1816,6 +1816,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
 
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
+    building->stand = unit_stand;
     building->construction.active = true;
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
@@ -1838,6 +1839,7 @@ TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
     caster->s.player = game.clients[0].ps.number;
     target->s.player = game.clients[1].ps.number;
+    target->svflags |= SVF_MONSTER;
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1867,10 +1869,12 @@ TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
         "  call TriggerAddAction(t, function onSpellEffect)\n"
         "endfunction\n"));
 
-    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, target,
-                            (LONG)MAKEFOURCC('A','O','c','l'), NULL);
-    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, NULL,
-                            (LONG)MAKEFOURCC('A','E','b','l'), &point);
+    G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .source = target,
+        .value = (LONG)MAKEFOURCC('A','O','c','l') });
+    G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = (LONG)MAKEFOURCC('A','E','b','l'),
+        .point = &point });
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifySpellEvents", true);

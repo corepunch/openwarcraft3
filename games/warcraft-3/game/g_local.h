@@ -486,7 +486,7 @@ typedef struct {
  * training/research queue. Targets are retained by edict number + spawn_time
  * so a recycled slot cannot silently retarget an old queued command. */
 #define MAX_UNIT_ORDER_QUEUE 16
-#define UNIT_ORDER_NAME_SIZE 12
+#define UNIT_ORDER_NAME_SIZE 20 // bytes; fits the 17-byte longest stock order name plus NUL; bounds queued order strings
 
 typedef enum {
     UNIT_ORDER_TARGET_NONE,
@@ -661,6 +661,14 @@ typedef struct gameevent_s {
     BOOL has_point;
     LPEVENT responseTo;
 } GAMEEVENT;
+
+typedef struct {
+    LPEDICT edict;
+    EVENTTYPE type;
+    LPEDICT source;
+    LONG value;
+    LPCVECTOR2 point;
+} gameEventPointParams_t;
 
 typedef enum {
     GAME_MSG_HARVEST_MOVE_GOLD,
@@ -1499,7 +1507,7 @@ void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
-GAMEEVENT *G_PublishEventWithPoint(LPEDICT, EVENTTYPE, LPEDICT, LONG, LPCVECTOR2);
+GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);

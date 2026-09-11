@@ -26,6 +26,15 @@
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
+typedef struct {
+    LPTRIGGER trigger;
+    LPEDICT unit;
+    LPEDICT source;
+    LONG value;
+    LPCVECTOR2 point;
+    BOOL has_point;
+} jassTriggerContextParams_t;
+
 #define assert_type(var, type) do { if (!jass_checktype(var, type)) jass_rterror(j, "invalid native argument: expected " #type); } while (0)
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 #define BZ_JASS_REQUIRE_STACK(j) if (j->num_stack >= MAX_JASS_STACK) jass_rterror(j, "stack overflow")
@@ -973,35 +982,29 @@ void jass_runevents(LPJASS j) {
  * Trigger evaluation / execution
  * ========================================================================= */
 
-static BOOL jass_evaluatetriggercontext(LPJASS j,
-                                        LPTRIGGER trigger,
-                                        LPEDICT unit,
-                                        LPEDICT source,
-                                        LONG eventValue,
-                                        LPCVECTOR2 point,
-                                        BOOL hasPoint) {
-    LPPLAYER player = jass_eventplayer(unit);
+static BOOL jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+    LPPLAYER player = jass_eventplayer(params->unit);
 
-    if (trigger->disabled) {
+    if (params->trigger->disabled) {
         return false;
     }
     JASS tmp_state;
-    FOR_EACH_LIST(TRIGGERCONDITION, cond, trigger->conditions) {
+    FOR_EACH_LIST(TRIGGERCONDITION, cond, params->trigger->conditions) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
         memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
         tmp_state.num_stack = 0;
-        tmp_state.context.trigger = trigger;
-        tmp_state.context.unit = unit;
-        tmp_state.context.source = source;
-        tmp_state.context.eventValue = eventValue;
-        tmp_state.context.point = point ? *point : (VECTOR2){ 0.0f, 0.0f };
-        tmp_state.context.hasPoint = hasPoint;
+        tmp_state.context.trigger = params->trigger;
+        tmp_state.context.unit = params->unit;
+        tmp_state.context.source = params->source;
+        tmp_state.context.eventValue = params->value;
+        tmp_state.context.point = params->point ? *params->point : (VECTOR2){ 0.0f, 0.0f };
+        tmp_state.context.hasPoint = params->has_point;
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
         jass_pushfunction(&tmp_state, cond->expr);
         LPEDICT previous_unit = currentunit;
-        currentunit = unit;
+        currentunit = params->unit;
         DWORD result_count = jass_call(&tmp_state, 0);
         currentunit = previous_unit;
         if (result_count != 1 || !jass_popboolean(&tmp_state)) {
@@ -1012,7 +1015,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
 }
 
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    return jass_evaluatetriggercontext(j, trigger, unit, NULL, 0, NULL, false);
+    return jass_evaluatetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
 }
 
 /* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
@@ -1051,23 +1054,17 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
-static void jass_executetriggercontext(LPJASS j,
-                                       LPTRIGGER trigger,
-                                       LPEDICT unit,
-                                       LPEDICT source,
-                                       LONG eventValue,
-                                       LPCVECTOR2 point,
-                                       BOOL hasPoint) {
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
-        LPPLAYER player = jass_eventplayer(unit);
-        LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
-                                  .trigger = trigger,
+static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+    FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
+        LPPLAYER player = jass_eventplayer(params->unit);
+        jass_startcoroutine(j, &MAKE(JASSCONTEXT,
+                                  .trigger = params->trigger,
                                   .func = action->func,
-                                  .unit = unit,
-                                  .source = source,
-                                  .eventValue = eventValue,
-                                  .point = point ? *point : (VECTOR2){ 0.0f, 0.0f },
-                                  .hasPoint = hasPoint,
+                                  .unit = params->unit,
+                                  .source = params->source,
+                                  .eventValue = params->value,
+                                  .point = params->point ? *params->point : (VECTOR2){ 0.0f, 0.0f },
+                                  .hasPoint = params->has_point,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
                                   .timer = currenttimer,
@@ -1083,15 +1080,13 @@ static void jass_executetriggercontext(LPJASS j,
 }
 
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    jass_executetriggercontext(j, trigger, unit, NULL, 0, NULL, false);
+    jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
 }
 
-static BOOL jass_calltriggercontext(LPJASS j, LPTRIGGER trigger, LPEDICT unit,
-                                    LPEDICT source, LONG eventValue,
-                                    LPCVECTOR2 point, BOOL hasPoint) {
-    if (!jass_evaluatetriggercontext(j, trigger, unit, source, eventValue, point, hasPoint))
+static BOOL jass_calltriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+    if (!jass_evaluatetriggercontext(j, params))
         return false;
-    jass_executetriggercontext(j, trigger, unit, source, eventValue, point, hasPoint);
+    jass_executetriggercontext(j, params);
     return true;
 }
 
@@ -1100,13 +1095,15 @@ BOOL jass_calltriggerwithvalue(LPJASS j,
                                LPEDICT unit,
                                LPEDICT source,
                                LONG eventValue) {
-    return jass_calltriggercontext(j, trigger, unit, source, eventValue, NULL, false);
+    return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
+        .trigger = trigger, .unit = unit, .source = source, .value = eventValue });
 }
 
 BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) {
     if (!event) return false;
-    return jass_calltriggercontext(j, trigger, event->edict, event->source, event->value,
-                                   event->has_point ? &event->point : NULL, event->has_point);
+    return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
+        .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
+        .point = event->has_point ? &event->point : NULL, .has_point = event->has_point });
 }
 
 BOOL jass_calltrigger(LPJASS j,
