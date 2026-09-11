@@ -17,6 +17,7 @@ contains build, installation, and project-overview information.
 - [StarCraft II](games/starcraft-2/readme.md): target status, SC2Map loading, M3 models,
   catalog data, and HUD layout.
 - [Diagnostic Tools](diagnostic-tools.md): bounded renderer and asset-inspection workflows.
+- [Docker Sandbox Dependencies](docker-sandbox-dependencies.md): APT packages installed for building, debugging, and radare2 inspection.
 - [Build And Renderer Platforms](build-and-renderer-platforms.md): release builds, MSAA, GLES3, video modes, and low-end diagnostics.
 - [Flatpak And Steam Deck Packaging](flatpak-steam-deck.md): x86_64 bundle layout, portal data selection, XDG state, and optional Steam shortcut integration.
 - [Documentation Guide](documentation-guide.md): documentation placement and completion rules.
