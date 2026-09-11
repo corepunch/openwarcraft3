@@ -32,7 +32,7 @@ Left click remains the normal Repair targeting action. Right-button down/up over
 
 The server toggles all controllable selected units that carry the same Repair handler and plays `AutoCastButtonClick`. Enabling Auto Repair on an already idle worker immediately tries one acquisition pass; toggling during active movement/work does not interrupt that behavior.
 
-JASS/string immediate orders `repairon` and `repairoff` use the same toggle path. Numeric `IssueImmediateOrderById` coverage is still separate future work.
+JASS/string immediate orders `repairon` and `repairoff` use the same toggle path. Numeric `IssueImmediateOrderById` now exists for canonical table entries, but repair toggle order IDs are not part of that table and continue to use their string path.
 
 ## Acquisition ordering
 

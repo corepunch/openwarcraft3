@@ -462,6 +462,17 @@ static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
     S_SpellStartCooldown(caster, code, level);
 }
 
+/* Warcraft exposes spell response data only while dispatching the spell event.
+ * Publish SPELL_EFFECT at the irreversible cast point: resources have been
+ * committed, but the gameplay callback has not run yet. */
+static void spell_publish_effect(LPEDICT caster, DWORD code, spellTarget_t target) {
+    LPEDICT source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
+    LPCVECTOR2 point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
+
+    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, source, (LONG)code, point);
+    G_PublishEventWithPoint(caster, EVENT_UNIT_SPELL_EFFECT, source, (LONG)code, point);
+}
+
 /* ---- Per-target-type unified callbacks ---- */
 
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
@@ -471,6 +482,7 @@ static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
     spell_commit(params->caster, params->code, params->level);
     if (params->spell->flags & SPELL_CHANNEL)
         spell_begin_channel(params->caster, params->code);
+    spell_publish_effect(params->caster, params->code, st);
     params->spell->execute(params->caster, st, params->spell);
 }
 
@@ -491,7 +503,7 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
     spellTarget_t st;
 
     if (!caster || !caster->inuse || M_IsDead(caster) || !target || !spell ||
-        spell->target_type != SPELL_TARGET_UNIT) {
+        (spell->target_type != SPELL_TARGET_UNIT && spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
         G_FreeEdict(thinker);
         return;
     }
@@ -601,6 +613,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     spell_commit(caster, code, level);
     if (spell->flags & SPELL_CHANNEL)
         spell_begin_channel(caster, code);
+    spell_publish_effect(caster, code, st);
     spell->execute(caster, st, spell);
     S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
@@ -620,6 +633,7 @@ static void spell_no_target_execute(LPEDICT clent) {
     if (spell->validate && !spell->validate(caster, st)) return;
 
     spell_commit(caster, code, level);
+    spell_publish_effect(caster, code, st);
     spell->execute(caster, st, spell);
 }
 
@@ -636,6 +650,31 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     if (spell->validate && !spell->validate(caster, target)) return false;
 
     spell_commit(caster, code, level);
+    spell_publish_effect(caster, code, target);
+    spell->execute(caster, target, spell);
+    return true;
+}
+
+BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
+    DWORD level;
+    FLOAT range;
+    spell_info_t const *spell;
+    spellTarget_t target;
+
+    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    spell = S_SpellInfoForCode(code);
+    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
+                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        !spell->execute || (spell->flags & SPELL_TOGGLE)) return false;
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    if (!spell_validate_point(NULL, caster, code, level, point, range)) return false;
+    target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
+    if (spell->validate && !spell->validate(caster, target)) return false;
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
+    spell_publish_effect(caster, code, target);
     spell->execute(caster, target, spell);
     return true;
 }
@@ -656,7 +695,34 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
 
     spell_commit(caster, code, level);
     if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
+    spell_publish_effect(caster, code, target);
     spell->execute(caster, target, spell);
+    return true;
+}
+
+BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
+    DWORD level;
+    FLOAT range;
+    spell_info_t const *spell;
+    spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
+
+    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    spell = S_SpellInfoForCode(code);
+    if (!spell || (spell->target_type != SPELL_TARGET_UNIT &&
+                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        !spell->execute || (spell->flags & SPELL_TOGGLE)) return false;
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
+        !S_SpellIsAliveTarget(unit) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (spell->validate && !spell->validate(caster, target)) return false;
+    if (!S_SpellTargetInRange(caster, unit, range))
+        return spell_begin_unit_target_approach(caster, code, unit);
+
+    spellUnitTargetParams_t params = {
+        .caster = caster, .code = code, .level = level, .spell = spell, .target = unit
+    };
+    spell_execute_unit_target(&params);
     return true;
 }
 

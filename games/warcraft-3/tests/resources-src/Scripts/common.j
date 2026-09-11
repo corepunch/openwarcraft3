@@ -166,6 +166,16 @@ native RegionClearRect        takes region whichRegion, rect r returns nothing
 native Location               takes real x, real y returns location
 native MoveLocation           takes location whichLocation, real newX, real newY returns nothing
 native GetLocationX           takes location whichLocation returns real
+native GetSpellAbilityUnit    takes nothing returns unit
+native GetSpellAbilityId      takes nothing returns integer
+native GetSpellTargetLoc      takes nothing returns location
+native GetSpellTargetX        takes nothing returns real
+native GetSpellTargetY        takes nothing returns real
+native GetSpellTargetDestructable takes nothing returns destructable
+native GetSpellTargetItem     takes nothing returns item
+native GetSpellTargetUnit     takes nothing returns unit
+native OrderId                takes string orderIdString returns integer
+native OrderId2String         takes integer orderId returns string
 native GetLocationY           takes location whichLocation returns real
 native IsPointInRegion        takes region whichRegion, real x, real y returns boolean
 native IsLocationInRegion     takes region whichRegion, location whichLocation returns boolean
@@ -285,6 +295,7 @@ globals
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_CANCEL = ConvertPlayerUnitEvent(36)
     constant playerunitevent EVENT_PLAYER_UNIT_RESEARCH_FINISH = ConvertPlayerUnitEvent(37)
     constant playerunitevent EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER = ConvertPlayerUnitEvent(39)
+    constant playerunitevent EVENT_PLAYER_UNIT_SPELL_EFFECT = ConvertPlayerUnitEvent(274)
     constant playerunitevent EVENT_PLAYER_HERO_LEVEL = ConvertPlayerUnitEvent(41)
     constant playerunitevent EVENT_PLAYER_UNIT_SUMMON = ConvertPlayerUnitEvent(47)
     constant gameevent EVENT_GAME_STATE_LIMIT = ConvertGameEvent(3)

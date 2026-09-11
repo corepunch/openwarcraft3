@@ -68,6 +68,8 @@ struct jass_context {
     LPEDICT unit;
     LPEDICT source;
     LONG eventValue;
+    VECTOR2 point;
+    BOOL hasPoint;
     LPPLAYER playerState;
     LPPLAYER localPlayerState;
     HANDLE timer;
@@ -111,6 +113,7 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 HANDLE jass_alloc(long size);
 void jass_free(HANDLE ptr);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
+BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
 LPJASS jass_getroot(LPJASS j);
 BOOL jass_isrunning(LPJASS j);
 void jass_haltevents(LPJASS j);

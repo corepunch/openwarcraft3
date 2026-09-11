@@ -1736,6 +1736,55 @@ TEST(wc3_api, build_placement_publishes_point_order_event_context) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
+    LPEDICT caster, target;
+    VECTOR2 point = { 96.0f, 144.0f };
+
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('O','t','c','h'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    caster->s.player = game.clients[0].ps.number;
+    target->s.player = game.clients[1].ps.number;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer spellEvents = 0\n"
+        "endglobals\n"
+        "function onSpellEffect takes nothing returns nothing\n"
+        "  set spellEvents = spellEvents + 1\n"
+        "  call BJassAssert(GetSpellAbilityUnit() != null, \"spell caster missing\")\n"
+        "  if GetSpellAbilityId() == 'AOcl' then\n"
+        "    call BJassAssert(GetSpellTargetUnit() != null, \"unit spell target missing\")\n"
+        "    call BJassAssert(GetSpellTargetX() == 0.0 and GetSpellTargetY() == 0.0, \"unit target must not expose point context\")\n"
+        "  elseif GetSpellAbilityId() == 'AEbl' then\n"
+        "    call BJassAssert(GetSpellTargetUnit() == null, \"point spell must not expose a unit target\")\n"
+        "    call BJassAssert(GetSpellTargetX() == 96.0 and GetSpellTargetY() == 144.0, \"point spell coordinates missing\")\n"
+        "  else\n"
+        "    call BJassAssert(false, \"unexpected spell id\")\n"
+        "  endif\n"
+        "endfunction\n"
+        "function verifySpellEvents takes nothing returns nothing\n"
+        "  call BJassAssert(spellEvents == 2, \"expected both spell-effect events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call BJassAssert(OrderId(\"chainlightning\") == 852119, \"chain lightning order id mismatch\")\n"
+        "  call BJassAssert(OrderId2String(852119) == \"chainlightning\", \"chain lightning order name mismatch\")\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_SPELL_EFFECT, null)\n"
+        "  call TriggerAddAction(t, function onSpellEffect)\n"
+        "endfunction\n"));
+
+    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, target,
+                            (LONG)MAKEFOURCC('A','O','c','l'), NULL);
+    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, NULL,
+                            (LONG)MAKEFOURCC('A','E','b','l'), &point);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifySpellEvents", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, enable_user_ui_does_not_block_target_commands) {
     LPGAMECLIENT gc = &game.clients[0];
     LPCSTR point[] = { "point", "10", "20" };

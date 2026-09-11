@@ -328,8 +328,23 @@ typedef enum {
     EVENT_WIDGET_DEATH = 89,
     EVENT_DIALOG_BUTTON_CLICK = 90,
     EVENT_DIALOG_CLICK = 91,
-    
-    EVENT_UNIT_IN_RANGE,
+
+    /* Later Warcraft III spell lifecycle event ids retain their retail numeric
+     * values so ConvertPlayerUnitEvent/ConvertUnitEvent handles compare exactly
+     * with the constants authored by common.j.  Only SPELL_EFFECT is currently
+     * published; the surrounding values are reserved for future lifecycle work. */
+    EVENT_PLAYER_UNIT_SPELL_CHANNEL = 272,
+    EVENT_PLAYER_UNIT_SPELL_CAST = 273,
+    EVENT_PLAYER_UNIT_SPELL_EFFECT = 274,
+    EVENT_PLAYER_UNIT_SPELL_FINISH = 275,
+    EVENT_PLAYER_UNIT_SPELL_ENDCAST = 276,
+    EVENT_UNIT_SPELL_CHANNEL = 289,
+    EVENT_UNIT_SPELL_CAST = 290,
+    EVENT_UNIT_SPELL_EFFECT = 291,
+    EVENT_UNIT_SPELL_FINISH = 292,
+    EVENT_UNIT_SPELL_ENDCAST = 293,
+
+    EVENT_UNIT_IN_RANGE = 92,
 } EVENTTYPE;
 
 /* struct uiFrameDef_s is defined in common/stb_fdf.h (shared with UI module) */
@@ -641,7 +656,9 @@ typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
     LPEDICT source;
-    LONG value; /* scalar JASS callback payload (for example GetResearched rawcode) */
+    LONG value; /* scalar JASS callback payload (for example spell/research rawcode) */
+    VECTOR2 point;
+    BOOL has_point;
     LPEVENT responseTo;
 } GAMEEVENT;
 
@@ -1482,6 +1499,7 @@ void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
+GAMEEVENT *G_PublishEventWithPoint(LPEDICT, EVENTTYPE, LPEDICT, LONG, LPCVECTOR2);
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
@@ -2053,6 +2071,8 @@ BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
 void G_PublishIssuedPointOrder(LPEDICT, DWORD, LPCVECTOR2, DWORD, LPCSTR);
 DWORD G_GetIssuedOrderId(LPCEDICT);
 BOOL G_GetIssuedOrderPoint(LPCEDICT, LPVECTOR2);
+DWORD G_OrderId(LPCSTR);
+LPCSTR G_OrderId2String(DWORD);
 BOOL G_UnitStartNextQueuedOrder(LPEDICT);
 void G_ClearUnitOrderQueue(LPEDICT);
 DWORD G_UnitQueuedOrderCount(LPCEDICT);
@@ -2127,7 +2147,7 @@ void order_follow_resume(LPEDICT);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
-BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
+BOOL G_ActorHasSkill(LPCEDICT, LPCSTR);
 BOOL G_ActorAddSkill(LPEDICT, DWORD);
 BOOL G_ActorRemoveSkill(LPEDICT, DWORD);
 BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);

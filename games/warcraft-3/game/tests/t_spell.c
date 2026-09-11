@@ -980,4 +980,84 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     free_slk_rows(rows);
 }
 
+
+TEST(wc3_spell, target_order_name_routes_chain_lightning_through_spell_pipeline) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\n"
+        "C;Y2;X3;K\"air,ground,enemy,neutral\"\nC;Y2;X4;K\"75\"\n"
+        "C;Y2;X5;K\"9\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"100\"\n"
+        "C;Y2;X8;K\"1\"\nC;Y2;X9;K\"0\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AOcl" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('O','f','a','r'), 500, 300, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 500.0f;
+    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    level.events.read = level.events.write = 0;
+    memset(level.events.queue, 0, sizeof(level.events.queue));
+
+    T_EQ(G_OrderId("chainlightning"), 852119);
+    T_STREQ(G_OrderId2String(852119), "chainlightning");
+    T_ASSERT(unit_issuetargetorder(caster, "chainlightning", target));
+    T_FEQ(target->health.value, 400.0f, 0.001f);
+    T_FEQ(caster->mana.value, 225.0f, 0.001f);
+    T_EQ(G_GetIssuedOrderId(caster), 852119);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
+    T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('A','O','c','l'));
+    T_ASSERT(level.events.queue[0].source == target);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Cool1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y1;X7;K\"DataB1\"\nC;Y1;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"AEbl\"\nC;Y2;X2;K\"AEbl\"\nC;Y2;X3;K\"10\"\n"
+        "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"1000\"\nC;Y2;X6;K\"1000\"\n"
+        "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AEbl" };
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *old;
+    LPEDICT caster = make_hero(MAKEFOURCC('E','w','d','n'), 500, 300, 0, 0);
+    VECTOR2 point = { 64.0f, 32.0f };
+
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities;
+    caster->s.player = 0;
+    caster->collision = 16.0f;
+    level.events.read = level.events.write = 0;
+    memset(level.events.queue, 0, sizeof(level.events.queue));
+
+    T_ASSERT(unit_issueorder(caster, "blink", &point));
+    T_EQ(G_GetIssuedOrderId(caster), 852525);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
+    T_ASSERT(level.events.queue[0].has_point);
+    T_FEQ(level.events.queue[0].point.x, point.x, 0.001f);
+    T_FEQ(level.events.queue[0].point.y, point.y, 0.001f);
+    T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('A','E','b','l'));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

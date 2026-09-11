@@ -3033,13 +3033,14 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     LEVELEVENTS old_events = level.events;
     EVENT handler = { .type = EVENT_UNIT_IN_RANGE };
     LPEDICT subject, source;
+    VECTOR2 point = { 11.0f, 22.0f };
 
     reset_entities(); memset(&level.events, 0, sizeof(level.events));
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
     LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
-    GAMEEVENT *queued = G_PublishEventWithValue(subject, EVENT_UNIT_IN_RANGE, source, (LONG)MAKEFOURCC('R','h','m','e'));
+    GAMEEVENT *queued = G_PublishEventWithPoint(subject, EVENT_UNIT_IN_RANGE, source, (LONG)MAKEFOURCC('R','h','m','e'), &point);
     queued->responseTo = saved_handler;
     T_ASSERT(WriteGame(filename));
     level.events.read = level.events.write; memset(level.events.queue, 0, sizeof(level.events.queue));
@@ -3048,6 +3049,9 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     T_EQ(level.events.queue[0].type, EVENT_UNIT_IN_RANGE);
     T_ASSERT(level.events.queue[0].edict == subject && level.events.queue[0].source == source);
     T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('R','h','m','e'));
+    T_ASSERT(level.events.queue[0].has_point);
+    T_FEQ(level.events.queue[0].point.x, 11.0f, 0.001f);
+    T_FEQ(level.events.queue[0].point.y, 22.0f, 0.001f);
     T_ASSERT(level.events.queue[0].responseTo == saved_handler);
     level.events = old_events; remove(filename);
 }
@@ -3487,6 +3491,49 @@ TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
     T_ASSERT(ReadGame(filename));
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "VerifyResearchContext", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-spell-context-save-test.bin";
+    LPEDICT caster;
+    VECTOR2 point = { 123.0f, 234.0f };
+
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('O','t','c','h'), 0.0f, 0.0f);
+    caster->s.player = game.clients[0].ps.number;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  real spellXBeforeSleep = 0.0\n"
+        "  real spellYAfterSleep = 0.0\n"
+        "  integer spellIdAfterSleep = 0\n"
+        "endglobals\n"
+        "function OnSpell takes nothing returns nothing\n"
+        "  set spellXBeforeSleep = GetSpellTargetX()\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set spellYAfterSleep = GetSpellTargetY()\n"
+        "  set spellIdAfterSleep = GetSpellAbilityId()\n"
+        "endfunction\n"
+        "function VerifySpellContext takes nothing returns nothing\n"
+        "  call BJassAssert(spellXBeforeSleep == 123.0, \"spell X missing before save\")\n"
+        "  call BJassAssert(spellYAfterSleep == 234.0, \"spell Y missing after load/resume\")\n"
+        "  call BJassAssert(spellIdAfterSleep == 'AEbl', \"spell id missing after load/resume\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_SPELL_EFFECT, null)\n"
+        "  call TriggerAddAction(t, function OnSpell)\n"
+        "endfunction\n"));
+
+    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, NULL,
+                            (LONG)MAKEFOURCC('A','E','b','l'), &point);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifySpellContext", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     remove(filename);
 }

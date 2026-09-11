@@ -70,7 +70,7 @@ The following declared natives are registered and read the same producer state:
 
 There is no JASS rally-item getter in `common.txt`, although the runtime rally state may store an item widget.
 
-String-based `IssuePointOrder`/`IssueTargetOrder` work with `"setrally"` through the normal order functions. The generic Warcraft numeric order-ID table is still not implemented, so `Issue*OrderById`/`OrderId("setrally") == 851980` are not claimed by this subsystem yet.
+String-based `IssuePointOrder`/`IssueTargetOrder` work with `"setrally"` through the normal order functions. OpenRealm now has a canonical numeric table for the movement and implemented stock spell orders needed by JASS casting, but `setrally` is not yet part of that table; `Issue*OrderById`/`OrderId("setrally") == 851980` therefore remain unclaimed by this subsystem.
 
 ## Presentation
 

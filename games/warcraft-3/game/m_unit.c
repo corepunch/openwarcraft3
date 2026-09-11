@@ -244,20 +244,122 @@ static BOOL unit_order_name_valid(LPCSTR order) {
     return order && *order && strlen(order) < UNIT_ORDER_NAME_SIZE;
 }
 
-/* The current OrderId native still uses the historical class_id/FourCC
- * conversion. Keep issued-order event ids on that same contract for now so
- * campaign conditions comparing GetIssuedOrderId() with OrderId("smart")
- * agree without changing the wider numeric-order API in this compatibility
- * fix. */
+typedef struct {
+    LPCSTR name;
+    DWORD id;
+    DWORD ability;
+} unitOrderDef_t;
+
+/* Warcraft order ids are not FourCCs. Keep this table restricted to stock
+ * orders whose ids are established by Warcraft/Warsmash and to spell orders
+ * that OpenRealm already implements through spell_info_t. Duplicate names are
+ * intentional when more than one stock ability shares a base order. */
+static unitOrderDef_t const unit_order_defs[] = {
+    { "smart", 851971, 0 },
+    { "stop", 851972, 0 },
+    { "attack", 851983, 0 },
+    { "move", 851986, 0 },
+    { "holdposition", 851993, 0 },
+
+    { "avatar", 852086, MAKEFOURCC('A','H','a','v') },
+    { "blizzard", 852089, MAKEFOURCC('A','H','b','z') },
+    { "divineshield", 852090, MAKEFOURCC('A','H','d','s') },
+    { "holybolt", 852092, MAKEFOURCC('A','H','h','b') },
+    { "massteleport", 852093, MAKEFOURCC('A','H','m','t') },
+    { "resurrection", 852094, MAKEFOURCC('A','H','r','e') },
+    { "thunderbolt", 852095, MAKEFOURCC('A','H','t','b') },
+    { "thunderclap", 852096, MAKEFOURCC('A','H','t','c') },
+    { "waterelemental", 852097, MAKEFOURCC('A','H','w','e') },
+    { "chainlightning", 852119, MAKEFOURCC('A','O','c','l') },
+    { "earthquake", 852121, MAKEFOURCC('A','O','e','q') },
+    { "farsight", 852122, MAKEFOURCC('A','O','f','s') },
+    { "mirrorimage", 852123, MAKEFOURCC('A','O','m','i') },
+    { "shockwave", 852125, MAKEFOURCC('A','O','s','h') },
+    { "spiritwolf", 852126, MAKEFOURCC('A','O','s','f') },
+    { "stomp", 852127, MAKEFOURCC('A','O','w','s') },
+    { "whirlwind", 852128, MAKEFOURCC('A','O','w','w') },
+    { "windwalk", 852129, MAKEFOURCC('A','O','w','k') },
+    { "eattree", 852146, MAKEFOURCC('A','e','a','t') },
+    { "entanglingroots", 852171, MAKEFOURCC('A','E','e','r') },
+    { "forceofnature", 852176, MAKEFOURCC('A','E','f','n') },
+    { "manaburn", 852179, MAKEFOURCC('A','E','m','b') },
+    { "metamorphosis", 852180, MAKEFOURCC('A','E','m','e') },
+    { "starfall", 852183, MAKEFOURCC('A','E','s','f') },
+    { "tranquility", 852184, MAKEFOURCC('A','E','t','q') },
+    { "animatedead", 852217, MAKEFOURCC('A','U','a','n') },
+    { "carrionswarm", 852218, MAKEFOURCC('A','U','c','s') },
+    { "darkritual", 852219, MAKEFOURCC('A','U','d','r') },
+    { "deathanddecay", 852221, MAKEFOURCC('A','U','d','d') },
+    { "deathcoil", 852222, MAKEFOURCC('A','U','d','c') },
+    { "deathpact", 852223, MAKEFOURCC('A','U','d','p') },
+    { "frostarmor", 852225, MAKEFOURCC('A','U','f','a') },
+    { "frostarmor", 852225, MAKEFOURCC('A','U','f','u') },
+    { "frostnova", 852226, MAKEFOURCC('A','U','f','n') },
+    { "sleep", 852227, MAKEFOURCC('A','U','s','l') },
+    { "firebolt", 852231, MAKEFOURCC('A','N','f','b') },
+    { "inferno", 852232, MAKEFOURCC('A','U','i','n') },
+    { "rainoffire", 852238, MAKEFOURCC('A','N','r','f') },
+    { "drain", 852487, MAKEFOURCC('A','N','d','r') },
+    { "flamestrike", 852488, MAKEFOURCC('A','H','f','s') },
+    { "flamestrike", 852488, MAKEFOURCC('A','N','f','s') },
+    { "healingwave", 852501, MAKEFOURCC('A','O','h','w') },
+    { "hex", 852502, MAKEFOURCC('A','O','h','x') },
+    { "vengeance", 852521, MAKEFOURCC('A','E','s','v') },
+    { "blink", 852525, MAKEFOURCC('A','E','b','l') },
+    { "fanofknives", 852526, MAKEFOURCC('A','E','f','k') },
+    { "shadowstrike", 852527, MAKEFOURCC('A','E','s','h') },
+    { "spiritofvengeance", 852528, MAKEFOURCC('A','E','s','v') },
+    { "impale", 852555, MAKEFOURCC('A','U','i','m') },
+    { "locustswarm", 852556, MAKEFOURCC('A','U','l','s') },
+    { "breathoffire", 852580, MAKEFOURCC('A','N','b','f') },
+    { "charm", 852581, MAKEFOURCC('A','N','c','h') },
+    { "drunkenhaze", 852585, MAKEFOURCC('A','N','d','h') },
+    { "forkedlightning", 852587, MAKEFOURCC('A','N','f','l') },
+    { "silence", 852592, MAKEFOURCC('A','N','s','i') },
+    { "stampede", 852593, MAKEFOURCC('A','N','s','t') },
+    { "summongrizzly", 852594, MAKEFOURCC('A','N','s','g') },
+    { "summonquillbeast", 852595, MAKEFOURCC('A','N','s','q') },
+    { "summonwareagle", 852596, MAKEFOURCC('A','N','s','w') },
+    { "tornado", 852597, MAKEFOURCC('A','N','t','o') },
+};
+
+DWORD G_OrderId(LPCSTR order) {
+    DWORD id = 0;
+    if (!order) return 0;
+    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+        if (!strcmp(order, unit_order_defs[i].name)) return unit_order_defs[i].id;
+    }
+    /* Preserve the old custom-order fallback for maps that intentionally used
+     * a four-character order string. */
+    memcpy(&id, order, MIN(sizeof(id), strlen(order)));
+    return id;
+}
+
+LPCSTR G_OrderId2String(DWORD id) {
+    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+        if (id == unit_order_defs[i].id) return unit_order_defs[i].name;
+    }
+    return GetClassName(id);
+}
+
+static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
+    if (!unit || !order) return 0;
+    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+        DWORD const code = unit_order_defs[i].ability;
+        if (code && !strcmp(order, unit_order_defs[i].name) &&
+            G_UnitAbilityLevel(unit, code) && S_SpellInfoForCode(code)) {
+            return code;
+        }
+    }
+    return 0;
+}
+
 static DWORD issued_order_ids[MAX_ENTITIES];
 static VECTOR2 issued_order_points[MAX_ENTITIES];
 static BOOL issued_order_point_valid[MAX_ENTITIES];
 
 static DWORD unit_order_event_id(LPCSTR order) {
-    DWORD id = 0;
-    if (!order) return 0;
-    memcpy(&id, order, MIN(sizeof(id), strlen(order)));
-    return id;
+    return G_OrderId(order);
 }
 
 DWORD G_GetIssuedOrderId(LPCEDICT self) {
@@ -474,6 +576,20 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
+    {
+        DWORD const spell_code = unit_spell_code_for_order(self, order);
+        if (spell_code) {
+            BOOL accepted;
+            /* Shift-queued spell casts need a spell-aware queue entry with a
+             * stable target snapshot. Leave that unsupported rather than
+             * silently enqueueing them as movement orders. */
+            if (queue) return false;
+            G_ClearUnitOrderQueue(self);
+            accepted = S_IssueUnitTargetSpell(self, spell_code, target);
+            if (accepted) unit_publish_target_order(self, order, target, issuer_player);
+            return accepted;
+        }
+    }
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "militia") && strcmp(order, "militiaoff")) return false;
 
@@ -507,6 +623,20 @@ BOOL G_IssueUnitPointOrder(LPEDICT self, LPCSTR order, LPCVECTOR2 point,
         return accepted;
     }
     if (S_GoldMineWorkerIsInside(self)) return false;
+    {
+        DWORD const spell_code = unit_spell_code_for_order(self, order);
+        if (spell_code) {
+            BOOL accepted;
+            if (queue) return false;
+            G_ClearUnitOrderQueue(self);
+            accepted = S_CastPointTargetSpell(self, spell_code, point);
+            if (accepted) {
+                G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
+                                          issuer_player, order);
+            }
+            return accepted;
+        }
+    }
     if (self->aiflags & AI_IMMOBILE) return false;
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack")) return false;
 
@@ -769,10 +899,10 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     }
     if (!strcmp(order, "holdposition"))
         return S_HoldPosition(self);
-    if (!strcmp(order, "mirrorimage"))
-        return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'O', 'm', 'i'));
-    if (!strcmp(order, "avatar"))
-        return S_CastNoTargetSpell(self, MAKEFOURCC('A', 'H', 'a', 'v'));
+    {
+        DWORD const spell_code = unit_spell_code_for_order(self, order);
+        if (spell_code) return S_CastNoTargetSpell(self, spell_code);
+    }
     if (!strcmp(order, "ravenform"))
         return unit_raven_form_order(self, true);
     if (!strcmp(order, "unravenform"))
@@ -1152,13 +1282,13 @@ BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta) {
 
 DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode) {
     DWORD const hero_level = G_HeroSkillLevel(ent, abilcode);
+    char id[5] = { 0 };
     if (hero_level) {
         return hero_level;
     }
-    if (ent && ent->data.UnitAbilities && G_FourCCListContains(ent->data.UnitAbilities->abilList, abilcode)) {
-        return 1;
-    }
-    return 0;
+    if (!ent || !abilcode) return 0;
+    memcpy(id, &abilcode, 4);
+    return G_ActorHasSkill(ent, id) ? 1 : 0;
 }
 
 void unit_learnability(LPEDICT ent, DWORD abilcode) {

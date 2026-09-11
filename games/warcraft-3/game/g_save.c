@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 17; // persistent unit vertex-colour and per-unit ability cooldown state
+static DWORD const save_version = 17; // persistent WC3 unit, ability, and spell/order event state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -183,6 +183,8 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, edict, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, source, F_EDICT, 0, FIELD_NONE),
     F(gameevent_s, value, F_INT),
+    F(gameevent_s, point, F_VECTOR),
+    F(gameevent_s, has_point, F_INT),
     F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };

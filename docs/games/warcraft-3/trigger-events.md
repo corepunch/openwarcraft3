@@ -15,9 +15,8 @@ coroutine runs:
 | --- | --- |
 | `edict` | primary/triggering unit or widget |
 | `source` | secondary unit/widget: attacker, order target, manipulated item, etc. |
-| `player` | explicit triggering/selecting player when owner inference is wrong |
-| `data` / `data2` | event-specific integers such as order ID, spell rawcode, learned rank |
-| `point` / `has_point` | accepted point-order or spell point target |
+| `value` | event-specific scalar such as spell/research rawcode |
+| `point` / `has_point` | spell point target when the event carries one |
 | `responseTo` | exact targeted registration for region/range/game-state events |
 
 `jass_calltriggerevent()` copies those fields into `JASSCONTEXT`; sleeping JASS
@@ -28,9 +27,9 @@ persist the queue/context fields introduced by the event bridge.
 
 Interactive selection uses `G_SelectEntity()` / `G_DeselectEntity()` and emits
 `EVENT_PLAYER_UNIT_SELECTED` / `DESELECTED` plus the unit-specific equivalent
-only on an actual membership transition. `player` is the selecting player's
-number, so `GetTriggerPlayer()` does not incorrectly become the selected unit's
-owner.
+only on an actual membership transition. `GAMEEVENT` does not currently carry a
+separate selecting-player field; response code that needs that distinction must
+not infer support from the event payload.
 
 `SelectUnit` / `ClearSelection` are local-presentation natives. A synchronized
 call applies to every **connected local client view**, not to unused map-player
@@ -96,8 +95,8 @@ continue to report registrations for those gaps.
 
 The bridge also provides:
 
-- accepted immediate/point/target order events with `GetIssuedOrderId()`, point
-  and target response natives;
+- accepted point/target order events with `GetIssuedOrderId()`, point and target
+  response natives; immediate/no-target issued-order publication remains separate work;
 - successful item pickup/use context via `GetManipulatingUnit()` and
   `GetManipulatedItem()`;
 - successful Hero skill learning via `GetLearningUnit()`, `GetLearnedSkill()`
@@ -162,8 +161,8 @@ Focused coverage lives in:
 
 - `games/warcraft-3/game/tests/t_api.c` — selection locality, attacked response,
   order/item/Hero/region/range response context, spell response context;
-- `games/warcraft-3/game/tests/t_spell.c` — unified spell execution publishes
-  spell-effect events before spell-created summon events;
+- `games/warcraft-3/game/tests/t_avatar.c` — a runtime-added spell can cast through
+  its stock order and publishes the two spell-effect event families;
 - `games/warcraft-3/game/tests/t_game.c` — direct timer expiry is counted as
   matched/dispatched diagnostics and save/load timer behavior remains intact.
 
