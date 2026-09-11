@@ -19,7 +19,11 @@ The immediate orders `ravenform` and `unravenform` first choose the stock transf
 
 Preplaced alternate-form campaign units are valid transformation endpoints even if they did not pass through OpenRealm's runtime ability-add path before the map script issues `unravenform`. This is required by the Prologue campaign Medivh raven: the map starts with the alternate unit and later orders that same unit to return to the base form.
 
-The current implementation performs these script-issued form changes immediately. After rebinding the type it also snaps the entity frame to the first frame of the newly selected animation sequence. This is required for cinematics because paused units do not execute the normal `M_MoveFrame()` clamp; without the explicit snap the portrait/type can already be human while the world model remains frozen on an old raven `Alternate` frame. Full `Amrf`/`Arav` cast time, morph-sequence timing, takeoff/landing interpolation, transformation effects/sounds, duration/buff-driven automatic reversion, and command-card ability behavior remain separate compatibility work.
+The type rebind still happens on the script-issued order so the existing edict immediately owns the destination unit data, but presentation then runs the shared model's authored morph sequence as an active `umove_t`. Human-to-raven temporarily removes alternate-form animation properties to select the untagged `Morph` clip, restores the raven `alternateex` requirement while that clip is active, and enters the raven stand family when it completes. Raven-to-human plays `Morph Alternate` and clears the alternate-form properties at completion before entering the ordinary stand family. The morph move explicitly starts at the selected sequence's first frame, including for cinematic units that may otherwise be paused.
+
+`M_MoveFrame()` restarts the animation that is active *after* an end callback returns. This matters for morph completion: an end callback can replace `Morph Alternate` with `Stand`, and resetting the frame to the completed morph's start would make the newly rebound human model sample an unrelated frame for one tick, producing a visible blank between forms.
+
+Full `Amrf`/`Arav` cast time, takeoff/landing interpolation, transformation effects/sounds, duration/buff-driven automatic reversion, and command-card ability behavior remain separate compatibility work.
 
 ## Verification
 
