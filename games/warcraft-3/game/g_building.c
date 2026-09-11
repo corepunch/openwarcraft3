@@ -674,6 +674,13 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
     positions = gi.MemAlloc(sizeof(*positions) * globals.num_edicts);
     angles = gi.MemAlloc(sizeof(*angles) * globals.num_edicts);
+    if (!units || !positions || !angles) {
+        fprintf(stderr, "WC3: unable to allocate construction occupant displacement buffers\n");
+        if (angles) gi.MemFree(angles);
+        if (positions) gi.MemFree(positions);
+        if (units) gi.MemFree(units);
+        return false;
+    }
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
                   G_BuildUnitCanDisplace(builder, ent) && ent != builder &&
                   CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
