@@ -886,12 +886,21 @@ DWORD IssuePointOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+
+    /* Building rawcodes are valid point-order ids, but they are not entries in
+     * the canonical Warcraft order table. Keep construction on the existing
+     * authoritative build path and leave ordinary ids to the generic router. */
+    if (G_UnitIsBuilding(order))
+        return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, &point));
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), &point));
 }
 DWORD IssuePointOrderByIdLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
+
+    if (G_UnitIsBuilding(order))
+        return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, whichLocation));
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), whichLocation));
 }
 DWORD IssueTargetOrder(LPJASS j) {
@@ -928,11 +937,11 @@ DWORD IssueBuildOrder(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IssueBuildOrderById(LPJASS j) {
-    //HANDLE whichPeon = jass_checkhandle(j, 1, "unit");
-    //LONG unitId = jass_checkinteger(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichPeon = jass_checkhandle(j, 1, "unit");
+    DWORD unitId = (DWORD)jass_checkinteger(j, 2);
+    VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+
+    return jass_pushboolean(j, G_IssueBuildOrder(whichPeon, unitId, &point));
 }
 DWORD SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

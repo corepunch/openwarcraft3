@@ -326,7 +326,7 @@ static unitOrderDef_t const unit_order_defs[] = {
 DWORD G_OrderId(LPCSTR order) {
     DWORD id = 0;
     if (!order) return 0;
-    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+    FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         if (!strcmp(order, unit_order_defs[i].name)) return unit_order_defs[i].id;
     }
     /* Preserve the old custom-order fallback for maps that intentionally used
@@ -336,7 +336,7 @@ DWORD G_OrderId(LPCSTR order) {
 }
 
 LPCSTR G_OrderId2String(DWORD id) {
-    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+    FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         if (id == unit_order_defs[i].id) return unit_order_defs[i].name;
     }
     return GetClassName(id);
@@ -344,7 +344,7 @@ LPCSTR G_OrderId2String(DWORD id) {
 
 static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
     if (!unit || !order) return 0;
-    FOR_LOOP(i, ARRAY_COUNT(unit_order_defs)) {
+    FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         DWORD const code = unit_order_defs[i].ability;
         if (code && !strcmp(order, unit_order_defs[i].name) &&
             G_UnitAbilityLevel(unit, code) && S_SpellInfoForCode(code)) {

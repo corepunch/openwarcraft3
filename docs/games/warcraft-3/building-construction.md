@@ -143,6 +143,27 @@ Placement is checked once when the player confirms the ghost and again when the 
 
 Once the initial placement is accepted, `G_IssueBuildOrder()` also publishes `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. The builder is `GetOrderedUnit()`, `GetIssuedOrderId()` is the building rawcode, and `GetOrderPointX/Y/Loc()` expose the accepted snapped build point. This happens at order acceptance, before the worker travels; arrival-time revalidation and construct-start/finish are later, separate events. Prologue02 relies on this exact point-order handoff to advance from Burrow placement into the lumber tutorial. See [Issued Target and Point Order Events](issued-target-order-events.md).
 
+### JASS construction orders
+
+`IssueBuildOrderById(whichPeon, unitId, x, y)` is a thin JASS adapter over
+`G_IssueBuildOrder()`. The integer is the building rawcode, so scripted
+construction uses the same server-authoritative worker build list, technology,
+resource, placement, pathing, waypoint, and issued-point-order behavior as
+command-card and AI construction. It does not spawn a completed structure
+directly; `CreateUnit` remains the immediate-spawn path.
+
+Building rawcodes passed to `IssuePointOrderById` or
+`IssuePointOrderByIdLoc` are routed to the same build path before the generic
+order-id translation. Canonical movement/spell numeric IDs continue through the
+normal `G_OrderId2String()` router added by the JASS spell-order work; building
+rawcodes are a distinct Warcraft point-order case and are not entries in that
+order table. The string-form `IssueBuildOrder` remains a stub.
+
+Construction completion publishes both
+`EVENT_PLAYER_UNIT_CONSTRUCT_FINISH` and `EVENT_UNIT_CONSTRUCT_FINISH` for the
+same structure, so `GetConstructedStructure()` is valid from either callback
+family.
+
 ### Placement cancellation
 
 Build placement is a server-owned UI mode. `G_CancelBuildPlacement()` is the single teardown path: it clears the player's pending `build_project`, sends an empty `svc_cursor` so the client removes the ghost model, and restores the normal command card. The command-card `CmdCancel`, the gameplay `cancel` command, and both `smart`/`smartpoint` right-click paths use this teardown. A right-click while the build ghost is active is therefore consumed as cancellation and must not issue an order to the selected worker.
@@ -266,7 +287,8 @@ Construction and owned-building Repair now share the behavior described above. T
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - spawned Human construction cancellation now has the base 75% gold/lumber refund, worker release, cancel/death events, command/UI wiring, and footprint teardown; retail damage-adjusted cancellation refund behavior is not yet modeled because the exact damage/repair interaction still needs observation;
-- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior, so their spawned-construction cancellation lifecycles are not yet enabled. Their legacy health-driven completion path now converges on `G_CompleteConstruction()`: the self-linked `building->build == building` sentinel is cleared, authored Food Made is activated, the owner completion feedback is emitted, and `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH` is published exactly once. This is required by campaign triggers such as Prologue02's Orc Burrow objective;
+- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior, so their spawned-construction cancellation lifecycles are not yet enabled. Their legacy health-driven completion path now converges on `G_CompleteConstruction()`: the self-linked `building->build == building` sentinel is cleared, authored Food Made is activated, the owner completion feedback is emitted, and the player-unit/unit `CONSTRUCT_FINISH` event pair is published exactly once. This is required by campaign triggers such as Prologue02's Orc Burrow objective;
+- string-form `IssueBuildOrder` remains a stub. `IssueBuildOrderById` and building rawcodes passed to the numeric point-order natives reuse `G_IssueBuildOrder()`; canonical movement/spell numeric IDs continue through the existing order table;
 - Repair target masks are not yet complete enough to safely enable allied structures, repairable mechanical non-buildings, or destructibles; the current implementation keeps the pre-existing owned-building boundary;
 - Repair `DataE` naval-range behavior is not implemented;
 - Auto Repair currently implements the high-confidence nearest-valid owned-building path. Warcraft string immediate orders `repairon` / `repairoff` are exposed through the existing `IssueImmediateOrder` path; broader generic autocast policies and numeric `IssueImmediateOrderById` order-ID exposure remain future work. The command-card transport uses the normalized multi-selection `autocast <rawcode>` command;
@@ -279,6 +301,8 @@ Focused automated checks after building:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
+make test-wc3-engine WC3_PATTERN='wc3_api.issue_build_order_by_id_*'
+make test-wc3-engine WC3_PATTERN='wc3_api.construct_finish_*'
 make test-wc3-engine WC3_PATTERN='wc3_combat.*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.*'
 make test-wc3-engine WC3_PATTERN='wc3_jass_map.player_technology_*'

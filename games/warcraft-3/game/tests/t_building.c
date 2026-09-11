@@ -1395,9 +1395,11 @@ TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_g
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(building->food.made, 10);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 10);
-    T_EQ(level.events.write, 1);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     T_ASSERT(level.events.queue[0].edict == building);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_FINISH);
+    T_ASSERT(level.events.queue[1].edict == building);
 }
 
 TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grants_food_once) {
@@ -1449,14 +1451,16 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_EQ(building->food.made, 6);
     T_EQ(building_stand_calls, 1);
     T_ASSERT(building->sound.owner_pending != 0);
-    T_EQ(level.events.write, 1);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     T_ASSERT(level.events.queue[0].edict == building);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_FINISH);
+    T_ASSERT(level.events.queue[1].edict == building);
 
     G_CompleteConstruction(building);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
     T_EQ(building_stand_calls, 1);
-    T_EQ(level.events.write, 1);
+    T_EQ(level.events.write, 2);
 }
 
 TEST(wc3_building, plain_build_error_text_is_not_resolved_as_trigger_string_zero) {

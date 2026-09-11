@@ -878,6 +878,7 @@ void G_CompleteConstruction(LPEDICT building) {
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+    G_PublishEvent(building, EVENT_UNIT_CONSTRUCT_FINISH);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",
