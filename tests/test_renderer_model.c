@@ -1,5 +1,6 @@
 #include "test.h"
 #include "renderer/r_local.h"
+#include "renderer/r_game.h"
 #include "renderer/r_emit.h"
 #include "games/warcraft-3/renderer/w3m/r_war3map.h"
 #include "games/warcraft-3/renderer/mdx/r_mdx.h"
@@ -216,11 +217,14 @@ static void test_spawn(void *context) { (*(DWORD *)context)++; }
 
 LPTEXTURE R_LoadTexture(LPCSTR filename) { (void)filename; return texture_load_result; }
 
+static mdxModel_t *cliff_model;
 LPMODEL R_LoadModel(LPCSTR filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
     if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
-    return test_alloc(sizeof(model_t));
+    LPMODEL model = test_alloc(sizeof(model_t));
+    if (cliff_model) { model->modeltype = ID_MDLX; model->mdx = cliff_model; }
+    return model;
 }
 
 void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
@@ -1055,12 +1059,73 @@ TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
     }
 }
 
+/* Exercise the cliff baker and cache, mocking only asset loading, SLK lookup and the flat height normal. */
+VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) { return (VECTOR3){0,0,1}; }
+w3CliffType_t const *R_CliffType(DWORD id) { T_ASSERT(false); return NULL; }
+#include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
+#include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
+
+TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
+    cliffData_t city = { .cliffModelDir = "CityCliffs", .rampModelDir = "CityCliffTrans" };
+    cliffData_t dirt = { .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" };
+    reset_registry(); R_SetMapAssetScope(NULL);
+    LPCMODEL a = R_LoadCliffModel(&city, "AABB", false);
+    LPCMODEL b = R_LoadCliffModel(&dirt, "AABB", false);
+    T_ASSERT(a != b); T_EQ(load_count, 2);
+    T_STREQ(last_model_load, "Doodads\\Terrain\\Cliffs\\CliffsAABB0.mdx");
+    T_ASSERT(R_LoadCliffModel(&city, "AABB", false) == a); T_EQ(load_count, 2);
+    a = R_LoadCliffModel(&city, "BALH", true);
+    b = R_LoadCliffModel(&dirt, "BALH", true);
+    T_ASSERT(a != b); T_EQ(load_count, 4);
+    T_STREQ(last_model_load, "Doodads\\Terrain\\CliffTrans\\CliffTransBALH0.mdx");
+    T_ASSERT(R_LoadCliffModel(&city, "BALH", true) == a); T_EQ(load_count, 4);
+    R_ResetCliffCache(); T_EQ(release_count, 4);
+}
+
+TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {
+    /* Human02Interlude (36,36), translated to (1,1) in a small synthetic grid; no retail files required. */
+    WAR3MAPVERTEX verts[25] = {0};
+    DWORD grounds[5] = {0};
+    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 5 };
+    VECTOR3 pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    VECTOR2 uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
+    cliffData_t data = { .cliff = 1, .groundTile = MAKEFOURCC('X','s','q','d'), .rampModelDir = "CityCliffTrans", .cliffModelDir = "CityCliffs" };
+    reset_registry(); R_SetMapAssetScope(NULL);
+    map.grounds[4] = data.groundTile;
+    tr.world = &map; cliff_model = &mdx;
+    FOR_LOOP(pass, 2) {
+        FOR_LOOP(i, 25) verts[i] = (WAR3MAPVERTEX){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+        verts[6].level = verts[11].level = 6;
+        verts[6].ramp = verts[7].ramp = !pass;
+        mdx.bounds.box.max.y = pass ? 128 : 256;
+        pos[1].y = pos[2].y = mdx.bounds.box.max.y;
+        cliffs_current_vertex = cliffs_vertex_buffer;
+        R_MakeCliff(&map, 1, 1, &data);
+        T_STREQ(last_model_load, pass ? "Doodads\\Terrain\\CityCliffs\\CityCliffsBAAB0.mdx" : "Doodads\\Terrain\\CityCliffTrans\\CityCliffTransBALH0.mdx");
+        T_EQ(cliffs_current_vertex - cliffs_vertex_buffer, 3);
+        FOR_LOOP(y, 5) FOR_LOOP(x, 5)
+            T_EQ(verts[x+y*5].ground, x >= 1 && x <= (pass ? 2 : 3) && y >= 1 && y <= 2 ? 4 : 0);
+        FOR_LOOP(i, 3) {
+            LPCVERTEX v = &cliffs_vertex_buffer[i];
+            T_FEQ(v->position.x, 128 + pos[i].y, 0.001f);
+            T_FEQ(v->position.y, 128 - pos[i].x, 0.001f);
+            T_FEQ(v->position.z, 384 + pos[i].z, 0.001f);
+            T_FEQ(v->normal.x, 0, 0.001f); T_FEQ(v->normal.y, -1, 0.001f); T_FEQ(v->normal.z, 0, 0.001f);
+            T_FEQ(v->texcoord.x, uv[i].x, 0.001f); T_FEQ(v->texcoord.y, uv[i].y, 0.001f);
+        }
+    }
+    cliff_model = NULL; tr.world = NULL; R_ResetCliffCache();
+}
+
 TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
     /* Levels use GetTileVertices' NE,NW,SE,SW order. Bounds are native MDX tile-space bounds. */
     static const struct { BYTE level[4]; BOOL eastwest; VECTOR2 low; } cases[] = {
-        { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) HAAL -> (37,33). */
-        { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) AHLA -> (37,34). */
-        { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* HBAL/BHLA: rows 36,37,41,42. */
+        { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) AALH -> (37,33). */
+        { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) HLAA -> (37,34). */
+        { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* BALH/HLAB: rows 36,37,41,42. */
         { .level = {6,5,6,5}, .eastwest = true, .low = {-1,0} }, /* East-high, west-low. */
         { .level = {6,5,5,5}, .eastwest = true, .low = {-1,0} }, /* East-high tapered edge. */
         { .level = {5,5,6,6}, .low = {0,1} }, /* South-high, north-low. */
@@ -1069,16 +1134,17 @@ TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         WAR3MAPVERTEX tile[4] = {0};
         BOX3 box = { .min = {-TILE_SIZE,0,0}, .max = {0,TILE_SIZE,TILE_SIZE} };
-        if (cases[i].eastwest) box.min.x *= 2;
-        else box.max.y *= 2;
+        if (cases[i].eastwest) box.max.y *= 2;
+        else box.min.x *= 2;
         FOR_LOOP(j, 4) tile[j].level = cases[i].level[j];
         VECTOR2 shift = R_CliffRampOffset(tile, &box);
-        VECTOR2 base = {TILE_SIZE,0}, pos = Vector2_add(&base, &shift);
+        VECTOR3 a = Matrix4_multiply_vector3(&r_cliff_axes, &box.min);
+        VECTOR3 b = Matrix4_multiply_vector3(&r_cliff_axes, &box.max);
         /* The mesh must cover this cliff cell plus exactly the low-side cell skipped by R_MakeTile. */
-        T_FEQ((box.min.x + pos.x) / TILE_SIZE, MIN(0, cases[i].low.x), 0.001f);
-        T_FEQ((box.max.x + pos.x) / TILE_SIZE, MAX(0, cases[i].low.x) + 1, 0.001f);
-        T_FEQ((box.min.y + pos.y) / TILE_SIZE, MIN(0, cases[i].low.y), 0.001f);
-        T_FEQ((box.max.y + pos.y) / TILE_SIZE, MAX(0, cases[i].low.y) + 1, 0.001f);
+        T_FEQ((MIN(a.x, b.x) + shift.x) / TILE_SIZE, MIN(0, cases[i].low.x), 0.001f);
+        T_FEQ((MAX(a.x, b.x) + shift.x) / TILE_SIZE, MAX(0, cases[i].low.x) + 1, 0.001f);
+        T_FEQ((MIN(a.y, b.y) + shift.y) / TILE_SIZE, MIN(0, cases[i].low.y), 0.001f);
+        T_FEQ((MAX(a.y, b.y) + shift.y) / TILE_SIZE, MAX(0, cases[i].low.y) + 1, 0.001f);
     }
 }
 

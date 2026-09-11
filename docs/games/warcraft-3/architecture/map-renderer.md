@@ -114,23 +114,56 @@ For each tile the four corner vertices are examined. Their relative height diffe
 | 1 | `B` | `H` |
 | 2 | `C` | `X` |
 
-Corner order is `[SW, NW, NE, SE]` (`r_cliff_corners[] = {3,1,0,2}`), while `GetTileVertices` stores
+Corner order is `[NW, NE, SE, SW]` (`r_cliff_corners[] = {1,0,2,3}`), while `GetTileVertices` stores
 `[NE, NW, SE, SW]`. The resulting string like `"AABB"` selects the correct model variant.
 
-`R_CliffTexture` selects the first authored cliff index in this same configuration order. W3E index 15 marks a
+`R_CliffTexture` selects the first authored cliff index in **SW, NW, NE, SE** order, independently of the model order.
+W3E index 15 marks a
 non-cliff corner, not a texture layer. Checking only SW discards legitimate faces whose other corners identify the cliff.
+
+The per-map model cache keys the full asset path, not just four configuration letters. `Cliffs` and `CityCliffs`
+(likewise `CliffTrans` and `CityCliffTrans`) contain different geometry with identical configuration suffixes.
+The former four-letter key, introduced in May 2023, returned city models for dirt requests in Human02Interlude.
+This was confirmed by logging requested directory versus the cached model's directory; it was not the courtyard border cause.
 
 ### Ground Override
 
-When a cliff tile is built, the renderer overwrites the `ground` index of all four corners to match the cliff type's `groundTile` entry from `CliffTypes.slk`. This ensures the ground layer paints the right texture on the flat surface at the top of the cliff.
+Before baking ground layers, the renderer overrides the `ground` index around the **entire cliff model footprint** with
+the cliff type's `groundTile` (or authored `upperTile`) from `CliffTypes.slk`. Ordinary cliffs cover one cell/four vertices;
+ramps cover two cells/six vertices, including the low-side neighbour. Merely painting the first cell leaves the ground
+texture border one tile short even when the cliff mesh itself covers the correct area.
 
 ### Ramp Placement
 
-The base MDX translation is `((x+1)*TILE_SIZE, y*TILE_SIZE)`. `R_CliffRampOffset` extends the two-cell model
-into the low-side neighbour that the ground baker intentionally omits. The longer bounding-box axis identifies the ramp axis.
-East–west MDX models occupy local X `[-256,0]`: west-high ramps add 128 to X, east-high ramps keep the base X.
-North–south models occupy local Y `[0,256]`: north-high ramps subtract 128 from Y, south-high ramps keep the base Y.
-The two axes are not interchangeable: applying the Y adjustment rule to X leaves every E/W ramp one cell west.
+Native MDX positions and normals are rotated -90 degrees about Z: `(x,y,z) -> (y,-x,z)`, preserving the authored UVs.
+The base translation is `(x*TILE_SIZE, y*TILE_SIZE)`. `R_CliffRampOffset` extends the two-cell model into the
+low-side neighbour intentionally omitted by the ground baker. Native Y-long models are world east–west ramps;
+native X-long models are world north–south ramps. Both rotated long axes span `[0,256]`.
+East-high ramps shift X by -128; west-high ramps do not shift. North-high ramps shift Y by -128; south-high do not shift.
+
+Do not replace this rotation with cyclically shifted filename letters. The assets are not exact rotated copies:
+in the inspected archive `CityCliffTransHBAL0` has 31 vertices, while `CityCliffTransBALH0` has 32, with different
+interior heights and UV details. The earlier SW-first filename plus X translation repaired coverage but chose the wrong mesh.
+
+### Local Game.dll evidence
+
+The user-provided `data/Warcraft3demo/Game.dll` (SHA-256
+`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`, preferred image base `0x6f000000`)
+provides these version-specific disassembly anchors:
+
+| Address | Observed contract |
+|---------|-------------------|
+| `0x6f1283e0` | Reads corners `(x,y+1), (x+1,y+1), (x+1,y), (x,y)`: NW, NE, SE, SW. |
+| `0x6f128770` | Ramp filename construction and model lookup. |
+| `0x6f4f9e28` | Sixteen 24-byte ramp records: two four-letter masks, origin X/Y, low-neighbour X/Y. |
+| `0x6f128b90` | Loads -90 degrees (`0x6f4f9e20`) before the position/normal transform at `0x6f11dfb0`. |
+| `0x6f11e200` | Heightmap deformation after rotation; adjusts Z, not an additional XY tile offset. |
+| `0x6f0ea900` | Geometry cache hashes and compares the full filename. |
+
+These are inspection addresses for this demo DLL, not universal offsets or a claim of matching every retail version.
+For example, `radare2 -q -e scr.color=0 -c 'pD 512 @ 0x6f1283e0; q' data/Warcraft3demo/Game.dll` inspects corner order.
+The local Warsmash reference (`environment/Terrain.java`, `realTileTexture`) independently explains the ground-border rule:
+a vertex adjacent to either the high or low ramp cell receives that cliff's ground tile.
 
 ### Human02Interlude terrain-hole regression
 
@@ -138,37 +171,53 @@ The two axes are not interchangeable: applying the Y adjustment rule to X leaves
 the `win` cheat reaches the same map. The inspected local ROC data has 97x65 vertices, tileset X, 9 ground textures,
 2 cliff textures, tile size 128, and world offset `(-7168,-3072)`. Coordinates below are zero-based SW cell coordinates.
 
-Targeted logs at ground rejection and cliff-model baking identified two independent geometry omissions:
+The first investigation's targeted logs at ground rejection and cliff-model baking identified two geometry omissions:
 
 - 73 of 2,284 cliff cells had SW cliff index 15 and were rejected by every cliff layer despite valid indices at other corners.
-  Examples: `(10,29)` AACA and `(65,35)` ABBA use cliff 1; `(75,25)` CCAC and `(77,9)` BBBA use cliff 0.
+  Examples: `(10,29)` and `(65,35)` use cliff 1; `(75,25)` and `(77,9)` use cliff 0.
 - The screenshot's courtyard holes remained after fixing that selection. E/W ramp models at `(36,33)` HAAL,
   `(36,34)` AHLA, and `(36,36)/(36,37)/(36,41)/(36,42)` HBAL/BHLA were baked across columns 35–36 instead of 36–37.
   The ground baker correctly skipped low-side cells `(37,33)`, `(37,34)`, `(37,36)`, `(37,37)`, `(37,41)`, `(37,42)`;
   the misplaced meshes never covered them. The foreground pair starts at world `(-2432,1536)` and `(-2432,1664)`;
   the background pair starts at `(-2432,2176)` and `(-2432,2304)`.
 
-The HBAL MDX vertices confirm X endpoints -256 (high) and 0 (low), with the midpoint at -128. For `(36,36)`,
-the old translation was `(37,36)` tiles and bounds `[35,37] x [36,37]`; the correct translation is `(38,36)` and
-bounds `[36,38] x [36,37]`. This is placement, not inverted normals or flipped UVs. Drawing the skipped cliff ground
-does not repair the ramp holes. The incorrect X rule dates to `62e559a76` (2023), not the recent ramp-classification change.
+Those configuration names describe the **old SW-first implementation**. The incorrect X rule dates to `62e559a76`
+(2023), not the recent ramp-classification change. Drawing the skipped ground does not repair the ramp holes.
+The first correction fixed mesh coverage, but the user's retail comparison exposed a remaining one-tile purple-border error.
+
+Follow-up logs and DLL inspection identified the native corner/rotation contract above and the missing ground override:
+
+| High cell | Native city ramp | Low cell | Far-end ground vertices omitted by the old override |
+|-----------|------------------|----------|----------------------------------------------------|
+| `(36,36)` | `BALH0` | `(37,36)` | `(38,36)`, `(38,37)` |
+| `(36,37)` | `HLAB0` | `(37,37)` | `(38,37)`, `(38,38)` |
+| `(36,41)` | `BALH0` | `(37,41)` | `(38,41)`, `(38,42)` |
+| `(36,42)` | `HLAB0` | `(37,42)` | `(38,42)`, `(38,43)` |
+
+For `(36,36)`, the native rotated model is translated by `(36,36)` tiles and covers `[36,38] x [36,37]`.
+Its cliff type `CXsq` selects `CityCliffTrans`, `Cliff1`, and ground `Xsqd` (index 4). Logs showed `(38,36)` and `(38,37)`
+still carrying ground index 0, while the first four corners carried 4. Covering all six vertices moves the painted edge
+to the ramp's actual low end, beneath Arthas, and likewise repairs the background edge.
+The base and locale archives' W3E data were identical; the discrepancy was not different map input.
 
 Windowed, bounded visual check (the built-in screenshot captures only the game drawable):
 
 ```sh
-make -j8 build test-renderer-model
+make -j8 build test-renderer-model test-renderer-shadows
 build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_fullscreen 0 +set vid_native 0 +set vid_mode 4 +set skip_cutscene 1 +com_frame_limit 230 +map 'Maps/Campaign/Human02Interlude.w3m' +screenshot 180
 ```
 
 Inspect the generated `screenshots/shot*.jpg` at the courtyard close-up: the foreground and background ramp edges must be
 continuous, without black/sky-coloured gaps. Cinematic timing can vary; adjust the capture frame if necessary.
 `renderer_terrain.cliff_texture_skips_non_cliff_corners` covers corner priority/sentinel handling, and
-`renderer_terrain.ramp_footprints_cover_the_low_neighbour` checks the sampled ramp levels and all four directions without
-requiring retail MPQ data. Camera behavior is a separate issue; see [cinematics](../cinematics.md).
+`renderer_terrain.ramp_footprints_cover_the_low_neighbour` checks sampled ramp levels and all four directions.
+`renderer_terrain.cliff_baker_preserves_native_axes_uvs_and_ground_coverage` runs the actual baker on a synthetic grid,
+checking model names, transformed positions/normals, untouched UVs, all six ramp ground vertices, and ordinary four-corner cliffs.
+`renderer_terrain.cliff_cache_distinguishes_model_directories` exercises actual cache lookup/reuse and cleanup.
+These tests require no retail MPQ data. Camera behavior is separate; see [cinematics](../cinematics.md).
 
-Verification: temporarily restoring only the old X placement reproduced the reported black/sky-coloured holes in the
-same courtyard view and failed 10 footprint assertions. Restoring the fix removed those holes in the matching windowed
-capture; all 2,833 assertions in the 75 renderer-model tests passed. Investigative logs were removed afterward.
+Windowed follow-up captures before/after the ground override show both purple edges reaching their low-side endpoints;
+rotating the native geometry alone did not fix that border. The cleaned build was captured again after the cache fix.
 
 ### Height Snapping
 

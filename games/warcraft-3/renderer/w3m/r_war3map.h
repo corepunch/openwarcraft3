@@ -31,7 +31,7 @@ DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
-/* A non-cliff SW corner must not discard the face: use the first authored cliff in configuration order. */
+/* A non-cliff SW corner must not discard the face: use the first authored cliff in SW,NW,NE,SE order. */
 static inline DWORD R_CliffTexture(LPCWAR3MAPVERTEX tile) {
     static const BYTE order[] = { 3, 1, 0, 2 }; /* Texture priority is independent of model corner order. */
     FOR_LOOP(i, 4)

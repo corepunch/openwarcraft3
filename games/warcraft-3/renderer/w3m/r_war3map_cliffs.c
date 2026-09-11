@@ -62,8 +62,7 @@ typedef struct {
 } cliffData_t;
 
 struct tCliff {
-    DWORD cliffid;
-    LPCSTR diag_dir;
+    PATHSTR name;
     LPCMODEL model;
     struct tCliff *next;
 };
@@ -150,25 +149,20 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
-    const int cliffid = *(int *)ccfg;
     LPCSTR dir = ramp ? data->rampModelDir : data->cliffModelDir;
+    snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
+    /* Configuration letters alone alias different terrain families (Cliffs vs CityCliffs). */
     for (struct tCliff *it = g_cliffs; it; it = it->next) {
-        if (it->cliffid == cliffid) {
-            if (strcmp(it->diag_dir, dir))
-                fprintf(stderr, "CLIFF_CACHE cfg=%s requested=%s returned=%s model=%p\n", ccfg, dir, it->diag_dir, (void *)it->model);
+        if (!strcmp(it->name, zBuffer))
             return it->model;
-        }
     }
     struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
     PATHSTR scoped;
-    cliff->cliffid = cliffid;
-    cliff->diag_dir = dir;
-    snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
+    strcpy(cliff->name, zBuffer);
     cliff->model = NULL;
     if (R_MapAssetCandidate(zBuffer, scoped, sizeof(scoped))) cliff->model = R_LoadModel(scoped);
     if (!cliff->model) cliff->model = R_LoadModel(zBuffer);
     ADD_TO_LIST(cliff, g_cliffs);
-    fprintf(stderr, "CLIFF_LOAD path=%s model=%p\n", zBuffer, (void *)cliff->model);
     return cliff->model;
 }
 
@@ -229,22 +223,6 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         return;
     }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
-    if (x == 36 && y == 36) {
-        LPCMODEL probe = R_LoadModel("Doodads\\Terrain\\CityCliffTrans\\CityCliffTransBALH0.mdx");
-        FOR_LOOP(k, 2) {
-            mdxGeoset_t *geo = k ? probe->mdx->geosets : pGeoset;
-            FOR_LOOP(i, geo->num_vertices)
-                fprintf(stderr, "CLIFF_PROBE %s pos=%g,%g,%g uv=%g,%g\n", k ? "BALH" : "HBAL", geo->vertices[i].x, geo->vertices[i].y, geo->vertices[i].z, geo->texcoord[i].x, geo->texcoord[i].y);
-        }
-        R_ReleaseModel((LPMODEL)probe);
-        for (DWORD px = 35; px <= 39; px++)
-            for (DWORD py = 35; py <= 38; py++) {
-                LPCWAR3MAPVERTEX v = GetWar3MapVertex(map, px, py);
-                fprintf(stderr, "CLIFF_INPUT %u,%u level=%u ramp=%u cv=%u ground=%u cliff=%u rawheight=%g\n", px, py, v->level, v->ramp, v->cliffVariation, v->ground, v->cliff, (double)v->accurate_height);
-            }
-    }
-    if (x >= 35 && x <= 38 && y >= 33 && y <= 42)
-        fprintf(stderr, "CLIFF_CELL %u,%u cfg=%s dir=%s model=%p base=%d vertices=%d\n", x, y, cliffcfg, is_ramp ? data->rampModelDir : data->cliffModelDir, (void *)pModel, baselevel, pGeoset->num_vertices);
     if (!pGeoset->triangles || !pGeoset->vertices || !pGeoset->normals || !pGeoset->texcoord) {
         fprintf(stderr, "Model %.4s has incomplete cliff geometry\n", (LPCSTR)&cliffcfg);
         return;
@@ -265,11 +243,9 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         FOR_LOOP(gindx, map->num_grounds) {
             if (map->grounds[gindx] != ground_key) continue;
             /* Ramp models cover two cells: their low-side corners need the same cliff ground texture. */
-            for (int px = sx; px <= sx + nx; px++)
-                for (int py = sy; py <= sy + ny; py++)
+            for (int px = MAX(0, sx); px <= sx + nx && px < map->width; px++)
+                for (int py = MAX(0, sy); py <= sy + ny && py < map->height; py++)
                     ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, px, py))->ground = gindx;
-            if (x == 36 && y == 36)
-                fprintf(stderr, "CLIFF_GROUND cfg=%s cells=%d,%d..%d,%d ground=%u\n", cliffcfg, sx, sy, sx+nx, sy+ny, gindx);
             break;
         }
     }
