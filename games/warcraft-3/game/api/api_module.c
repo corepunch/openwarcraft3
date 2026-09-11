@@ -82,7 +82,7 @@ JASSMODULE jass_funcs[] = {
     { "GetLastData", GetLastData },
     { "PopLastCommand", PopLastCommand },
     { "StartThread", StartThread },
-    { "Sleep", Sleep },
+    { "Sleep", JassSleep },
     { "ConvertRace", ConvertRace },
     { "ConvertAllianceType", ConvertAllianceType },
     { "ConvertRacePref", ConvertRacePref },

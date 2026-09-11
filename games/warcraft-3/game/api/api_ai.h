@@ -229,7 +229,8 @@ DWORD StartThread(LPJASS j) {
     return 0;
 }
 
-DWORD Sleep(LPJASS j) {
+/* Keep the exported JASS name Sleep while avoiding Win32's global Sleep symbol. */
+DWORD JassSleep(LPJASS j) {
     FLOAT seconds = jass_checknumber(j, 1);
     jass_sleep(j, (DWORD)(MAX(0, seconds) * 1000));
     return 0;
