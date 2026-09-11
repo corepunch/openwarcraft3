@@ -952,6 +952,15 @@ struct edict_s {
         BOOL active;            /* unit has completed the Peasant -> Militia morph */
         BOOL returning;         /* current pairing order is militiaoff */
     } militia;
+    struct edictPolymorph_s {
+        DWORD ability;          /* Aply-derived ability that owns the active morph */
+        DWORD buff;             /* configured timed buff; stock Sorceress uses Bply */
+        DWORD form_type;        /* first authored Ply2/Ply3/Ply4/Ply5 unit rawcode */
+        DWORD original_model;   /* presentation state restored when the buff ends */
+        FLOAT original_scale;
+        FLOAT original_move_speed;
+        BOOL active;
+    } polymorph;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -1764,6 +1773,7 @@ void G_AddHealth(LPEDICT, FLOAT);
 void S_EnableAbility(LPEDICT, DWORD);
 void S_DisableAbility(LPEDICT, DWORD);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
+BOOL S_UnitPolymorphed(LPCEDICT unit);
 extern ability_t a_on_fire;
 void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);

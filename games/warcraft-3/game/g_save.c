@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 17; // persistent WC3 unit, ability, and spell/order event state
+static DWORD const save_version = 18; // adds persistent Polymorph restoration state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -351,6 +351,17 @@ static field_t const avatar_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const polymorph_fields[] = {
+    TF(struct edictPolymorph_s, ability, F_INT),
+    TF(struct edictPolymorph_s, buff, F_INT),
+    TF(struct edictPolymorph_s, form_type, F_INT),
+    TF(struct edictPolymorph_s, original_model, F_INT),
+    TF(struct edictPolymorph_s, original_scale, F_FLOAT),
+    TF(struct edictPolymorph_s, original_move_speed, F_FLOAT),
+    TF(struct edictPolymorph_s, active, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const movement_fields[] = {
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
@@ -430,6 +441,7 @@ field_t edict_fields[] = {
     F(edict_s, destructable, F_STRUCT, 1, destructable_fields),
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
     F(edict_s, avatar, F_STRUCT, 1, avatar_fields),
+    F(edict_s, polymorph, F_STRUCT, 1, polymorph_fields),
     F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),

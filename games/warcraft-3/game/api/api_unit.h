@@ -736,8 +736,10 @@ DWORD IsUnitRace(LPJASS j) {
 DWORD IsUnitType(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
-    return jass_pushboolean(j, whichUnit && whichUnitType && *whichUnitType == 2 &&
-                              G_UnitIsBuilding(whichUnit->class_id));
+    if (!whichUnit || !whichUnitType) return jass_pushboolean(j, 0);
+    if (*whichUnitType == 2) return jass_pushboolean(j, G_UnitIsBuilding(whichUnit->class_id));
+    if (*whichUnitType == 22) return jass_pushboolean(j, S_UnitPolymorphed(whichUnit));
+    return jass_pushboolean(j, 0);
 }
 DWORD IsUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

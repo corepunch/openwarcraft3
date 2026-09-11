@@ -129,6 +129,10 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     DWORD const selected_mask = self ? self->selected : 0;
 
     S_AvatarExpire(self);
+    /* A dead polymorphed unit must not later restore as a living unit when its
+     * timed buff expires.  Keep the death presentation chosen at the time of
+     * death, but retire the reversible morph contract immediately. */
+    if (self->polymorph.active) self->polymorph.active = false;
     G_ClearUnitOrderQueue(self);
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
@@ -296,6 +300,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "frostarmor", 852225, MAKEFOURCC('A','U','f','u') },
     { "frostnova", 852226, MAKEFOURCC('A','U','f','n') },
     { "sleep", 852227, MAKEFOURCC('A','U','s','l') },
+    { "polymorph", 852074, MAKEFOURCC('A','p','l','y') },
     { "firebolt", 852231, MAKEFOURCC('A','N','f','b') },
     { "inferno", 852232, MAKEFOURCC('A','U','i','n') },
     { "rainoffire", 852238, MAKEFOURCC('A','N','r','f') },
@@ -499,13 +504,14 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
          * Other destructable classes require the explicit Attack command, and
          * every destructable must be allowed by the unit weapon target mask. */
         if (G_IsDestructable(target)) {
-            if (!G_DestructableAcceptsSmartAttack(self, target)) {
+            if (S_UnitPolymorphed(self) || !G_DestructableAcceptsSmartAttack(self, target)) {
                 return false;
             }
             order_attack(self, target);
             return true;
         }
         if (unit_smart_target_is_enemy(self, target)) {
+            if (S_UnitPolymorphed(self)) return false;
             order_attack(self, target);
             return true;
         }
@@ -528,6 +534,7 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         return self->movement.follow_target == target;
     }
     if (!strcmp(order, "attack")) {
+        if (S_UnitPolymorphed(self)) return false;
         if (G_IsDestructable(target) && !G_DestructableCanBeAttackedBy(self, target)) {
             return false;
         }
@@ -548,6 +555,7 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
     if (self->aiflags & AI_IMMOBILE) return false;
+    if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
     target = *point;
     CM_ClosestPathablePointForRadius(point, self->collision, &target);
