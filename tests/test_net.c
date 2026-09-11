@@ -2062,6 +2062,47 @@ TEST(net, playerinfo_copies_server_clip_planes) {
     T_FEQ(cl.viewDef.camerastate[0].zfar, 6500.0f, 0.001f);
 }
 
+static BOOL test_camera_terrain(void) { return true; }
+static FLOAT test_camera_height(FLOAT x, FLOAT y) { (void)y; return x; }
+
+/* Repeated prediction and pending/acknowledged packets must retain each sample's authored height offset. */
+TEST(net, camera_prediction_preserves_terrain_offsets) {
+    BYTE buf[256];
+    PLAYER from = { 0 }, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .vieworigin = { 50, 0, 90 } };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    test_client_stubs_init();
+    re.CameraUsesTerrainHeight = test_camera_terrain; re.GetHeightAtPoint = test_camera_height;
+    test_client_stubs_set_world_bounds((BOX2){ .min = { -1000, -1000 }, .max = { 1000, 1000 } });
+    cl.viewDef.camerastate[0].origin = (VECTOR3){ 0, 0, 20 };
+    cl.viewDef.camerastate[1].origin = (VECTOR3){ 10, 0, 40 };
+    CL_PredictCameraPosition((VECTOR2){ 100, 0 });
+    T_FEQ(cl.viewDef.camerastate[0].origin.z, 120, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[1].origin.z, 130, 0.001f);
+    CL_PredictCameraPosition((VECTOR2){ 200, 0 });
+    T_FEQ(cl.viewDef.camerastate[0].origin.z, 220, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[1].origin.z, 230, 0.001f);
+    cl.camera_prediction.active = true;
+    cl.camera_prediction.origin = (VECTOR2){ 200, 0 };
+    MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    CL_ParseServerMessage(&sb);
+    T_ASSERT(cl.camera_prediction.active);
+    T_FEQ(cl.playerstate.vieworigin.x, 50, 0.001f); T_FEQ(cl.playerstate.vieworigin.z, 90, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.z, 240, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[1].origin.z, 220, 0.001f);
+    from = to; to.vieworigin = (VECTOR3){ 200, 0, 240 };
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    CL_ParseServerMessage(&sb);
+    T_ASSERT(!cl.camera_prediction.active);
+    FOR_LOOP(i, 2) T_FEQ(cl.viewDef.camerastate[i].origin.z, 240, 0.001f);
+    test_client_stubs_init();
+    cl.viewDef.camerastate[0].origin.z = 25;
+    CL_PredictCameraPosition((VECTOR2){ 200, 0 });
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.z, 25, 0.001f);
+}
+
 TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));

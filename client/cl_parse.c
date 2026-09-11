@@ -319,10 +319,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
             cl.playerstate.vieworigin.y == cl.camera_prediction.origin.y) {
             cl.camera_prediction.active = false;
         } else {
-            cl.viewDef.camerastate[0].origin.x = cl.camera_prediction.origin.x;
-            cl.viewDef.camerastate[0].origin.y = cl.camera_prediction.origin.y;
-            cl.viewDef.camerastate[1].origin.x = cl.camera_prediction.origin.x;
-            cl.viewDef.camerastate[1].origin.y = cl.camera_prediction.origin.y;
+            CL_PredictCameraPosition(cl.camera_prediction.origin);
         }
     }
 }

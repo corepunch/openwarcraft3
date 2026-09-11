@@ -849,13 +849,11 @@ void R_RevertSettings(void) {
 
 void R_DrawSky(void) {
     renderEntity_t sky;
-    viewCamera_t const *a = tr.viewDef.camerastate + 1;
-    viewCamera_t const *b = tr.viewDef.camerastate + 0;
     DWORD rdflags;
 
     if (!tr.viewDef.skyModel) return;
     sky = (renderEntity_t){
-        .origin = Vector3_lerp(&a->origin, &b->origin, tr.viewDef.lerpfrac),
+        .origin = tr.viewDef.target,
         .model = tr.viewDef.skyModel,
         .flags = RF_NO_LIGHTING | RF_NO_FOGOFWAR | RF_NO_SHADOW,
         .scale = 1.0f,

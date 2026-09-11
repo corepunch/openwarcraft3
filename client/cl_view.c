@@ -141,9 +141,7 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
 
 static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
-    viewCamera_t const *a = cl.viewDef.camerastate+1;
-    viewCamera_t const *b = cl.viewDef.camerastate+0;
-    VECTOR3 const target = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    VECTOR3 const target = cl.viewDef.target;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_identity(&tmp1);
     Matrix4_rotate(&tmp1, &(VECTOR3){0,0,45}, ROTATE_XYZ);
@@ -183,11 +181,12 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
     if (re.CameraUsesTerrainHeight()) {
-        FLOAT const exact = re.GetHeightAtPoint(b->origin.x, b->origin.y);
-        FLOAT const blurred = re.GetCameraHeightAtPoint(origin.x, origin.y);
-        /* Use the blurred terrain at current XY; interpolating terrain Z made the camera drift behind pans. */
-        origin.z = blurred + b->origin.z - exact;
+        FLOAT az = a->origin.z - re.GetHeightAtPoint(a->origin.x, a->origin.y);
+        FLOAT bz = b->origin.z - re.GetHeightAtPoint(b->origin.x, b->origin.y);
+        /* Only the authored offsets interpolate; the terrain base follows the current rendered XY. */
+        origin.z = re.GetCameraHeightAtPoint(origin.x, origin.y) + LerpNumber(az, bz, cl.viewDef.lerpfrac);
     }
+    cl.viewDef.target = origin;
     QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
     QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
     QUATERNION quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);
@@ -608,6 +607,7 @@ void V_RenderView(void) {
         VECTOR3 target = { 0, 0, 90 };
         DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
 
+        cl.viewDef.target = target;
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
         cl.viewDef.time = cl.time;
@@ -700,3 +700,49 @@ void V_AddDecal(renderDecal_t *decal) {
 
 void V_Shutdown(void) {
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+static size2_t v_test_window(void) { return (size2_t){ 1024, 768 }; }
+static BOOL v_test_terrain(void) { return true; }
+static BOOL v_test_absolute(void) { return false; }
+static FLOAT v_test_exact(FLOAT x, FLOAT y) { (void)y; return x; }
+static FLOAT v_test_blurred(FLOAT x, FLOAT y) { (void)x; (void)y; return 50.0f; }
+
+/* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */
+static FLOAT v_test_camera_z(void) {
+    MATRIX4 inv;
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
+    return Matrix4_multiply_vector3(&inv, &(VECTOR3){ 0, 0, -1 }).z + 1.0f;
+}
+
+/* Terrain follows current XY, but authored height offsets still interpolate at render frequency. */
+TEST(client_camera, terrain_offsets_interpolate) {
+    viewDef_t saved = cl.viewDef;
+    refExport_t api = re;
+    BOOL loaded = world_loaded;
+    re.GetWindowSize = v_test_window; re.CameraUsesTerrainHeight = v_test_terrain;
+    re.GetHeightAtPoint = v_test_exact; re.GetCameraHeightAtPoint = v_test_blurred;
+    world_loaded = true;
+    cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
+    cl.viewDef.camerastate[1] = (viewCamera_t){ .origin = { 0, 0, 20 }, .fov = 60, .znear = 1, .zfar = 1000 };
+    cl.viewDef.camerastate[0] = cl.viewDef.camerastate[1];
+    cl.viewDef.camerastate[0].origin = (VECTOR3){ 100, 0, 140 };
+    FOR_LOOP(i, 3) {
+        cl.viewDef.lerpfrac = i * 0.5f;
+        T_FEQ(v_test_camera_z(), 70.0f + i * 10.0f, 0.001f);
+        T_FEQ(cl.viewDef.target.z, 70.0f + i * 10.0f, 0.001f);
+    }
+    re.CameraUsesTerrainHeight = v_test_absolute;
+    cl.viewDef.lerpfrac = 0.25f;
+    T_FEQ(v_test_camera_z(), 50.0f, 0.001f);
+    world_loaded = false;
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+    MATRIX4 identity;
+    Matrix4_identity(&identity);
+    T_EQ(memcmp(&cl.viewDef.viewProjectionMatrix, &identity, sizeof(identity)), 0);
+    cl.viewDef = saved; re = api; world_loaded = loaded;
+}
+#endif

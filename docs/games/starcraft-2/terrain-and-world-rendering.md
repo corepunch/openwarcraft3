@@ -39,9 +39,9 @@ box filter over a 16-world-unit footprint used by `HeightMap="Air"`, sampled bil
 makes a narrow canyon contribute little to camera height while broad terrain tiers still affect it. Do not replace it with a temporal
 filter: retaining the previous frame's height makes the camera rubber-band toward every local depression. Ground units, commands, roads,
 collision, and the server camera state continue to use exact `SC2_MapHeightAtPoint` queries; the client applies the blurred terrain base
-to the current camera sample without temporally smoothing its Z.
+to the current camera XY while interpolating only the authored height offsets between snapshots.
 
-SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the current terrain-relative camera target height.
+SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewDef.target.z`, the rendered terrain-relative camera target height.
 It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera
 drag makes the pan anchor jump when the cursor crosses cliffs or other terrain tiers. `TraceCameraPlane` owns the stable screen-ray
 intersection during the drag; camera rendering resamples terrain at the moved target, so the eye rises over higher ground. Smart

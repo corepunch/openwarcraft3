@@ -178,6 +178,7 @@ typedef struct {
 
 typedef struct {
     viewCamera_t camerastate[2];
+    VECTOR3 target; /* Rendered camera focus shared by projection, drag-panning, sky, and shadows. */
     RECT viewport;
     RECT scissor;
     DWORD time;

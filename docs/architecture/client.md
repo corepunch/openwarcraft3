@@ -87,6 +87,23 @@ Calls into the renderer API:
 
 `CL_ParsePlayerInfo` copies `vieworigin`, `viewangles`, `distance`, `fov`, `znear`, and `zfar` onto `viewDef.camerastate[]`. Clip planes are required camera samples, same as `fov`: every game must author them on `playerState` through `player_set_lens` so FOV and clip cannot be written apart. Zero is a real value, not a keep-previous sentinel. Gameplay defaults live in `CL_GameDefaultCamera` (`WC3_CAMERA_DEFAULT_*`, `WOW_CAMERA_FOV` plus `WOW_WORLD_*_CLIP`, SC2 map camera); Input controls do not invent clip. Every game supplies full focus XYZ, including actor eye height where needed. `Matrix4_getCameraMatrix` converts both snapshots with `Quaternion_fromEuler`, slerps, and builds the orbit view with `Matrix4_fromViewQuat`. Games that previously packed a non-Euler value into a component (SC2 camera height on `z`) must put a real Euler on the snapshot; height belongs in `vieworigin.z`.
 
+Terrain-relative cameras keep exact terrain plus authored offset in each `camerastate` sample. `CL_PredictCameraPosition`
+rebases Z by `height(new XY) - height(old XY)` before changing either sample's XY; the same helper handles immediate input and
+prediction reapplied to an unacknowledged server snapshot. Changing XY alone used the previous terrain Z as a new authored offset,
+which caused a vertical jump when the server acknowledged the move. `playerstate` remains the untouched server sample.
+
+At render time, `Matrix4_getCameraMatrix` extracts both terrain-relative offsets and interpolates those offsets, then adds the
+blurred terrain height at the interpolated XY. Using only the latest offset made scripted Z transitions jump at snapshot frequency.
+The resulting `viewDef.target` accompanies the projection matrix and is also used by drag-plane tracing, sky placement, and shadow
+focus. `renderer/r_trace.c` owns screen rays and picking. Its drag plane must use the rendered target, since exact snapshot terrain
+can change beneath a camera held steady by the spatial filter. Absolute-height cameras keep ordinary XYZ interpolation.
+
+Regression coverage: `net.camera_prediction_preserves_terrain_offsets` exercises repeated predictions and pending/acknowledged
+packets; `client_camera.terrain_offsets_interpolate` checks the actual projection and absolute-height path;
+`renderer_view.pan_plane_uses_rendered_target` checks screen-ray intersections across exact-height changes and a moving rendered
+plane. Run `make test` for all three, `make test-client-camera` for the focused projection check, or the in-engine command
+`build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_camera.*' +com_frame_limit 100`.
+
 WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGHT`); that is not an orientation sample.
 
 ## Entity Interpolation
