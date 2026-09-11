@@ -94,12 +94,15 @@ which caused a vertical jump when the server acknowledged the move. `playerstate
 
 At render time, `Matrix4_getCameraMatrix` extracts both terrain-relative offsets and interpolates those offsets, then adds the
 blurred terrain height at the interpolated XY. Using only the latest offset made scripted Z transitions jump at snapshot frequency.
-The resulting `viewDef.target` accompanies the projection matrix and is also used by drag-plane tracing, sky placement, and shadow
-focus. `renderer/r_trace.c` owns screen rays and picking. Its drag plane must use the rendered target, since exact snapshot terrain
+The resulting `viewDef.target` accompanies the projection matrix and is used by drag-plane tracing and shadow focus. The same final
+orbit view is inverted once to publish the rendered eye in `viewDef.camerastate[0].eye`; camera-relative effects such as the WC3 sky
+model and particles must use that eye rather than the look-at target. `renderer/r_trace.c` owns screen rays and picking. Its drag plane
+must use the rendered target, since exact snapshot terrain
 can change beneath a camera held steady by the spatial filter. Absolute-height cameras keep ordinary XYZ interpolation.
 
 Regression coverage: `net.camera_prediction_preserves_terrain_offsets` exercises repeated predictions and pending/acknowledged
 packets; `client_camera.terrain_offsets_interpolate` checks the actual projection and absolute-height path;
+`client_camera.rendered_eye_tracks_orbit_distance` locks the derived eye used by camera-relative rendering;
 `renderer_view.pan_plane_uses_rendered_target` checks screen-ray intersections across exact-height changes and a moving rendered
 plane. Run `make test` for all three, `make test-client-camera` for the focused projection check, or the in-engine command
 `build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_camera.*' +com_frame_limit 100`.

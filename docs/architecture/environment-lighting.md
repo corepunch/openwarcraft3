@@ -113,6 +113,7 @@ keep the legacy fixed sun.
 ## See Also
 
 - [Shared model shader contracts](model-shader.md)
+- [Sky models and `CS_SKY`](skybox-and-cs-sky.md)
 - [Client configstrings and view](client.md)
 - [WC3 time of day](../games/warcraft-3/time-of-day.md)
 - [WoW sun / Light.dbc](../games/world-of-warcraft/terrain-and-world-rendering.md)

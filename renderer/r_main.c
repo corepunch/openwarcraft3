@@ -851,13 +851,16 @@ void R_DrawSky(void) {
     renderEntity_t sky;
     DWORD rdflags;
 
-    if (!tr.viewDef.skyModel) return;
+    if (!tr.viewDef.skyModel || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) return;
     sky = (renderEntity_t){
-        .origin = tr.viewDef.target,
+        .origin = tr.viewDef.camerastate[0].eye,
         .model = tr.viewDef.skyModel,
         .flags = RF_NO_LIGHTING | RF_NO_FOGOFWAR | RF_NO_SHADOW,
         .scale = 1.0f,
     };
+    /* Warsmash keeps the sky on MDX sequence 0 and advances it with render time.
+     * Games without an indexed sequence selector simply leave the zero pose. */
+    R_SetEntityAnimFrame(sky.model, "#0", &sky);
     rdflags = tr.viewDef.rdflags;
     tr.viewDef.rdflags |= RDF_NOFRUSTUMCULL;
     R_Call(glDepthMask, GL_FALSE);

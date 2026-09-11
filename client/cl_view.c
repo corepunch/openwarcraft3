@@ -83,6 +83,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
     if (!world) {
         view->terrainLightModel = NULL;
         view->entityLightModel = NULL;
+        view->skyModel = NULL;
         view->environmentPhase = 0.0f;
         return;
     }
@@ -175,7 +176,7 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
         Matrix4_identity(output);
         return;
     }
-    MATRIX4 proj, view;
+    MATRIX4 proj, view, inverse;
     size2_t windowSize = re.GetWindowSize();
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
@@ -202,14 +203,12 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
+    Matrix4_inverse(&view, &inverse);
+    cl.viewDef.camerastate[0].eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
     /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
     if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
-        MATRIX4 inverse;
-        VECTOR3 eye, direction;
-        Matrix4_inverse(&view, &inverse);
-        eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
-        direction = Vector3_sub(&origin, &eye);
-        Matrix4_lookAt(&view, &eye, &direction, &(VECTOR3){0, 0, 1});
+        VECTOR3 direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
+        Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(VECTOR3){0, 0, 1});
     }
     Matrix4_multiply(&proj, &view, output);
 }
@@ -718,6 +717,35 @@ static FLOAT v_test_camera_z(void) {
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
     return Matrix4_multiply_vector3(&inv, &(VECTOR3){ 0, 0, -1 }).z + 1.0f;
+}
+
+/* Sky and particles consume the same interpolated eye used to build the final view. */
+TEST(client_camera, rendered_eye_tracks_orbit_distance) {
+    viewDef_t saved = cl.viewDef;
+    refExport_t api = re;
+    BOOL loaded = world_loaded;
+    re.GetWindowSize = v_test_window; re.CameraUsesTerrainHeight = v_test_absolute;
+    world_loaded = true;
+    cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
+    cl.viewDef.camerastate[1] = (viewCamera_t){
+        .origin = { 100, 200, 300 }, .viewangles = { -35, 0, 25 },
+        .distance = 1650, .fov = 60, .znear = 1, .zfar = 5000
+    };
+    cl.viewDef.camerastate[0] = cl.viewDef.camerastate[1];
+    cl.viewDef.lerpfrac = 0.5f;
+
+    Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
+
+    T_FEQ(Vector3_distance(&cl.viewDef.target, &cl.viewDef.camerastate[0].eye), 1650.0f, 0.01f);
+    cl.viewDef = saved; re = api; world_loaded = loaded;
+}
+
+/* No-world/UI views must not retain the previous map's sky handle. */
+TEST(client_environment, no_world_clears_sky_model) {
+    model_t sentinel = { 0 };
+    viewDef_t view = { .skyModel = &sentinel };
+    V_UpdateEnvironmentLighting(&view, false);
+    T_NULL(view.skyModel);
 }
 
 /* Terrain follows current XY, but authored height offsets still interpolate at render frequency. */

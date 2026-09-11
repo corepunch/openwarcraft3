@@ -103,7 +103,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Flatpak/Steam Deck packaging, portal-selected Warcraft data, XDG writable state, Steam shortcut integration | [docs/flatpak-steam-deck.md](docs/flatpak-steam-deck.md) |
 | Shared model shader lighting and packed grass uniform contracts | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
 | Renderer backend: thin pipelines, root struct, GL state cache, MSAA/alpha-key, `r_stats` | [docs/renderer-backend.md](docs/renderer-backend.md) |
-| Quake II `CS_SKY` contract and verified WC3/SC2/WoW skybox data gaps | [docs/architecture/skybox-and-cs-sky.md](docs/architecture/skybox-and-cs-sky.md) |
+| `CS_SKY`, WC3 `SetSkyModel`, camera-relative sky models, sequence-0 animation, cross-game producer gaps | [docs/architecture/skybox-and-cs-sky.md](docs/architecture/skybox-and-cs-sky.md) |
 
 ## Coding Style
 
