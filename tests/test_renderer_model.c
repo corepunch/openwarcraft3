@@ -1038,6 +1038,50 @@ TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
     T_ASSERT(!R_IsCliffRamp(tile));
 }
 
+TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
+    static const struct { BYTE cliff[4]; DWORD want; } cases[] = {
+        { .cliff = {1,15,15,15}, .want = 1 }, /* Human02Interlude (10,29), AACA. */
+        { .cliff = {1,1,1,15}, .want = 1 }, /* Human02Interlude (65,35), ABBA. */
+        { .cliff = {0,1,0,1}, .want = 1 }, /* SW wins over other authored indices. */
+        { .cliff = {0,1,0,15}, .want = 1 }, /* Then NW. */
+        { .cliff = {0,15,1,15}, .want = 0 }, /* Then NE; zero is a valid texture. */
+        { .cliff = {15,15,1,15}, .want = 1 }, /* Then SE. */
+        { .cliff = {15,15,15,15}, .want = BZ_WC3_NO_CLIFF_TEXTURE },
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        WAR3MAPVERTEX tile[4] = {0};
+        FOR_LOOP(j, 4) tile[j].cliff = cases[i].cliff[j];
+        T_EQ(R_CliffTexture(tile), cases[i].want);
+    }
+}
+
+TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
+    /* Levels use GetTileVertices' NE,NW,SE,SW order. Bounds are native MDX tile-space bounds. */
+    static const struct { BYTE level[4]; BOOL eastwest; VECTOR2 low; } cases[] = {
+        { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) HAAL -> (37,33). */
+        { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) AHLA -> (37,34). */
+        { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* HBAL/BHLA: rows 36,37,41,42. */
+        { .level = {6,5,6,5}, .eastwest = true, .low = {-1,0} }, /* East-high, west-low. */
+        { .level = {6,5,5,5}, .eastwest = true, .low = {-1,0} }, /* East-high tapered edge. */
+        { .level = {5,5,6,6}, .low = {0,1} }, /* South-high, north-low. */
+        { .level = {6,6,5,5}, .low = {0,-1} }, /* North-high, south-low. */
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        WAR3MAPVERTEX tile[4] = {0};
+        BOX3 box = { .min = {-TILE_SIZE,0,0}, .max = {0,TILE_SIZE,TILE_SIZE} };
+        if (cases[i].eastwest) box.min.x *= 2;
+        else box.max.y *= 2;
+        FOR_LOOP(j, 4) tile[j].level = cases[i].level[j];
+        VECTOR2 shift = R_CliffRampOffset(tile, &box);
+        VECTOR2 base = {TILE_SIZE,0}, pos = Vector2_add(&base, &shift);
+        /* The mesh must cover this cliff cell plus exactly the low-side cell skipped by R_MakeTile. */
+        T_FEQ((box.min.x + pos.x) / TILE_SIZE, MIN(0, cases[i].low.x), 0.001f);
+        T_FEQ((box.max.x + pos.x) / TILE_SIZE, MAX(0, cases[i].low.x) + 1, 0.001f);
+        T_FEQ((box.min.y + pos.y) / TILE_SIZE, MIN(0, cases[i].low.y), 0.001f);
+        T_FEQ((box.max.y + pos.y) / TILE_SIZE, MAX(0, cases[i].low.y) + 1, 0.001f);
+    }
+}
+
 /* The shadow and non-shadow builds share lighting; only the key's direct contribution is occluded.
    The descriptor always emits the receiver wiring and gates it behind GLSL `#ifdef USE_SHADOWMAPS`,
    so the raw source carries the same body in both builds. */

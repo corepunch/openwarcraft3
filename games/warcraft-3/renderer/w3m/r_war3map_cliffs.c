@@ -196,9 +196,8 @@ static LPCTEXTURE R_LoadCliffTexture(DWORD cliffID, char tileset, cliffData_t co
 static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
-    int remap[4] = { 3, 1, 0, 2 };
 
-    if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || tile[remap[0]].cliff != data->cliff)
+    if (GetTileRamps(tile) == 4 || !IsTileCliff(tile) || R_CliffTexture(tile) != data->cliff)
         return;
 
     char cliffcfg[5] = { 0 };
@@ -207,7 +206,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     int const baselevel = TileBaseLevel(tile);
 
     FOR_LOOP(index, 4) {
-        LPCWAR3MAPVERTEX vert = &tile[remap[index]];
+        LPCWAR3MAPVERTEX vert = &tile[r_cliff_corners[index]];
         int const diff = vert->level - baselevel;
         if (diff == 0) {
             cliffcfg[index] = (is_ramp && vert->ramp) ? 'L' : 'A';
@@ -245,21 +244,8 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     VECTOR2 offset = { (x+1) * TILE_SIZE, y * TILE_SIZE };
     
     if (is_ramp) {
-        LPCBOX3 bbox = &pModel->mdx->bounds.box;
-        VECTOR3 const diff = Vector3_sub(&bbox->max, &bbox->min);
-        BYTE a = GetWar3MapVertex(map,x,y)->level;
-        BYTE b = GetWar3MapVertex(map,x,y+1)->level;
-        BYTE c = GetWar3MapVertex(map,x+1,y)->level;
-        BYTE d = GetWar3MapVertex(map,x+1,y+1)->level;
-        if (diff.x > diff.y) {
-            if (a + b < c + d) {
-                offset.x -= TILE_SIZE;
-            }
-        } else {
-            if (a + c < b + d) {
-                offset.y -= TILE_SIZE;
-            }
-        }
+        VECTOR2 shift = R_CliffRampOffset(tile, &pModel->mdx->bounds.box);
+        offset = Vector2_add(&offset, &shift);
     }
 
     FOR_LOOP(t, pGeoset->num_triangles) {
