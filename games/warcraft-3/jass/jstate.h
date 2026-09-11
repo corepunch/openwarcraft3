@@ -99,6 +99,8 @@ struct jass_coroutine {
     DWORD wake_time;
     BOOL yielded;
     BOOL done;
+    LONG loop_a_index;
+    BOOL loop_a_index_valid;
     /* Runtime error abort: set by jass_rterror(), caught in jass_resumecoroutine(). */
     jmp_buf rterror_jmp;
     BOOL rterror_jmp_set;
