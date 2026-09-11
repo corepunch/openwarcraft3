@@ -1097,6 +1097,7 @@ struct edict_s {
     FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
     FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
     FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
+    FLOAT mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;
