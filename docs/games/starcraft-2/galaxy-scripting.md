@@ -87,6 +87,22 @@ make run-sc2 ARGS="+map Maps/Campaign/TRaynor01.SC2Map +set r_vsync 1 +vid_hidde
 - `vm_coroutine_void_argument`: zero-result nested arguments cannot underflow the coroutine stack.
 - `vm_coroutine_executes_dynamic_trigger`: a wrapper compiled after coroutine creation yields in a wait-done child and finishes before its parent resumes, even after an earlier logged VM error.
 
+## Discovering Missing Natives
+
+The JASS VM crashes on unimplemented natives so that missing host bindings are surfaced immediately.
+To collect all missing natives in a single run instead of fixing them one-by-one, rebuild libjass with `-DBZ_LENIENT_NATIVES`:
+
+```sh
+# 1. Add the flag temporarily to the top of games/warcraft-3/jass/jdo.c:
+#    #define BZ_LENIENT_NATIVES
+# 2. Rebuild and run:
+rm -f build/lib/libjass.dylib build/lib/libgame-sc2.dylib build/bin/opensc2
+make opensc2
+build/bin/opensc2 -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map 2>&1 \
+    | grep 'unimplemented native' | sed 's/.*unimplemented native: //' | sort -u
+# 3. Add each missing name as a galaxy_stub entry in galaxy_host.c, then remove the #define.
+```
+
 ## Remaining Gaps
 
 The bounded intro lifecycle loads all 2,657 TRaynor01 objects with `SC2_MAX_MAP_OBJECTS` set to 4,096. Camera IDs 1660 and
@@ -96,7 +112,8 @@ TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 
 
 Remaining native coverage gaps:
 
-- `CampaignMode` is a no-op stub; TRaynor01 `gt_Initialization_Func` calls it and an unimplemented native aborts the intro before `CameraApplyInfo`.
+- All natives called by the TRaynor01 intro cutscene are stubbed; the cutscene runs to completion without unimplemented-native errors.
+- `CampaignMode` is a no-op stub.
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;
