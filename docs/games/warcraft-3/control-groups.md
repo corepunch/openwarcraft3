@@ -144,7 +144,7 @@ The network parser has rejection coverage in `tests/test_net.c`; in-engine selec
 - `client/cl_control_groups.c` — append helper and map reset
 - `client/cl_selection.c` — shared selection/group commands
 - `games/warcraft-3/share/config.cfg` — default `group` / `SHIFT+N` / `CTRL+N` binds
-- `client/cl_input_rts.c` — `+camleft`/`+camright`/`+camnorth`/`+camsouth`
+- `client/cl_input.c` — `+camwest`/`+cameast`/`+camnorth`/`+camsouth`
 - `client/keys.c` / `client/keys_name.h` — modifier bind table and lookup
 - `client/cl_input.c` — SDL events to `Key_Event`
 - `client/cl_parse.c` — `CL_ParseSetSelection` for server-authoritative selection reconciliation

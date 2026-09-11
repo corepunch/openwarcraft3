@@ -73,7 +73,7 @@ Defaults live in `games/<game>/share/config.cfg`, installed with `make install-s
 | `cl_look_command` (look-button click) | empty | empty | `interact` |
 
 All builds register `+select`, `+attack`, `+smart`, `+pan`, `+look`, `+forward`, `+back`, `+moveleft`, `+moveright`,
-`+camleft`, `+camright`, `+camnorth`, `+camsouth`, `zoom`, and `group`. Edge/arrow panning follows camera yaw.
+`+camwest`, `+cameast`, `+camnorth`, `+camsouth`, `zoom`, and `group`. Edge/arrow panning follows camera yaw.
 Mouse sensitivity defaults to `cl_mouse_speed 0.18` degrees/pixel, click threshold to 10 pixels, and edge margin to
 6 pixels. Existing `zoom_speed`, `camera_min_distance`, and `camera_max_distance` still apply. Server-authored
 snapshot defaults determine initial angles/distance. To enable orbit drag in WC3, for example, bind an unused key

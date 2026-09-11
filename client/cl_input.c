@@ -13,7 +13,7 @@ static struct {
 } camera_drag;
 
 static BOOL smart_click_active;
-static BOOL cam_left, cam_right, cam_north, cam_south;
+static BOOL cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
 
@@ -132,7 +132,7 @@ void CL_ResetInput(void) {
     input.buttons = input.sent = 0;
     cl.camera_prediction.active = cl.camera_prediction.view = false;
     input.select = input.look = camera_drag.active = smart_click_active = false;
-    cam_left = cam_right = cam_north = cam_south = false;
+    cam_west = cam_east = cam_north = cam_south = false;
     cl.selection.in_progress = false;
     cl.hover_entity = 0;
     CL_EndMinimapDrag();
@@ -259,10 +259,10 @@ static void IN_SmartUp(void) {
     CL_SendSmartCommand(mouse.origin.x, mouse.origin.y);
 }
 
-static void IN_CamLeftDown(void) { cam_left = true; }
-static void IN_CamLeftUp(void) { cam_left = false; }
-static void IN_CamRightDown(void) { cam_right = true; }
-static void IN_CamRightUp(void) { cam_right = false; }
+static void IN_CamWestDown(void) { cam_west = true; }
+static void IN_CamWestUp(void) { cam_west = false; }
+static void IN_CamEastDown(void) { cam_east = true; }
+static void IN_CamEastUp(void) { cam_east = false; }
 static void IN_CamNorthDown(void) { cam_north = true; }
 static void IN_CamNorthUp(void) { cam_north = false; }
 static void IN_CamSouthDown(void) { cam_south = true; }
@@ -293,10 +293,10 @@ static void CL_RegisterCameraControls(void) {
     Cmd_AddCommand("-pan", IN_PanUp);
     Cmd_AddCommand("+smart", IN_SmartDown);
     Cmd_AddCommand("-smart", IN_SmartUp);
-    Cmd_AddCommand("+camleft", IN_CamLeftDown);
-    Cmd_AddCommand("-camleft", IN_CamLeftUp);
-    Cmd_AddCommand("+camright", IN_CamRightDown);
-    Cmd_AddCommand("-camright", IN_CamRightUp);
+    Cmd_AddCommand("+camwest", IN_CamWestDown);
+    Cmd_AddCommand("-camwest", IN_CamWestUp);
+    Cmd_AddCommand("+cameast", IN_CamEastDown);
+    Cmd_AddCommand("-cameast", IN_CamEastUp);
     Cmd_AddCommand("+camnorth", IN_CamNorthDown);
     Cmd_AddCommand("-camnorth", IN_CamNorthUp);
     Cmd_AddCommand("+camsouth", IN_CamSouthDown);
@@ -373,8 +373,8 @@ static void CL_ScrollFrame(void) {
     }
 
     float dx = 0.0f, dy = 0.0f;
-    if (cam_left)  dx -= 1.0f;
-    if (cam_right) dx += 1.0f;
+    if (cam_west) dx -= 1.0f;
+    if (cam_east) dx += 1.0f;
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
 
@@ -1142,12 +1142,12 @@ TEST(client_input, modal_releases_movement_and_drags) {
     cls.state = ca_active; cls.key_dest = key_menu;
     input.buttons = input.sent = BZ_MOVE_FORWARD;
     input.select = input.look = camera_drag.active = smart_click_active = true;
-    cl.selection.in_progress = true; cam_left = true;
+    cl.selection.in_progress = true; cam_west = true;
     CL_InputFrame();
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
     T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd));
     T_EQ(cmd.action, BZ_INPUT_MOVE); T_EQ(cmd.move.buttons, 0);
-    T_ASSERT(!input.look && !input.select && !camera_drag.active && !smart_click_active && !cam_left);
+    T_ASSERT(!input.look && !input.select && !camera_drag.active && !smart_click_active && !cam_west);
     T_ASSERT(!cl.selection.in_progress);
     DWORD size = cls.netchan.message.cursize;
     CL_InputFrame(); T_EQ(cls.netchan.message.cursize, size);
