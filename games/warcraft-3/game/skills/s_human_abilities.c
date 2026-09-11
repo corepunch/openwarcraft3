@@ -60,14 +60,14 @@ void S_AvatarExpire(LPEDICT unit) {
     G_AddUnitAnimationProperties(unit, "alternate", false); G_InvalidateUnitInfoPanel(unit);
 }
 
-/* Reserve the buff and cooldown slots before spell_commit spends mana. */
+/* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
 static BOOL avatar_validate(LPEDICT caster, spellTarget_t target) {
     DWORD slots = 0;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || caster->avatar.level) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
-        if (!caster->abilstatus[i].level || caster->abilstatus[i].code == BZ_AVATAR) slots++;
-    if (slots >= 2) return true;
+        if (!caster->abilstatus[i].level) slots++;
+    if (slots >= 1) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
 }
 

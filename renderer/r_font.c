@@ -280,6 +280,7 @@ static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
                      SHADER_UI,
                      BLEND_MODE_BLEND,
                      0.0f,
+                     0.0f,
                      arg->flags & DRAW_CLIP,
                      &arg->clip,
                      batch->vertices,

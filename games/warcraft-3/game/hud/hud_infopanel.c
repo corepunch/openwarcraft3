@@ -468,10 +468,10 @@ static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
 
     if (!status || !status->level) return 0;
     if ((status->code & 0xff) == 'B') return status->code;
-    /* abilstatus[] also stores active spell cooldowns as Axxx records.  Those
-     * have an expiry timestamp and are command-card state, not visible buffs.
-     * Persistent Axxx status records (for example Devotion Aura on its caster)
-     * have timestamp == 0 and may resolve through AbilityData.BuffID*. */
+    /* Timed statuses use a separate progress-bar presentation. Persistent
+     * Axxx status records (for example Devotion Aura on its caster) have
+     * timestamp == 0 and may resolve through AbilityData.BuffID*. Cooldowns
+     * are stored independently in edict_t::abilitycooldowns. */
     if (status->timestamp) return 0;
     ability = G_AbilityData(status->code);
     if (!ability || !ability->id) return 0;
@@ -514,8 +514,8 @@ static LPCSTR StatusBuffArt(DWORD code) {
     LPCSTR art;
 
     /* Warsmash routes timed-life-bar buffs through SimpleProgressIndicator
-     * instead of the ordinary status icon strip. Cooldown markers share
-     * abilstatus[] but have ability rawcodes and do not resolve here. */
+     * instead of the ordinary status icon strip. Cooldowns are stored
+     * separately and never enter this status presentation path. */
     if (unit_statusshowstimedbar(code)) return NULL;
     art = StatusBuffField(code, "Buffart");
     if (!art || !*art) return NULL;

@@ -126,6 +126,22 @@ TEST(wc3_api, version_queries_accept_typed_handles) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, ability_cooldown_natives_share_unit_cooldown_state) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call BlzStartUnitAbilityCooldown(u, 'AHtb', 3.5)\n"
+        "  call BJassAssert(BlzGetUnitAbilityCooldownRemaining(u, 'AHtb') > 3.4, \"start cooldown\")\n"
+        "  call BlzEndUnitAbilityCooldown(u, 'AHtb')\n"
+        "  call BJassAssert(BlzGetUnitAbilityCooldownRemaining(u, 'AHtb') == 0.0, \"end cooldown\")\n"
+        "  call BlzStartUnitAbilityCooldown(u, 'AHtb', 2.0)\n"
+        "  call BlzStartUnitAbilityCooldown(u, 'AHwe', 4.0)\n"
+        "  call UnitResetCooldown(u)\n"
+        "  call BJassAssert(BlzGetUnitAbilityCooldownRemaining(u, 'AHtb') == 0.0, \"reset thunder clap\")\n"
+        "  call BJassAssert(BlzGetUnitAbilityCooldownRemaining(u, 'AHwe') == 0.0, \"reset water elemental\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
     void (*old_set_paused)(BOOL) = gi.SetPaused;
 

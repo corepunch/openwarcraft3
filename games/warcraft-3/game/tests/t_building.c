@@ -15,6 +15,7 @@ BOOL run_test_jass(LPCSTR src);
 
 static DWORD building_stand_calls;
 static uiFrame_t building_command_frame;
+static uiCommandButton_t building_command_state;
 static BOOL building_command_frame_seen;
 static uiFrame_t building_command_number_frame;
 static uiLabel_t building_command_number_label;
@@ -45,6 +46,9 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
             building_command_number_seen = true;
         } else {
             building_command_frame = *frame;
+            memset(&building_command_state, 0, sizeof(building_command_state));
+            if (frame->buffer.size == sizeof(building_command_state) && frame->buffer.data)
+                building_command_state = *(uiCommandButton_t const *)frame->buffer.data;
             building_command_frame_seen = true;
         }
         return;
@@ -897,6 +901,29 @@ TEST(wc3_building, disabled_command_button_rejects_missing_skin_and_overlong_pat
     UI_WriteCommandButtonFrame(&button);
     T_EQ(building_command_frame.tex.index, 0);
     T_STREQ(building_image_path, "");
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, command_button_serializes_radial_cooldown_window) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    gameCommandButton_t button = {
+        .art = "test", .cooldown = 0.75f,
+        .cooldown_start_time = 1000, .cooldown_end_time = 5000
+    };
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_FEQ(building_command_frame.value, 0.75f, 0.001f);
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_RADIAL_SHADE);
+    T_EQ(building_command_state.radialStartTime, 1000);
+    T_EQ(building_command_state.radialEndTime, 5000);
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;

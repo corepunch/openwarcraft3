@@ -6,7 +6,8 @@ void test_client_stubs_set_window_size(DWORD width, DWORD height);
 
 void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen);
 static BOOL button_glow;
-static void capture_button_glow(LPCDRAWIMAGE draw) { button_glow = draw->uActiveGlow; }
+static FLOAT button_radial_shade;
+static void capture_button_glow(LPCDRAWIMAGE draw) { button_glow = draw->uActiveGlow; button_radial_shade = draw->uRadialShade; }
 
 /* Test the renderer submission, including the shared sentinel and independent autocast flag. */
 TEST(client_layout, command_glow_requires_an_ability_or_autocast) {
@@ -36,6 +37,32 @@ TEST(client_layout, command_glow_requires_an_ability_or_autocast) {
     re.DrawImageEx = saved_draw;
     cl.num_entities = saved_count;
     cl.ents[0].current = saved_ent;
+}
+
+TEST(client_layout, command_cooldown_uses_local_clock_for_radial_shade) {
+    void (*saved_draw)(LPCDRAWIMAGE) = re.DrawImageEx;
+    DWORD const saved_time = cl.time;
+    uiCommandButton_t state = { .radialStartTime = 1000, .radialEndTime = 5000 };
+    uiFrame_t frame = { .flags.type = FT_COMMANDBUTTON, .stat = UINT8_MAX };
+    RECT screen = { .w = 0.039f, .h = 0.039f };
+
+    frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
+    frame.buffer.data = &state;
+    frame.buffer.size = sizeof(state);
+    re.DrawImageEx = capture_button_glow;
+    cl.time = 2000;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_FEQ(button_radial_shade, 0.75f, 0.001f);
+    frame.flagsvalue &= ~UIFLAG_RADIAL_SHADE;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_FEQ(button_radial_shade, 0.0f, 0.001f);
+    frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
+    cl.time = 5000;
+    SCR_LayoutDrawCommandButton(&frame, &screen);
+    T_FEQ(button_radial_shade, 0.0f, 0.001f);
+
+    re.DrawImageEx = saved_draw;
+    cl.time = saved_time;
 }
 
 TEST(client_groups, append_preserves_existing_order_and_deduplicates) {

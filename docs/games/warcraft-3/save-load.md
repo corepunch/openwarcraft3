@@ -29,6 +29,7 @@ Version 10 extends the authoritative `level.timeofday` record with the Warsmash-
 remaining simulation ticks, active, initialized), so a loaded save cannot silently resume the canonical day/night cycle while a saved
 Moonstone-style override should still be active. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored. Version 12 expands the raw `GAMECLIENT` snapshot with semantic Warcraft music state (map/default selection, current source, start/seek position, pause state, and music/thematic volumes). Version 13 replaces the fixed inline group array with a growable stable-pointer registry and serializes that registry separately, so v12 and earlier saves are rejected rather than being interpreted with the wrong level layout. Version 15 accompanies the natural-creep sleep edict fields. Version 16 adds `level.environment_fog.active` and `.defaults` so scripted distance mist and the `ResetTerrainFog` target survive save/load.
 Version 17 accompanies the WC3 `edict_t` vertex-colour fields used by `SetUnitVertexColor`; the changed edict size and format version reject older records instead of interpreting shifted state.
+Version 17 also adds dedicated per-unit `abilitycooldowns[]` records so active ability cooldown windows survive save/load without sharing the timed buff/status array.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 
@@ -67,7 +68,7 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 
 `games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
 `edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as `abilstatus[]` (including each
-timed status's `timestamp` and `duration_ms`) and the inline WC3 animation-property strings (`animation_props` and
+timed status's `timestamp` and `duration_ms`), `abilitycooldowns[]` (cooldown rawcode/start/end), and the inline WC3 animation-property strings (`animation_props` and
 `animation_request`) therefore round-trip with that raw record and need no `field_t` entry. The adjacent `runtime_fields[]` and
 `client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
 common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.

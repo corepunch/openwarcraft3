@@ -9,7 +9,7 @@ extern const shader_desc_t sd_unlit;        /* UI / unlit sprite */
 extern const shader_desc_t sd_minimap;      /* circular alpha mask */
 extern const shader_desc_t sd_splat;        /* crop edges to [0,1] */
 extern const shader_desc_t sd_shadow_splat; /* black silhouette with texture alpha */
-extern const shader_desc_t sd_commandbutton;/* edge glow via u_activeGlow */
+extern const shader_desc_t sd_commandbutton;/* edge glow + generic clockwise radial shade */
 extern const shader_desc_t sd_minimap_fog;  /* fog-of-war overlay with y-flip */
 extern const shader_desc_t sd_default;      /* ground/world per-vertex lighting */
 extern const shader_desc_t sd_model;        /* shared skinned model (MDX/M2/M3) */

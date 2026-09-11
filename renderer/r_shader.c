@@ -154,6 +154,7 @@ const shader_desc_t sd_commandbutton = {
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(activeGlow,     UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(radialShade,    UT_FLOAT,      PRECISION_LOW),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -176,6 +177,12 @@ const shader_desc_t sd_commandbutton = {
         "  float glow = max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5));\n"
         "  glow = smoothstep(0.33, 0.5, glow) * 0.75 * u_activeGlow;\n"
         "  col.rgb = mix(col.rgb, vec3(0.5, 1.0, 0.5), glow);\n"
+        "  vec2 radial = v_texcoord - vec2(0.5);\n"
+        "  float angle = atan(radial.x, -radial.y) / 6.28318530718;\n"
+        "  angle = angle < 0.0 ? angle + 1.0 : angle;\n"
+        "  float elapsed = 1.0 - clamp(u_radialShade, 0.0, 1.0);\n"
+        "  float shade = step(elapsed, angle) * step(0.000001, u_radialShade);\n"
+        "  col.rgb *= mix(1.0, 0.35, shade);\n"
         "  float crop = step(abs(v_texcoord.x - 0.5), 0.5) * step(abs(v_texcoord.y - 0.5), 0.5);\n"
         "  col.a *= crop;\n"
         "  return col;\n"

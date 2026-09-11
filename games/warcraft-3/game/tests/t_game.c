@@ -2524,6 +2524,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
         .code = MAKEFOURCC('B','m','i','l'), .level = 1,
         .timestamp = 40000, .duration_ms = 45000
     };
+    first->abilitycooldowns[0] = (abilityCooldown_t){
+        .code = MAKEFOURCC('A','H','t','b'), .start_time = 3000, .end_time = 12000
+    };
     level.framenum = 1234;
     level.time = 5678;
     level.timeofday = (TIMEOFDAY){
@@ -2593,6 +2596,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->animation_props[0] = '\0';
     first->animation_request[0] = '\0';
     memset(first->abilstatus, 0, sizeof(first->abilstatus));
+    memset(first->abilitycooldowns, 0, sizeof(first->abilitycooldowns));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.cinematic_portrait = 0;
     game.clients[0].ps.team = 0;
@@ -2627,6 +2631,9 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].abilstatus[0].code, MAKEFOURCC('B','m','i','l'));
     T_EQ(g_edicts[first - g_edicts].abilstatus[0].timestamp, 40000);
     T_EQ(g_edicts[first - g_edicts].abilstatus[0].duration_ms, 45000);
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].code, MAKEFOURCC('A','H','t','b'));
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].start_time, 3000);
+    T_EQ(g_edicts[first - g_edicts].abilitycooldowns[0].end_time, 12000);
     T_EQ(level.framenum, 1234);
     T_EQ(level.time, 5678);
     T_FEQ(level.timeofday.elapsed, 240.0f, 0.001f);

@@ -117,6 +117,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [UI Quick Reference](architecture/ui-quick-reference.md)
 - [Map Renderer](architecture/map-renderer.md)
 - [Hero Ability Progression](hero-abilities.md)
+- [Ability Cooldowns](ability-cooldowns.md)
 - [Cinematics](cinematics.md)
 - [Time Of Day](time-of-day.md)
 - [Hero Revival](hero-revival.md)

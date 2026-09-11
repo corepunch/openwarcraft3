@@ -413,6 +413,33 @@ DWORD GetUnitAbilityLevel(LPJASS j) {
     LONG abilcode = jass_checkinteger(j, 2);
     return jass_pushinteger(j, whichUnit ? (LONG)G_UnitAbilityLevel(whichUnit, (DWORD)abilcode) : 0);
 }
+DWORD UnitResetCooldown(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    S_SpellResetCooldowns(whichUnit);
+    return 0;
+}
+
+DWORD BlzGetUnitAbilityCooldownRemaining(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
+    return jass_pushnumber(j, S_SpellCooldownRemaining(whichUnit, abilityId));
+}
+
+DWORD BlzEndUnitAbilityCooldown(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
+    S_SpellEndCooldown(whichUnit, abilityId);
+    return 0;
+}
+
+DWORD BlzStartUnitAbilityCooldown(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
+    FLOAT const cooldown = jass_checknumber(j, 3);
+    S_SpellStartCooldownDuration(whichUnit, abilityId, cooldown);
+    return 0;
+}
+
 DWORD ReviveHero(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     FLOAT x = jass_checknumber(j, 2);
