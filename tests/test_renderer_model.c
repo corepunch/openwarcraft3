@@ -815,6 +815,25 @@ TEST(renderer_shader, default_world_shader_accepts_environment_lights) {
     T_ASSERT(strstr(shader_src, "mix(0.35, 1.0") != NULL);
 }
 
+/* Exercise the shadow descriptor's actual upload ABI and cache across fog enable/disable transitions. */
+TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
+    SPRITEPROG shader = {0};
+    reset_shader(); R_LoadShader(&sd_shadow_splat, NULL, &shader);
+    memset(&upload, 0, sizeof(upload));
+    shader.state.fogEnable = true;
+    R_ApplyShader(&shader); T_EQ(upload.calls, 1); T_EQ(upload.integer, 1);
+    shader.state.fogColor = (VECTOR3){0.2f, 0.3f, 0.4f};
+    R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(upload.width, 3);
+    T_FEQ(upload.data[0], 0.2f, 0.0001f); T_FEQ(upload.data[2], 0.4f, 0.0001f);
+    shader.state.fogParams = (VECTOR2){800, 3500};
+    R_ApplyShader(&shader); T_EQ(upload.calls, 3); T_EQ(upload.width, 2);
+    T_EQ(upload.data[0], 800); T_EQ(upload.data[1], 3500);
+    R_ApplyShader(&shader); T_EQ(upload.calls, 3);
+    shader.state.fogEnable = false;
+    R_ApplyShader(&shader); T_EQ(upload.calls, 4); T_EQ(upload.integer, 0);
+    R_DeleteShader(&shader.prog);
+}
+
 TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
     reset_shader();
     MODELPROG * shader = R_ModelShader();

@@ -136,3 +136,23 @@ Check that translating/orbiting the camera produces no sky parallax, sequence-dr
 
 Keep these separate from DNC lighting: `SetDayNightModels` supplies time-of-day lighting samples, while `SetSkyModel` supplies visual
 background geometry. See [environment lighting](environment-lighting.md).
+
+## Human02 Pale Horizon Investigation
+
+PR #394 (`Sky fix`, merged September 11, 2026; local sky implementation commit `37bc01a7`) fixes the camera-relative origin
+and sequence-0 animation. It does not recolour sky textures or override their authored fog flags.
+
+The local ROC archive's Human02 script selects
+`Environment\\Sky\\LordaeronSummerSky\\LordaeronSummerSky.mdl`. A bounded intro trace confirmed the matching BLP resolves to
+a live texture, sequence-0 frames advance, and the layer has flags `0xf0`, blend mode `NONE`, opacity `1`, and environmental fog
+disabled by its authored `MODEL_GEO_UNFOGGED` flag. Its no-depth-test/no-depth-write flags also survive material setup.
+
+A readback of the actual uploaded sky texture shows blue overhead, clouds, and a nearly white/lavender horizon. The pale patch
+above the right-hand trees in the low intro camera matches that texture; it is not an unresolved-texture white substitute or
+the scene fog colour. The intro's terrain fog is blue-grey `(0.2, 0.3, 0.4)`, but this sky material explicitly opts out. This
+confirms the current asset/material path, not every detail of retail sky presentation.
+
+The distant black fragments in the same scene disappear with `r_unit_shadows 0`; they are the separate
+[shadow-splat fog issue](../games/warcraft-3/environmental-fog.md#ground-shadow-composition), not failed sky coverage. Shadow splats now apply the terrain fog equation; see that document for bounded
+comparison commands. `blp2jpg` currently rejects this sky's BLP1 JPEG compression; that tool error does not mean the runtime BLP
+decoder fails. The texture was inspected through temporary `glGetTexImage` diagnostics, removed after investigation.

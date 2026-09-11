@@ -10,6 +10,17 @@
  * offsets address values; R_ApplyShader submits them at the draw boundary.
  * ----------------------------------------------------------------------- */
 
+/* One depth/colour equation keeps terrain, models and alpha-composited shadows in the same fog. */
+#define BZ_SCENE_FOG_GLSL \
+    "  if (u_fogEnable) {\n" \
+    "    float fogRange = u_fogParams.y - u_fogParams.x;\n" \
+    "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n" \
+    "    float fogFactor = abs(fogRange) > 0.0001 ?\n" \
+    "      clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) :\n" \
+    "      (depth <= u_fogParams.x ? 1.0 : 0.0);\n" \
+    "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n" \
+    "  }\n"
+
 /* --- unlit / ui: texture * vertex-color, no lighting ------------------- */
 #define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_unlit = {
@@ -118,6 +129,9 @@ const shader_desc_t sd_shadow_splat = {
         UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(fogEnable,      UT_BOOL,       PRECISION_LOW),
+        UNIFORM(fogColor,       UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(fogParams,      UT_FLOAT_VEC2, PRECISION_HIGH),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -140,7 +154,10 @@ const shader_desc_t sd_shadow_splat = {
         "}\n"
         "vec4 frag() {\n"
         "  vec4 tex = texture(u_texture, v_texcoord);\n"
-        "  return vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
+        "  vec4 col = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
+        /* Fog the shadow colour before blending, so it no longer darkens already-fogged terrain. */
+        BZ_SCENE_FOG_GLSL
+        "  return col;\n"
         "}\n",
 };
 #undef SHADER_TYPE
@@ -335,14 +352,7 @@ const shader_desc_t sd_default = {
         "#else\n"
         "  col.rgb *= get_lighting();\n"
         "#endif\n"
-        "  if (u_fogEnable) {\n"
-        "    float fogRange = u_fogParams.y - u_fogParams.x;\n"
-        "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n"
-        "    float fogFactor = abs(fogRange) > 0.0001 ?\n"
-        "      clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) :\n"
-        "      (depth <= u_fogParams.x ? 1.0 : 0.0);\n"
-        "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
-        "  }\n"
+        BZ_SCENE_FOG_GLSL
         "  return col;\n"
         "}\n",
 };
@@ -503,14 +513,7 @@ const shader_desc_t sd_model = {
         "    col.rgb *= light;\n"
         "#endif\n"
         "  }\n"
-        "  if (u_fogEnable) {\n"
-        "    float fogRange = u_fogParams.y - u_fogParams.x;\n"
-        "    float depth = gl_FragCoord.z / gl_FragCoord.w;\n"
-        "    float fogFactor = abs(fogRange) > 0.0001 ?\n"
-        "      clamp((u_fogParams.y - depth) / fogRange, 0.0, 1.0) :\n"
-        "      (depth <= u_fogParams.x ? 1.0 : 0.0);\n"
-        "    col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
-        "  }\n"
+        BZ_SCENE_FOG_GLSL
         "  if (u_alphaKey) {\n"
         "#ifndef BZ_USE_MSAA\n"
         "    if (col.a < u_alphaCutoff) discard;\n"

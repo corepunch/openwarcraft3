@@ -143,6 +143,9 @@ typedef struct SPRITESTATE {
     int texture;
     FLOAT activeGlow;
     FLOAT radialShade;
+    bool fogEnable;
+    VECTOR3 fogColor;
+    VECTOR2 fogParams;
 } SPRITESTATE;
 typedef struct SPRITESTATE *LPSPRITESTATE;
 typedef const struct SPRITESTATE *LPCSPRITESTATE;

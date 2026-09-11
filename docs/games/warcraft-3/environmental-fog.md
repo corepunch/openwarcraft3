@@ -55,7 +55,7 @@ JASS SetTerrainFogEx / ResetTerrainFog
     -> CS_SCENE_FOG
     -> client V_UpdateSceneFog()
     -> viewDef.fogEnable / fogStart / fogEnd / fogColor
-    -> WC3 terrain + MDX renderers
+    -> WC3 terrain + MDX renderers + shared shadow-splat shader
 ```
 
 The WC3 W3M renderer copies the view fog state into `shader_default` before its ground/cliff pass and again before its alpha water
@@ -79,6 +79,23 @@ MDX layers apply environmental fog only when all of these are true:
 Additive/modulate-style layers retain the pre-existing exclusion because blending those transparent effects toward an opaque fog
 colour produces solid fog-coloured quads. `MODEL_GEO_UNSHADED` controls lighting only; environmental fog is applied after that lighting
 branch, so `Unshaded` no longer accidentally means `Unfogged`.
+
+## Ground Shadow Composition
+
+`R_RenderFrame` copies the current view's fog enable, colour, and range into `shader_shadowSplat`; no-world views disable it.
+Both entity shadows and the terrain-shadow helper use `sd_shadow_splat`. Terrain, models, and shadow splats share
+`BZ_SCENE_FOG_GLSL`, including the existing fragment-depth expression and zero-length-range guard.
+
+The shadow shader blends its black RGB toward the fog colour while retaining the authored texture/vertex alpha. With clarity
+`c`, shadow opacity `a`, terrain colour `T`, and fog colour `F`, the result is `c * (1-a) * T + (1-c) * F`: the shadow darkens
+terrain, while the fog contribution remains intact. Merely multiplying black-shadow alpha by `c` would still darken part of
+that fog contribution at intermediate distances. At full fog, the shadow colour equals the fogged terrain and disappears;
+with fog disabled, the original black shadow and opacity are preserved.
+
+Before this fix, the shadow shader had no fog uniforms and drew black over already-fogged terrain. Human02's intro exposed
+this as distant black fragments where the underlying scene had reached the fog colour. Targeted runtime logs confirmed
+scene fog enabled with range `800..3500` while shadow submissions lacked fog; setting `r_unit_shadows 0` removed the artifacts.
+This distinguished the shadow path from MDX material flags and missing textures. The fix preserves existing splat batching.
 
 ## Save / Load
 
@@ -104,7 +121,10 @@ format version bump.
 ## Verification
 
 Automated WC3 API tests cover `SetTerrainFogEx` state/wire publication, `ResetTerrainFog` restoration, and invalid style disabling. The
-patch was designed so renderer behavior can be checked visually without debug logging.
+renderer tests also cover shadow fog uniform uploads, unchanged-state caching, fog disable/re-enable, updated colour/range,
+and no-world/portrait isolation. Renderer behavior can be checked visually without debug logging.
+Shared-shader smoke checks also load WoW Azeroth and SC2 TerranTest. Use `+set com_maxfps 64` with bounded runs there:
+their uncapped default can exhaust the main-loop iteration limit before enough wall-clock time passes for server snapshots.
 
 Useful runtime checks are:
 
@@ -116,6 +136,19 @@ Useful runtime checks are:
 4. Check additive glows and spell-like transparent layers for fog-coloured rectangles.
 5. Call `ResetTerrainFog()` after a scripted override and verify the `[DefaultZFog]` values return.
 6. Save while scripted fog is active, change/reload state, then load the save; the saved active fog should be republished.
+
+To verify Human02 shadows, capture the same intro with `r_unit_shadows` set to `1` and `0`. Distant fully fogged ground should
+match in both; near shadows should remain visible only with shadows enabled:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 1 +map Maps/Campaign/Human02.w3m +screenshot 90 +com_frame_limit 120
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +vid_hidden 1 +set r_unit_shadows 0 +map Maps/Campaign/Human02.w3m +screenshot 90 +com_frame_limit 120
+```
+
+The intro script replaces its initialization fog with start `800`, end `3500`, and RGB `(0.2, 0.3, 0.4)`.
+The two captures use wall-clock cinematic playback, so their camera positions may differ slightly. Restore `r_unit_shadows 1`
+after the comparison. On macOS, a sandbox that denies access to the display service cannot create the GL context even with
+`vid_hidden 1`; a zero-sized drawable does not validate rendering.
 
 See [Fog And Cinematic Visibility](fog-and-cinematics.md) for the independent gameplay fog-of-war system and
 [Sky Models and `CS_SKY`](../../architecture/skybox-and-cs-sky.md) for the separate camera-relative sky path.

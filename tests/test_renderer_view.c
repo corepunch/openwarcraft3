@@ -23,6 +23,34 @@ DWORD R_GetFogOfWarTexture(void) { return 0; }
 void R_DrawEntities(void) { drawn = tr.viewDef; entities++; }
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
 
+/* Shadow batches must follow fog changes and never inherit world fog in a portrait view. */
+TEST(renderer_view, shadow_fog_follows_each_view) {
+    renderEntity_t ent = {0};
+    viewDef_t view = { .time = 1, .fogEnable = true, .fogStart = 800, .fogEnd = 3500,
+        .fogColor = {0.2f, 0.3f, 0.4f}, .entities = &ent, .num_entities = 1 };
+    LPCSPRITESTATE fog = &tr.shader_shadowSplat.state;
+    FOR_LOOP(i, 2) {
+        view.rdflags = i ? RDF_USE_ENTITY_CAMERA : 0;
+        view.fogEnable = true;
+        R_RenderFrame(&view);
+        T_ASSERT(fog->fogEnable);
+        T_FEQ(fog->fogParams.x, view.fogStart, 0.0001f);
+        T_FEQ(fog->fogParams.y, view.fogEnd, 0.0001f);
+        T_EQ(memcmp(&fog->fogColor, &view.fogColor, sizeof(view.fogColor)), 0);
+        view.rdflags |= RDF_NOWORLDMODEL;
+        R_RenderFrame(&view);
+        T_ASSERT(!fog->fogEnable);
+        view.rdflags &= ~RDF_NOWORLDMODEL;
+        R_RenderFrame(&view);
+        T_ASSERT(fog->fogEnable);
+        view.fogEnable = false;
+        R_RenderFrame(&view);
+        T_ASSERT(!fog->fogEnable);
+        view.fogStart = 2200; view.fogEnd = 6000;
+        view.fogColor = (VECTOR3){0.4f, 0.5f, 0.6f};
+    }
+}
+
 /* A model camera changes the projection as well as the portrait viewport/flags. */
 bool R_ExtractEntityCamera(renderEntity_t const *ent, float aspect, viewDef_t *view) {
     (void)ent; (void)aspect;
