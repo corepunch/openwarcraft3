@@ -53,8 +53,7 @@ void G_WeatherInitMap(void) {
     }
 }
 
-/* Serialize authoritative presentation state into the per-frame game datagram so
- * reconnects and dropped packets converge without widening entityState_t. */
+/* Filter vertex colours by unit visibility while allowing unresolved presentation models. */
 static BOOL G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
     DWORD player;
     /* Vertex colour is authoritative unit state; publish it before model resolution too,
@@ -65,6 +64,7 @@ static BOOL G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
     return unit->s.player == player || G_FowPlayerCanSeeEntity(player, unit);
 }
 
+/* Serialize authoritative weather and vertex-colour state so dropped frames converge without widening entityState_t. */
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     DWORD weather_count = 0, tint_count = 0;
     DWORD const tint_wire_size = sizeof(USHORT) + sizeof(COLOR32);
@@ -77,6 +77,11 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
     FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
     emit_tints = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) +
         sizeof(USHORT) + tint_count * tint_wire_size <= size;
+    if (!emit_tints && tint_count) {
+        fprintf(stderr, "G_WriteClientDatagram: tint snapshot needs %u bytes, buffer has %u; omitting tints\n",
+            (unsigned)(sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) + sizeof(USHORT) +
+            tint_count * tint_wire_size), (unsigned)size);
+    }
     wire_count = (USHORT)weather_count | (emit_tints ? BZ_GAME_DATAGRAM_ENTITY_TINTS : 0);
     memcpy(out, &wire_count, sizeof(wire_count));
     out += sizeof(wire_count);
