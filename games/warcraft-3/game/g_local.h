@@ -964,6 +964,10 @@ struct edict_s {
         FLOAT original_move_speed;
         BOOL active;
     } polymorph;
+    struct {
+        FLOAT fly_height; /* authored Raven Form height applied after the forward morph clip */
+        BOOL rise_pending;
+    } raven;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */

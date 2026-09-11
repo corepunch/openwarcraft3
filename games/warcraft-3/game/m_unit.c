@@ -142,6 +142,7 @@ static void unit_play_raven_morph(LPEDICT unit, BOOL raven_form) {
     if (!morph) {
         fprintf(stderr, "WC3_RAVEN missing morph animation order=%s class=%.4s\n",
                 raven_form ? "ravenform" : "unravenform", (LPCSTR)&unit->class_id);
+        if (raven_form) unit_raven_morph_forward_end(unit);
         unit_stand(unit);
         G_SetUnitAnimation(unit, "stand");
     }
@@ -152,6 +153,14 @@ static void unit_raven_morph_forward_end(LPEDICT unit) {
     /* nmdm's authored required tag is alternateex; restoring alternate would
      * select Medivh's base stand sequence after the crow morph completes. */
     G_AddUnitAnimationProperties(unit, "alternateex", true);
+    if (unit->raven.rise_pending) {
+        /* Hold the target form at the support surface through Morph, then
+         * apply its authored moveHeight when the clip has finished. */
+        unit->unitinfo.FlyHeight = unit->raven.fly_height;
+        unit->raven.rise_pending = false;
+        M_CheckGround(unit);
+        gi.LinkEntity(unit);
+    }
     unit_stand(unit);
 }
 
@@ -852,6 +861,15 @@ static BOOL unit_raven_form_order(LPEDICT unit, BOOL raven_form) {
 
     G_ClearUnitOrderQueue(unit);
     if (!G_TransformUnitType(unit, target_type)) return false;
+
+    unit->raven.rise_pending = false;
+    if (raven_form) {
+        unit->raven.fly_height = unit->unitinfo.FlyHeight;
+        unit->raven.rise_pending = true;
+        unit->unitinfo.FlyHeight = 0.0f;
+        M_CheckGround(unit);
+        gi.LinkEntity(unit);
+    }
 
     unit->goalentity = NULL;
     unit->secondarygoal = NULL;
