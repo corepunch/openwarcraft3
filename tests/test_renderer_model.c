@@ -295,6 +295,25 @@ TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_i
     T_FEQ(value.w, authored.w, 0.001f);
 }
 
+TEST(renderer_model, mdx_sequence_zero_selector_advances_with_render_time) {
+    DWORD old_time = tr.viewDef.time;
+    mdxSequence_t seq = { .interval = { 100, 1100 } };
+    mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .model = &model };
+
+    tr.viewDef.time = 250;
+    T_ASSERT(R_SetEntityAnimFrame(&model, "#0", &entity));
+    T_EQ(entity.frame, 350);
+    T_EQ(entity.oldframe, 350);
+
+    tr.viewDef.time = 1250;
+    T_ASSERT(R_SetEntityAnimFrame(&model, "#0", &entity));
+    T_EQ(entity.frame, 350);
+    T_EQ(entity.oldframe, 350);
+    tr.viewDef.time = old_time;
+}
+
 TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
     BYTE storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
     mdxKeyTrack_t *intensity = (mdxKeyTrack_t *)storage;

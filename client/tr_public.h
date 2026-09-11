@@ -118,7 +118,7 @@ typedef struct {
 
 typedef struct {
     VECTOR3 origin;
-    VECTOR3 eye;
+    VECTOR3 eye;       /* derived rendered eye; camerastate[0] is refreshed from the final orbit view */
     VECTOR3 viewangles;
     float distance;
     float fov;      /* vertical field of view in degrees */
@@ -180,7 +180,7 @@ typedef struct {
 
 typedef struct {
     viewCamera_t camerastate[2];
-    VECTOR3 target; /* Rendered camera focus shared by projection, drag-panning, sky, and shadows. */
+    VECTOR3 target; /* Rendered camera focus shared by projection, drag-panning, and shadows. */
     RECT viewport;
     RECT scissor;
     DWORD time;

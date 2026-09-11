@@ -117,4 +117,5 @@ Useful runtime checks are:
 5. Call `ResetTerrainFog()` after a scripted override and verify the `[DefaultZFog]` values return.
 6. Save while scripted fog is active, change/reload state, then load the save; the saved active fog should be republished.
 
-See [Fog And Cinematic Visibility](fog-and-cinematics.md) for the independent gameplay fog-of-war system.
+See [Fog And Cinematic Visibility](fog-and-cinematics.md) for the independent gameplay fog-of-war system and
+[Sky Models and `CS_SKY`](../../architecture/skybox-and-cs-sky.md) for the separate camera-relative sky path.
