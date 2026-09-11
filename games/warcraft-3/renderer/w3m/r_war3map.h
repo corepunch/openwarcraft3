@@ -6,7 +6,9 @@
 
 #define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; W3E's non-cliff corner sentinel; excluded from cliff texture selection
 
-static const BYTE r_cliff_corners[] = { 3, 1, 0, 2 }; /* MDX configuration order: SW,NW,NE,SE. */
+static const BYTE r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configuration: NW,NE,SE,SW. */
+/* Retail rotates cliff geometry -90 degrees; selecting a rotated filename does not preserve authored UVs/shape. */
+static const MATRIX4 r_cliff_axes = { .v = {0,-1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1} };
 
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer);
 LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer);
@@ -31,18 +33,19 @@ DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
 /* A non-cliff SW corner must not discard the face: use the first authored cliff in configuration order. */
 static inline DWORD R_CliffTexture(LPCWAR3MAPVERTEX tile) {
+    static const BYTE order[] = { 3, 1, 0, 2 }; /* Texture priority is independent of model corner order. */
     FOR_LOOP(i, 4)
-        if (tile[r_cliff_corners[i]].cliff != BZ_WC3_NO_CLIFF_TEXTURE)
-            return tile[r_cliff_corners[i]].cliff;
+        if (tile[order[i]].cliff != BZ_WC3_NO_CLIFF_TEXTURE)
+            return tile[order[i]].cliff;
     return BZ_WC3_NO_CLIFF_TEXTURE;
 }
 
 /* Extend the two-cell MDX footprint into the low neighbour omitted by the ground baker. */
 static inline VECTOR2 R_CliffRampOffset(LPCWAR3MAPVERTEX tile, LPCBOX3 box) {
     VECTOR3 span = Vector3_sub(&box->max, &box->min);
-    if (span.x > span.y) {
-        /* MDX X is [-256,0], not [0,256]; the old negative shift left every E/W ramp one cell west. */
-        return (VECTOR2){ .x = tile[3].level + tile[1].level > tile[2].level + tile[0].level ? TILE_SIZE : 0 };
+    if (span.y > span.x) {
+        /* After the native -90 degree rotation both ramp axes span [0,256]; extend toward the low side. */
+        return (VECTOR2){ .x = tile[3].level + tile[1].level < tile[2].level + tile[0].level ? -TILE_SIZE : 0 };
     }
     return (VECTOR2){ .y = tile[3].level + tile[2].level < tile[1].level + tile[0].level ? -TILE_SIZE : 0 };
 }

@@ -63,6 +63,7 @@ typedef struct {
 
 struct tCliff {
     DWORD cliffid;
+    LPCSTR diag_dir;
     LPCMODEL model;
     struct tCliff *next;
 };
@@ -152,17 +153,22 @@ static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool
     const int cliffid = *(int *)ccfg;
     LPCSTR dir = ramp ? data->rampModelDir : data->cliffModelDir;
     for (struct tCliff *it = g_cliffs; it; it = it->next) {
-        if (it->cliffid == cliffid)
+        if (it->cliffid == cliffid) {
+            if (strcmp(it->diag_dir, dir))
+                fprintf(stderr, "CLIFF_CACHE cfg=%s requested=%s returned=%s model=%p\n", ccfg, dir, it->diag_dir, (void *)it->model);
             return it->model;
+        }
     }
     struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
     PATHSTR scoped;
     cliff->cliffid = cliffid;
+    cliff->diag_dir = dir;
     snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     cliff->model = NULL;
     if (R_MapAssetCandidate(zBuffer, scoped, sizeof(scoped))) cliff->model = R_LoadModel(scoped);
     if (!cliff->model) cliff->model = R_LoadModel(zBuffer);
     ADD_TO_LIST(cliff, g_cliffs);
+    fprintf(stderr, "CLIFF_LOAD path=%s model=%p\n", zBuffer, (void *)cliff->model);
     return cliff->model;
 }
 
@@ -217,47 +223,68 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         }
     }
     
-    DWORD const ground_key = data->groundTile ? data->groundTile : data->upperTile;
-    if (ground_key) {
-        FOR_LOOP(gindx, map->num_grounds) {
-            if (map->grounds[gindx] == ground_key) {
-                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
-                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
-                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y))->ground = gindx;
-                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y))->ground = gindx;
-                break;
-            }
-        }
-    }
-
     LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
     if (!pModel || pModel->modeltype != ID_MDLX || !pModel->mdx || !pModel->mdx->geosets) {
         fprintf(stderr, "Model %.4s not found\n", (LPCSTR)&cliffcfg);
         return;
     }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
+    if (x == 36 && y == 36) {
+        LPCMODEL probe = R_LoadModel("Doodads\\Terrain\\CityCliffTrans\\CityCliffTransBALH0.mdx");
+        FOR_LOOP(k, 2) {
+            mdxGeoset_t *geo = k ? probe->mdx->geosets : pGeoset;
+            FOR_LOOP(i, geo->num_vertices)
+                fprintf(stderr, "CLIFF_PROBE %s pos=%g,%g,%g uv=%g,%g\n", k ? "BALH" : "HBAL", geo->vertices[i].x, geo->vertices[i].y, geo->vertices[i].z, geo->texcoord[i].x, geo->texcoord[i].y);
+        }
+        R_ReleaseModel((LPMODEL)probe);
+        for (DWORD px = 35; px <= 39; px++)
+            for (DWORD py = 35; py <= 38; py++) {
+                LPCWAR3MAPVERTEX v = GetWar3MapVertex(map, px, py);
+                fprintf(stderr, "CLIFF_INPUT %u,%u level=%u ramp=%u cv=%u ground=%u cliff=%u rawheight=%g\n", px, py, v->level, v->ramp, v->cliffVariation, v->ground, v->cliff, (double)v->accurate_height);
+            }
+    }
+    if (x >= 35 && x <= 38 && y >= 33 && y <= 42)
+        fprintf(stderr, "CLIFF_CELL %u,%u cfg=%s dir=%s model=%p base=%d vertices=%d\n", x, y, cliffcfg, is_ramp ? data->rampModelDir : data->cliffModelDir, (void *)pModel, baselevel, pGeoset->num_vertices);
     if (!pGeoset->triangles || !pGeoset->vertices || !pGeoset->normals || !pGeoset->texcoord) {
         fprintf(stderr, "Model %.4s has incomplete cliff geometry\n", (LPCSTR)&cliffcfg);
         return;
     }
     
-    VECTOR2 offset = { (x+1) * TILE_SIZE, y * TILE_SIZE };
+    VECTOR2 offset = { x * TILE_SIZE, y * TILE_SIZE };
     
     if (is_ramp) {
         VECTOR2 shift = R_CliffRampOffset(tile, &pModel->mdx->bounds.box);
         offset = Vector2_add(&offset, &shift);
     }
 
+    DWORD const ground_key = data->groundTile ? data->groundTile : data->upperTile;
+    if (ground_key) {
+        VECTOR3 span = Vector3_sub(&pModel->mdx->bounds.box.max, &pModel->mdx->bounds.box.min);
+        int sx = offset.x / TILE_SIZE, sy = offset.y / TILE_SIZE;
+        int nx = is_ramp && span.y > span.x ? 2 : 1, ny = is_ramp && span.x >= span.y ? 2 : 1;
+        FOR_LOOP(gindx, map->num_grounds) {
+            if (map->grounds[gindx] != ground_key) continue;
+            /* Ramp models cover two cells: their low-side corners need the same cliff ground texture. */
+            for (int px = sx; px <= sx + nx; px++)
+                for (int py = sy; py <= sy + ny; py++)
+                    ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, px, py))->ground = gindx;
+            if (x == 36 && y == 36)
+                fprintf(stderr, "CLIFF_GROUND cfg=%s cells=%d,%d..%d,%d ground=%u\n", cliffcfg, sx, sy, sx+nx, sy+ny, gindx);
+            break;
+        }
+    }
+
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
-        const float fx = pGeoset->vertices[i].x + offset.x;
-        const float fy = pGeoset->vertices[i].y + offset.y;
+        VECTOR3 pos = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->vertices[i]);
+        const float fx = pos.x + offset.x;
+        const float fy = pos.y + offset.y;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
         const float fw = GetAccurateWaterLevelAtPoint(fx, fy);
         const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         struct vertex *v = cliffs_current_vertex + t;
-        VECTOR3 fn = pGeoset->normals[i];
+        VECTOR3 fn = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->normals[i]);
         VECTOR3 an = GetAccurateNormalAtPoint(fx, fy);
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
         v->position.x = map->center.x + fx;
