@@ -4,6 +4,10 @@
 #define BZ_AVATAR MAKEFOURCC('A', 'H', 'a', 'v') // rawcode; Human Mountain King Avatar ability
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v') // rawcode; timed Avatar buff that owns immunity and bonuses
 #define BZ_POLYMORPH MAKEFOURCC('A', 'p', 'l', 'y') // rawcode; stock Polymorph ability code
+#define BZ_POLYMORPH_GROUND_SLOT 2 // data slot; authored Ply2 ground morph form
+#define BZ_POLYMORPH_FLY_SLOT 3 // data slot; authored Ply3 flying morph form
+#define BZ_POLYMORPH_AMPH_SLOT 4 // data slot; authored Ply4 amphibious morph form
+#define BZ_POLYMORPH_FLOAT_SLOT 5 // data slot; authored Ply5 floating morph form
 
 typedef struct {
     LPCSTR name;
@@ -11,10 +15,11 @@ typedef struct {
 } polymorphMoveType_t;
 
 static polymorphMoveType_t const polymorph_move_types[] = {
-    { "fly", 3 },
-    { "amph", 4 },
-    { "float", 5 }
+    { "fly", BZ_POLYMORPH_FLY_SLOT },
+    { "amph", BZ_POLYMORPH_AMPH_SLOT },
+    { "float", BZ_POLYMORPH_FLOAT_SLOT }
 };
+static DWORD const polymorph_move_types_count = sizeof(polymorph_move_types) / sizeof(polymorph_move_types[0]);
 
 void human_ability_think(LPEDICT thinker);
 
@@ -160,12 +165,12 @@ BOOL S_UnitPolymorphed(LPCEDICT unit) {
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
 static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
     LPCSTR movetp;
-    DWORD data_slot = 2; /* Ply2: ground morph unit */
+    DWORD data_slot = BZ_POLYMORPH_GROUND_SLOT;
 
     if (!target || !target->data.UnitData) return 0;
     movetp = target->data.UnitData->moveTypeName;
     if (movetp) {
-        FOR_LOOP(i, sizeof(polymorph_move_types) / sizeof(polymorph_move_types[0]))
+        FOR_LOOP(i, polymorph_move_types_count)
             if (!strcmp(movetp, polymorph_move_types[i].name)) {
                 data_slot = polymorph_move_types[i].slot;
                 break;

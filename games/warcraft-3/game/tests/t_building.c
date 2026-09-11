@@ -111,7 +111,7 @@ static const char building_repair_slk[] =
 
 static const char building_upgrade_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X13;Y7;D0\n"
+    "B;X17;Y8;D0\n"
     "C;X1;Y1;K\"upgradeid\"\n"
     "C;X2;K\"class\"\n"
     "C;X3;K\"maxlevel\"\n"
@@ -125,6 +125,10 @@ static const char building_upgrade_slk[] =
     "C;X11;K\"base1\"\n"
     "C;X12;K\"mod1\"\n"
     "C;X13;K\"code1\"\n"
+    "C;X14;K\"effect2\"\n"
+    "C;X15;K\"base2\"\n"
+    "C;X16;K\"mod2\"\n"
+    "C;X17;K\"code2\"\n"
     "C;X1;Y2;K\"Rhme\"\n"
     "C;X2;K\"melee\"\n"
     "C;X3;K3\n"
@@ -138,6 +142,17 @@ static const char building_upgrade_slk[] =
     "C;X11;K1\n"
     "C;X12;K1\n"
     "C;X13;K\"hfoo\"\n"
+    "C;X1;Y8;K\"Rhst\"\n"
+    "C;X2;K\"caster\"\n"
+    "C;X3;K2\n"
+    "C;X10;K\"rmnx\"\n"
+    "C;X11;K100\n"
+    "C;X12;K100\n"
+    "C;X13;K\"hsor\"\n"
+    "C;X14;K\"rmnr\"\n"
+    "C;X15;K0.325\n"
+    "C;X16;K0.325\n"
+    "C;X17;K\"hsor\"\n"
     "C;X1;Y3;K\"Rhar\"\n"
     "C;X2;K\"armor\"\n"
     "C;X3;K3\n"
@@ -559,6 +574,34 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
     T_FEQ(unit->attack1.permanentDamageBonus, 0.0f, 0.001f);
     T_FEQ(unit->attack2.permanentDamageBonus, 0.0f, 0.001f);
 
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, researched_caster_mana_effects_update_existing_units) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    UnitBalance_t balance = { .upgrades = "Rhst", .manaRegen = 0.5f };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    DWORD const training = MAKEFOURCC('R','h','s','t');
+
+    memset(client->tech, 0, sizeof(client->tech));
+    unit->s.player = client->ps.number;
+    unit->data.UnitBalance = &balance;
+    unit->mana.max_value = 200.0f;
+    unit->mana.value = 0.0f;
+
+    G_SetPlayerTechResearched(client, training, 1);
+    T_FEQ(unit->mana.max_value, 300.0f, 0.001f);
+    T_FEQ(unit->mana.value, 100.0f, 0.001f);
+    T_FEQ(unit->mana_regen_bonus, 0.325f, 0.001f);
+
+    G_SetPlayerTechResearched(client, training, 2);
+    T_FEQ(unit->mana.max_value, 400.0f, 0.001f);
+    T_FEQ(unit->mana.value, 200.0f, 0.001f);
+    T_FEQ(unit->mana_regen_bonus, 0.65f, 0.001f);
+
+    G_SetPlayerTechResearched(client, training, 0);
     building_restore_upgrade_data(old, rows);
 }
 
