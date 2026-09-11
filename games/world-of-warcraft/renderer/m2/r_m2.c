@@ -109,6 +109,7 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
 
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
+    model->format = m2_format_def(0);
     snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "<null>");
     model->bounds = (BOX3){
         .min = { -14.0f, -14.0f, 0.0f },
