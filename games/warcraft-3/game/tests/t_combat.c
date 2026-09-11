@@ -57,6 +57,12 @@ void  G_RunEntity(LPEDICT ent);
 void  unit_add_build_queue(LPEDICT self, LPEDICT item);
 void  order_move(LPEDICT self, LPEDICT target);
 
+static animation_t _replacement_anim = {
+    .name = "stand alternate",
+    .interval = { 1000, 1300 }
+};
+static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
+
 /* ==========================================================================
  * Shared helpers
  * ========================================================================== */
@@ -489,11 +495,6 @@ static void stub_endfunc(LPEDICT ent) {
 
 static umove_t _stub_move = { "stand", NULL, stub_endfunc, NULL };
 
-static animation_t _replacement_anim = {
-    .name = "stand alternate",
-    .interval = { 1000, 1300 }
-};
-static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
 static void stub_transition_endfunc(LPEDICT ent) {
     _endfunc_called++;
     ent->currentmove = &_replacement_move;

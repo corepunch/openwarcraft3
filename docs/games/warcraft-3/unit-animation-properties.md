@@ -23,7 +23,7 @@ The type rebind still happens on the script-issued order so the existing edict i
 
 `M_MoveFrame()` restarts the animation that is active *after* an end callback returns. This matters for morph completion: an end callback can replace `Morph Alternate` with `Stand`, and resetting the frame to the completed morph's start would make the newly rebound human model sample an unrelated frame for one tick, producing a visible blank between forms.
 
-Full `Amrf`/`Arav` cast time, takeoff/landing interpolation, transformation effects/sounds, duration/buff-driven automatic reversion, and command-card ability behavior remain separate compatibility work.
+Full `Amrf`/`Arav` cast time, transformation effects/sounds, duration/buff-driven automatic reversion, and command-card ability behavior remain separate compatibility work. The post-morph takeoff now interpolates the saved ground unit's authored fly height over the ability's Data C duration; landing remains an immediate form change.
 
 ## Verification
 
@@ -32,3 +32,4 @@ Focused unit tests install both synthetic `Amrf` and unrelated `Arav` object dat
 - `ravenform` changes the same unit from Data A to UnitID and adopts the alternate type's `animProps`;
 - `unravenform` restores the Data A unit type and clears the alternate type's authored properties;
 - a preplaced alternate-form endpoint can execute `unravenform` without first being transformed by OpenRealm.
+- Raven Form holds the transformed unit on its support surface through `Morph`, then interpolates to its authored fly height.
