@@ -14,9 +14,10 @@ down `-Z`, so `CL_GameDefaultCamera` and `SC2_ViewAngles` store `pitch - 90` on 
 `-34` (same tilt as WC3 Euler 326). Do not send raw map pitch 56/34.9 as Euler X — that aims nearly straight down.
 `SC2_MapDefaultCamera` keeps hardcoded gameplay defaults (pitch 56, distance 34.07) unless a `StartGame*` camera exists.
 TRaynor01's first camera object is a close cinematic (pitch 8.6, dist 4.95); using it as the default aims along the ground.
-Yaw still uses the authored StartGame value (Mar Sara `179.9584`);
-do not add a yaw offset to hide an axis mismatch. Flipping the light's X component would make lighting and shadow projection disagree
-and would hide a remaining camera-axis issue.
+Native yaw retains the authored StartGame value (Mar Sara `179.9584`), but the view-matrix adapter must publish
+`yaw - 180`. Copying native yaw directly put the TRaynor01 camera on the opposite side of the bridge from the retail
+reference. `SC2_CameraFromEuler` reverses this conversion for manual input. See [coordinates and camera angles](../../../AXIS.md).
+Do not rotate map coordinates or flip the light's X component to compensate for a camera convention.
 
 Diagnostic workflow:
 

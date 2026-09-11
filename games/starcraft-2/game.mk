@@ -7,6 +7,7 @@ MENU_SC2_LIB       := $(LIB_DIR)/libmenu-sc2$(LIB_EXT)
 SC2_BINARY       := $(BIN_DIR)/opensc2$(EXE_EXT)
 SC2_GAME_HEADERS := $(shell find $(SC2_DIR)/game -name '*.h' | sort)
 SC2_COMMON_SRCS  := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
+SC2_COMMON_HEADERS := $(wildcard $(SC2_DIR)/common/*.h)
 
 SC2_DEBUG_CFLAGS ?=
 SC2_CFLAGS       := $(CFLAGS) $(SC2_DEBUG_CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function -DBZ_GAME=\"starcraft-2\" -DUSE_SHADOWMAPS -DSC2_DEFAULT_MAP=\"Maps/Campaign/TRaynor01.SC2Map\"
@@ -43,6 +44,9 @@ $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB
 # ---------------------------------------------------------------------------
 # Standalone test binaries
 # ---------------------------------------------------------------------------
+# Inline camera adapters compile into each consumer; header edits previously left the live game stale.
+$(SC2_BINARY) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(MENU_SC2_LIB) $(BIN_DIR)/test_sc2$(EXE_EXT): $(SC2_COMMON_HEADERS)
+
 SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps

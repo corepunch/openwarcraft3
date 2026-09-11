@@ -1,5 +1,6 @@
 #include "g_wow_local.h"
 #include "../common/wow_config.h"
+#include "../common/wow_view.h"
 #include "common/stb_dbc.h"
 #include <math.h>
 #include <stdlib.h>
@@ -1265,7 +1266,7 @@ static void Wow_UpdateCamera(LPEDICT ent) {
     if (!ent || !ent->client) return;
     CL_GameDefaultCamera(&cam);
     ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
-    ent->client->ps.viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
+    ent->client->ps.viewangles = Wow_EulerFromCamera(Wow_ViewPitch(wow_move.pitch), wow_move.yaw);
     ent->client->ps.distance = wow_move.distance;
     player_set_lens(&ent->client->ps, &cam);
 }
@@ -1561,14 +1562,7 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
         Wow_EntityLocal(ent)->copper = 1234; /* starting copper balance */
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
-    {
-        gameCamera_t cam;
-        CL_GameDefaultCamera(&cam);
-        ps->vieworigin = (VECTOR3){ spawn_origin.x, spawn_origin.y, height + WOW_CAMERA_EYE_HEIGHT };
-        ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), 0.0f, wow_move.yaw };
-        ps->distance = wow_move.distance;
-        player_set_lens(ps, &cam);
-    }
+    Wow_UpdateCamera(ent);
     ps->client_ui_state = CLIENT_UI_LOADING;
     ps->name = wow_clients[0].name;
     Wow_UpdatePlayerHud(ent);
@@ -2488,8 +2482,9 @@ static void Wow_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
     if (cmd->action == BZ_INPUT_MOVE) {
         wow_move.flags = cmd->move.buttons;
     } else if (cmd->action == BZ_INPUT_VIEW && ent->client->ps.client_ui_state == CLIENT_UI_GAME) {
-        wow_move.yaw = cmd->view.angles.z;
-        wow_move.pitch = Wow_Clamp(360.0f - cmd->view.angles.x, WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
+        VECTOR3 native = Wow_CameraFromEuler(&cmd->view.angles);
+        wow_move.yaw = native.y;
+        wow_move.pitch = Wow_Clamp(360.0f - native.x, WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp(cmd->view.distance, WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
         Wow_UpdateCamera(ent);
     }

@@ -104,7 +104,10 @@ packets; `client_camera.terrain_offsets_interpolate` checks the actual projectio
 plane. Run `make test` for all three, `make test-client-camera` for the focused projection check, or the in-engine command
 `build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'client_camera.*' +com_frame_limit 100`.
 
-WoW still replaces look-at Z from the local player entity (`WOW_CAMERA_EYE_HEIGHT`); that is not an orientation sample.
+WoW authors actor Z plus `WOW_CAMERA_EYE_HEIGHT` in its server focus sample; the client does not replace it.
+Native camera angles convert at the game boundary; see [coordinates and camera angles](../../AXIS.md) for the
+SC2 azimuth and WoW horizon/heading mappings. The historical `{pitch, roll, yaw}` shorthand describes view Euler
+components, not interchangeable native gameplay angles.
 
 ## Entity Interpolation
 

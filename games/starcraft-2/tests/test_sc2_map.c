@@ -477,13 +477,29 @@ TEST(sc2_map, camera_pitch_converts_to_orbit_euler) {
     VECTOR3 native;
     T_FEQ(euler.x, -34.0f, 0.001f);
     T_FEQ(euler.y, 0.0f, 0.001f);
-    T_FEQ(euler.z, 180.0f, 0.001f);
+    T_FEQ(euler.z, 0.0f, 0.001f);
     native = SC2_CameraFromEuler(&euler, 2.5f);
     T_FEQ(native.x, 56.0f, 0.001f);
     T_FEQ(native.y, 180.0f, 0.001f);
     T_FEQ(native.z, 2.5f, 0.001f);
     euler = SC2_EulerFromCamera(34.9f, 193.9f);
     T_FEQ(euler.x, -55.1f, 0.001f);
+}
+
+/* The retail bridge view is from negative Y at yaw 180; test the actual quaternion/view path. */
+TEST(sc2_map, camera_eye_side_and_upright_basis) {
+    FOR_LOOP(i, 5) {
+        FLOAT yaw = i * 90.0f, pitch = 56.0f;
+        VECTOR3 angles = SC2_EulerFromCamera(pitch, yaw);
+        QUATERNION quat = Quaternion_fromEuler(&angles, ROTATE_ZYX);
+        MATRIX4 view, inv;
+        Matrix4_identity(&view); Matrix4_translate(&view, &(VECTOR3){ 0, 0, -34 });
+        Matrix4_rotateQuat(&view, &quat); Matrix4_inverse(&view, &inv);
+        T_FEQ(inv.v[12], 34 * sinf(DEG2RAD(yaw)) * cosf(DEG2RAD(pitch)), 0.001f);
+        T_FEQ(inv.v[13], 34 * cosf(DEG2RAD(yaw)) * cosf(DEG2RAD(pitch)), 0.001f);
+        T_FEQ(inv.v[14], 34 * sinf(DEG2RAD(pitch)), 0.001f);
+        T_ASSERT(view.v[9] > 0); /* World up projects toward screen up. */
+    }
 }
 
 TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {

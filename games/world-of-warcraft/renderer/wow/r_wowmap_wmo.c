@@ -1,4 +1,5 @@
 #include "r_wowmap.h"
+#include "common/wow_coords.h"
 
 typedef struct {
     VERTEX *vertices;
@@ -184,35 +185,11 @@ VECTOR3 Wow_ObjectPoint(wowVec3_t p) {
     return CM_WowObjectPoint(p.x, p.y, p.z);
 }
 
+/* Renderer and collision consume one placement transform; vertex data needs no axis swaps. */
 void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
-    MATRIX4 basis;
-    MATRIX4 tmp;
-    VECTOR3 origin;
-
-    Matrix4_identity(matrix);
-    origin = Wow_ObjectPoint(def->position);
-    Matrix4_translate(matrix, &origin);
-
-    Matrix4_identity(&basis);
-    basis.v[0] = 0.0f;
-    basis.v[1] = 1.0f;
-    basis.v[2] = 0.0f;
-    basis.v[4] = 0.0f;
-    basis.v[5] = 0.0f;
-    basis.v[6] = 1.0f;
-    basis.v[8] = 1.0f;
-    basis.v[9] = 0.0f;
-    basis.v[10] = 0.0f;
-    Matrix4_multiply(matrix, &basis, &tmp);
-    *matrix = tmp;
-
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, def->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -def->rotation.x }, ROTATE_XYZ);
-    Matrix4_rotate(matrix, &(VECTOR3){ def->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
-    if (def->scale) {
-        float scale = def->scale / 1024.0f;
-        Matrix4_scale(matrix, &(VECTOR3){ scale, scale, scale });
-    }
+    WOWPLACEMENT place = { .pos = { def->position.x, def->position.y, def->position.z },
+        .rot = { def->rotation.x, def->rotation.y, def->rotation.z }, .scale = def->scale };
+    Wow_PlacementMatrix(&place, matrix);
 }
 
 void Wow_GroupPath(LPCSTR root_path, DWORD group_index, LPSTR out, DWORD out_size) {

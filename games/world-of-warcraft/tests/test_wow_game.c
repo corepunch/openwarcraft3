@@ -2194,10 +2194,10 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     game->ClientBegin(player);
     FLOAT ground = player->s.origin.z;
     player->s.origin.z = 42;
-    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{18, 0, 90}, 8} });
+    game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{-72, 0, 0}, 8} });
     T_FEQ(player->client->ps.vieworigin.z, 42 + WOW_CAMERA_EYE_HEIGHT, 0.001f);
-    T_FEQ(player->client->ps.viewangles.x, 18, 0.001f);
-    T_FEQ(player->client->ps.viewangles.z, 90, 0.001f);
+    T_FEQ(player->client->ps.viewangles.x, -72, 0.001f);
+    T_FEQ(player->client->ps.viewangles.z, 0, 0.001f);
     T_FEQ(player->client->ps.distance, 8, 0.001f);
     VECTOR3 focus = player->client->ps.vieworigin;
     game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_FOCUS, .focus = {999, 999} });
@@ -2214,5 +2214,5 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     T_FEQ(player->s.origin.y, stopped.y, 0.001f);
     game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{-90, 0, 0}, 1000} });
     T_FEQ(player->client->ps.distance, WOW_CAMERA_MAX_DISTANCE, 0.001f);
-    T_FEQ(player->client->ps.viewangles.x, 360 - WOW_CAMERA_MAX_PITCH, 0.001f);
+    T_FEQ(player->client->ps.viewangles.x, 270 - WOW_CAMERA_MAX_PITCH, 0.001f);
 }

@@ -24,7 +24,8 @@ special client entity: `playerState.vieworigin` already communicates the resolve
 The client interpolates both complete focus samples, slerps their Euler-derived quaternions, and builds one
 `Matrix4_fromViewQuat` camera. The WoW-only height override in `Matrix4_getCameraMatrix` is gone. Scripts, terrain
 height, actor movement, camera target tracking, and lens defaults remain game-owned. WoW's legacy wrapped pitch
-is converted inside its game module; the client speaks canonical Euler degrees only.
+is converted inside its game module; the client speaks canonical Euler degrees only. Native angle origins and inverse
+input mappings are documented in [coordinates and camera angles](../../AXIS.md).
 
 ## Controller API and protocol
 
@@ -66,7 +67,7 @@ Defaults live in `games/<game>/share/config.cfg`, installed with `make install-s
 | `cl_camera_scroll_speed` | 1400 world units/s | 350 world units/s | 0 |
 | `cl_camera_edge_scroll` | 1 | 0 | 0 |
 | `cl_camera_pan_plane` | 0: terrain | 1: camera plane | 0 |
-| `cl_camera_min_pitch` / `cl_camera_max_pitch` | -85 / -5 | -85 / -5 | 5 / 55 |
+| `cl_camera_min_pitch` / `cl_camera_max_pitch` | -85 / -5 | -85 / -5 | -85 / -35 |
 | `cl_hover_health_only` | 1 | 1 | 0 |
 | `cl_context_cursor` | 0 | 0 | 1 |
 | `cl_move_mouse` (both buttons forward) | 0 | 0 | 1 |

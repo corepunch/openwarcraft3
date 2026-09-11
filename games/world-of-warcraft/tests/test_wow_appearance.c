@@ -11,6 +11,7 @@
 #include "renderer/m2/r_m2_utils.h"
 #include "common/ui_constants.h"
 #include "common/wow_view.h"
+#include "common/wow_coords.h"
 
 refImport_t ri;
 
@@ -101,6 +102,47 @@ TEST(wow_renderer, view_angle_helpers_wrap_and_match_forward_axis) {
     T_ASSERT(fabsf(Wow_LerpDegrees(350.0f, 10.0f, 0.5f) - 360.0f) < 0.001f);
     forward = Wow_ViewForward(&angles);
     T_ASSERT(fabsf(forward.x) < 0.001f); T_ASSERT(fabsf(forward.y - 1.0f) < 0.001f);
+}
+
+/* Recover the eye from the same Euler -> quaternion -> orbit path used by the client. */
+TEST(wow_renderer, orbit_stays_behind_native_heading) {
+    FOR_LOOP(i, 5) FOR_LOOP(j, 4) {
+        VECTOR3 native = { 5 + j * 16, i * 90, 0 };
+        VECTOR3 euler = Wow_EulerFromCamera(native.x, native.y), back = Wow_CameraFromEuler(&euler);
+        VECTOR3 forward = Wow_ViewForward(&native);
+        QUATERNION quat = Quaternion_fromEuler(&euler, ROTATE_ZYX);
+        MATRIX4 view, inv;
+        Matrix4_identity(&view); Matrix4_translate(&view, &(VECTOR3){ 0, 0, -8.5f });
+        Matrix4_rotateQuat(&view, &quat); Matrix4_inverse(&view, &inv);
+        FOR_LOOP(k, 3) {
+            T_FEQ(((FLOAT *)&back)[k], ((FLOAT *)&native)[k], 0.001f);
+            T_FEQ(inv.v[12 + k], -8.5f * ((FLOAT *)&forward)[k], 0.001f);
+        }
+        T_ASSERT(view.v[9] > 0);
+    }
+}
+
+/* Compare the reduced placement against the previous basis chain, including tilted/scaled WMOs. */
+TEST(wow_renderer, placement_preserves_native_geometry) {
+    FOR_LOOP(i, 12) {
+        WOWPLACEMENT place = { .pos = { 17000, 42, 16900 }, .rot = { i * 31, -(FLOAT)i * 17, i * 47 },
+            .scale = i ? i * 256 : 0 };
+        MATRIX4 old, basis, tmp, matrix;
+        VECTOR3 pos = CM_WowObjectPoint(place.pos.x, place.pos.y, place.pos.z);
+        FLOAT scale = place.scale ? place.scale / 1024.0f : 1.0f;
+        Matrix4_identity(&old); Matrix4_translate(&old, &pos);
+        Matrix4_identity(&basis);
+        basis.v[0] = 0; basis.v[1] = 1; basis.v[2] = 0;
+        basis.v[4] = 0; basis.v[5] = 0; basis.v[6] = 1;
+        basis.v[8] = 1; basis.v[9] = 0; basis.v[10] = 0;
+        Matrix4_multiply(&old, &basis, &tmp); old = tmp;
+        Matrix4_rotate(&old, &(VECTOR3){ 0, place.rot.y - 270, 0 }, ROTATE_XYZ);
+        Matrix4_rotate(&old, &(VECTOR3){ 0, 0, -place.rot.x }, ROTATE_XYZ);
+        Matrix4_rotate(&old, &(VECTOR3){ place.rot.z - 90, 0, 0 }, ROTATE_XYZ);
+        Matrix4_scale(&old, &(VECTOR3){ scale, scale, scale });
+        Wow_PlacementMatrix(&place, &matrix);
+        FOR_LOOP(k, 16) T_FEQ(matrix.v[k], old.v[k], 0.0001f);
+    }
 }
 
 /* Shadow culling rejects outside bounds while RDF_NOFRUSTUMCULL's caller path preserves them. */

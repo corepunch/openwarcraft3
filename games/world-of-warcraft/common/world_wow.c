@@ -2,13 +2,16 @@
 #include "common/ui_constants.h"
 #include "common/stb_dbc.h"
 #include "wow_chunks.h"
+#include "wow_coords.h"
+#include "wow_view.h"
 #include <float.h>
 #include <limits.h>
 #include <math.h>
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
-    *camera = (gameCamera_t){ .distance = 8.0f, .pitch = 342.0f, .yaw = 0.0f, .fov = WOW_CAMERA_FOV,
+    VECTOR3 angles = Wow_EulerFromCamera(18.0f, 0.0f);
+    *camera = (gameCamera_t){ .distance = 8.0f, .pitch = angles.x, .yaw = angles.z, .fov = WOW_CAMERA_FOV,
         .znear = WOW_WORLD_NEAR_CLIP, .zfar = WOW_WORLD_FAR_CLIP };
     return true;
 }
@@ -255,21 +258,8 @@ typedef struct {
 
 /* MODF and WMO vertices use the same transform as the renderer; collision must agree bit-for-bit with visuals. */
 static void CM_WowWmoMatrix(cmWowWmoDef_t const *def, LPMATRIX4 matrix) {
-    MATRIX4 basis, tmp;
-    VECTOR3 origin = CM_WowObjectPoint(def->position.x, def->position.y, def->position.z);
-    Matrix4_identity(matrix); Matrix4_translate(matrix, &origin);
-    Matrix4_identity(&basis);
-    basis.v[0] = 0.0f; basis.v[1] = 1.0f; basis.v[2] = 0.0f;
-    basis.v[4] = 0.0f; basis.v[5] = 0.0f; basis.v[6] = 1.0f;
-    basis.v[8] = 1.0f; basis.v[9] = 0.0f; basis.v[10] = 0.0f;
-    Matrix4_multiply(matrix, &basis, &tmp); *matrix = tmp;
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, def->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -def->rotation.x }, ROTATE_XYZ);
-    Matrix4_rotate(matrix, &(VECTOR3){ def->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
-    if (def->scale) {
-        float scale = def->scale / 1024.0f;
-        Matrix4_scale(matrix, &(VECTOR3){ scale, scale, scale });
-    }
+    WOWPLACEMENT place = { .pos = def->position, .rot = def->rotation, .scale = def->scale };
+    Wow_PlacementMatrix(&place, matrix);
 }
 
 static void CM_WowWmoGroupPath(LPCSTR root, DWORD index, LPSTR out, DWORD out_size) {
