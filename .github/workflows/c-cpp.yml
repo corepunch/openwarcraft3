@@ -212,6 +212,7 @@ jobs:
             build/share/
           if-no-files-found: error
   build-windows:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
 
     steps:
@@ -251,11 +252,11 @@ jobs:
       - build-windows
     if: >-
       always() &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/') &&
       needs.build-windows.result == 'success' &&
-      ((github.event_name == 'pull_request' &&
-        needs.prepare-linux-image.outputs.dockerfile_changed == 'true' &&
-        needs.prepare-linux-image.result == 'success') ||
-       (needs.test.result == 'success' && needs.build.result == 'success'))
+      needs.test.result == 'success' &&
+      needs.build.result == 'success'
     permissions:
       contents: read
     container:
