@@ -1,4 +1,10 @@
 /* galaxy_camera.h — camera natives */
+
+#define MAX_GALAXY_CAMS   64
+typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov, height; } sc2GCam_t;
+static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
+static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
+
 /* CameraInfoFromId: look up map camera by ID, store in local table, return handle. */
 static DWORD sc2_CameraInfoFromId(LPJASS j) {
     DWORD map_id = (DWORD)jass_checkinteger(j, 1);

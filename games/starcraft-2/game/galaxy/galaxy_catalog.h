@@ -1,4 +1,15 @@
 /* galaxy_catalog.h — ability, order, and catalog natives */
+
+#define MAX_GALAXY_ABILCMDS 1024
+typedef struct { char ability[64]; LONG cmd_idx; } sc2GAbilCmd_t;
+static sc2GAbilCmd_t sc2_gabilcmds[MAX_GALAXY_ABILCMDS];
+static LONG sc2_gabilcmd_n = 1; /* 1-based; 0 = null */
+
+#define MAX_GALAXY_ORDERS 1024
+typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
+static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
+static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
+
 static DWORD sc2_AbilityClass(LPJASS j)       { return jass_pushinteger(j, 0); }
 static DWORD sc2_AbilityCommand(LPJASS j) {
     LPCSTR name = jass_checkstring(j, 1);

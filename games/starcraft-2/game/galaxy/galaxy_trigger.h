@@ -1,4 +1,60 @@
 /* galaxy_trigger.h — trigger natives */
+
+#define MAX_SC2_TRIGGERS  512
+typedef struct { LONG id; LPCSTR func; BOOL mapinit; BOOL wrapper_conds[2]; } sc2trig_t;
+static sc2trig_t sc2_trigs[MAX_SC2_TRIGGERS];
+static DWORD sc2_trig_n;
+static LONG  sc2_trig_next_id = 1;
+
+/* Fire a named Galaxy trigger function with the Galaxy convention (testConds=false, runActions=true).
+ * Galaxy trigger functions have signature `bool f(bool testConds, bool runActions)`.
+ * We compile a thin wrapper so jass_startcoroutinebyname (no args) correctly enters with args. */
+static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOOL as_coroutine) {
+    LPJASS root = jass_getroot(j);
+    char name[128];
+    /* Encode testConds in the wrapper name so each variant is compiled at most once. */
+    snprintf(name, sizeof(name), "__trig_%llx_%d",
+             (unsigned long long)(uintptr_t)funcname, testConds ? 1 : 0);
+
+    /* Find the trigger entry to check/set the compiled flag. */
+    sc2trig_t *trig = NULL;
+    for (DWORD i = 0; i < sc2_trig_n; i++) {
+        if (sc2_trigs[i].func == funcname) { trig = &sc2_trigs[i]; break; }
+    }
+    BOOL already = trig && trig->wrapper_conds[testConds ? 1 : 0];
+    if (!already) {
+        char code[512];
+        snprintf(code, sizeof(code), "void %s() { %s(%s, true); }",
+                 name, funcname, testConds ? "true" : "false");
+        char *buf = strdup(code);
+        /* Earlier unsupported calls are logged where they occur; they must not be attributed to this wrapper parse. */
+        jass_rterror_clear(root);
+        BOOL ok = jass_dobuffer_ex(root, buf, JASS_MODE_GALAXY);
+        free(buf);
+        if (!ok || jass_rterror_pending(root)) {
+            fprintf(stderr, "sc2_fire_trigger_func: wrapper compile error for %s: %s\n",
+                    funcname, jass_rterror_message(root));
+            jass_rterror_clear(root);
+            return;
+        }
+        if (trig) trig->wrapper_conds[testConds ? 1 : 0] = true;
+    }
+#ifdef SC2_DEBUG_CUTSCENE
+    fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
+#endif
+    if (as_coroutine) {
+        jass_startcoroutinebyname(root, name);
+    } else {
+        if (!jass_callcoroutinebyname(root, name))
+            jass_callbyname(root, name, false);
+        if (jass_rterror_pending(root)) {
+            fprintf(stderr, "galaxy trigger %s: runtime error: %s\n",
+                    funcname, jass_rterror_message(root));
+            jass_rterror_clear(root);
+        }
+    }
+}
+
 /* Triggers are opaque handles; extract the integer ID via pointer cast. */
 static LONG sc2_trigger_id(LPJASS j, int index) {
     HANDLE h = jass_checkhandle(j, index, "trigger");

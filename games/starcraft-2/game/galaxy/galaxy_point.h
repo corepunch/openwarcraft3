@@ -1,4 +1,10 @@
 /* galaxy_point.h — point, region, and visibility natives */
+
+#define MAX_GALAXY_POINTS 4096
+typedef struct { FLOAT x, y; } sc2GPoint_t;
+static sc2GPoint_t sc2_gpoints[MAX_GALAXY_POINTS];
+static LONG sc2_gpoint_n = 1;  /* 1-based; 0 = null handle */
+
 /* PointFromId: look up map point object by ID, return typed handle. */
 static DWORD sc2_PointFromId(LPJASS j) {
     DWORD map_id = (DWORD)jass_checkinteger(j, 1);

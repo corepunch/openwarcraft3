@@ -1,4 +1,24 @@
 /* galaxy_unit.h — unit, unitgroup, and unittype natives */
+
+#define MAX_GALAXY_UNITS   256
+#define MAX_CARGO_PER_UNIT 16
+/* Bit flag ORed into a unitgroup handle to mark it as a cargo-group reference.
+ * The lower bits encode the transport unit handle (max 256, well below 0x40000000). */
+#define CARGO_GROUP_FLAG   ((LONG)0x40000000)
+#define MAX_UNIT_ORDERS    8   /* enough for generated cutscene queues */
+#define SC2_CARGO_DROP_SPACING 1.1f  /* map units; separates the two-row cinematic unload formation */
+
+void *sc2_gunits[MAX_GALAXY_UNITS];
+DWORD sc2_gunit_n;
+LONG  sc2_last_unit_handle;
+
+typedef struct { char ability[64]; FLOAT x, y; BOOL started; } sc2GUnitOrder_t;
+static LONG sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
+static LONG sc2_gcargo_n[MAX_GALAXY_UNITS];
+static LONG sc2_last_cargo_handle;
+static sc2GUnitOrder_t sc2_uorders[MAX_GALAXY_UNITS][MAX_UNIT_ORDERS];
+static LONG sc2_uorder_n[MAX_GALAXY_UNITS];
+
 /* UnitCreate: resolve unit model from catalog, spawn at point position. */
 static DWORD sc2_UnitCreate(LPJASS j) {
     LONG   count  = jass_checkinteger(j, 1);
@@ -238,3 +258,47 @@ static DWORD sc2_UnitTypeTestAttribute(LPJASS j)       { return jass_pushboolean
 static DWORD sc2_UnitTypeTestFlag(LPJASS j)            { return jass_pushboolean(j, false); }
 static DWORD sc2_UnitTypeAnimationLoad(LPJASS j)       { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitTypeAnimationUnload(LPJASS j)     { (void)j; return jass_pushnull(j); }
+
+static void sc2_pop_unit_order(LONG unit_h) {
+    LONG *count = &sc2_uorder_n[unit_h - 1];
+    if (--*count > 0)
+        memmove(&sc2_uorders[unit_h - 1][0], &sc2_uorders[unit_h - 1][1], sizeof(sc2GUnitOrder_t) * *count);
+}
+
+/* Galaxy append orders begin only after the active movement reports completion. */
+static void sc2_run_unit_orders(void) {
+    for (LONG unit_h = 1; unit_h <= (LONG)sc2_gunit_n; unit_h++) {
+        LONG *count = &sc2_uorder_n[unit_h - 1];
+        void *ent = sc2_gunits[unit_h - 1];
+        while (*count > 0) {
+            sc2GUnitOrder_t *ord = &sc2_uorders[unit_h - 1][0];
+            if (!strcmp(ord->ability, "move")) {
+                if (!ord->started) {
+                    if (ent && sc2_galaxy_unit_move) sc2_galaxy_unit_move(ent, ord->x, ord->y);
+                    ord->started = true;
+                    break;
+                }
+                if (ent && sc2_galaxy_unit_is_moving && sc2_galaxy_unit_is_moving(ent)) break;
+                sc2_pop_unit_order(unit_h);
+                continue;
+            }
+            if (!strcmp(ord->ability, "SpecOpsDropshipTransport")) {
+                LONG cargo_n = sc2_gcargo_n[unit_h - 1];
+                for (LONG i = 0; i < cargo_n; i++) {
+                    LONG cargo_h = sc2_gcargo[unit_h - 1][i];
+                    void *cargo = (cargo_h > 0 && cargo_h <= (LONG)sc2_gunit_n) ? sc2_gunits[cargo_h - 1] : NULL;
+                    FLOAT x = ord->x + ((FLOAT)(i % 3) - 1.0f) * SC2_CARGO_DROP_SPACING;
+                    FLOAT y = ord->y + (0.75f + (FLOAT)(i / 3) * SC2_CARGO_DROP_SPACING);
+                    if (cargo && sc2_galaxy_unit_set_position)
+                        sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
+                }
+#ifdef SC2_DEBUG_CUTSCENE
+                fprintf(stderr, "UnitIssueOrder: unloaded %ld cargo units at (%.1f,%.1f)\n",
+                        (long)cargo_n, ord->x, ord->y);
+#endif
+                sc2_gcargo_n[unit_h - 1] = 0;
+            }
+            sc2_pop_unit_order(unit_h);
+        }
+    }
+}
