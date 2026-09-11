@@ -73,9 +73,14 @@ static BOOL sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static DWORD sc2_num_terrain_layers;
+static cameraHeightMap_t sc2_camera_height;
 /* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
    Both ground vertices and cliff boundary vertices index into this so seams never appear. */
 static VECTOR3 *sc2_terrain_normals;
+
+static FLOAT r_sc2_camera_grid_height(LPCVOID data, DWORD x, DWORD y) {
+    return sc2_map_height_at_grid(data, x, y);
+}
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
@@ -581,6 +586,7 @@ static void r_sc2_release_layer(LPMAPLAYER layer) {
 }
 
 static void r_sc2_release_terrain(void) {
+    R_FreeCameraHeightMap(&sc2_camera_height);
     while (sc2_terrain_segment) {
         LPMAPSEGMENT next = sc2_terrain_segment->next;
         r_sc2_release_layer(sc2_terrain_segment->layers);
@@ -1488,6 +1494,11 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     r_sc2_release_terrain();
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return;
+    R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &sc2_camera_height, .data = map,
+        .width = map->t3HeightMap ? map->t3HeightMap->width : 0,
+        .height_count = map->t3HeightMap ? map->t3HeightMap->height : 0,
+        .radius = (DWORD)SC2_BROAD_HEIGHT_RADIUS, .samples = BZ_BROAD_HEIGHT_SAMPLES,
+        .origin = map->origin, .cell_size = map->cell_size, .get_height = r_sc2_camera_grid_height });
 
     r_sc2_init_terrain_shader();
     r_sc2_load_terrain_textures(map);
@@ -1863,6 +1874,8 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
 FLOAT R_SC2GetHeightAtPoint(FLOAT x, FLOAT y) {
     return sc2_map_height_at_point(SC2_MapCurrent(), x, y);
 }
+
+FLOAT R_SC2GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SampleCameraHeightMap(&sc2_camera_height, x, y); }
 
 VECTOR2 R_SC2WorldSize(void) {
     sc2Map_t const *map = SC2_MapCurrent();

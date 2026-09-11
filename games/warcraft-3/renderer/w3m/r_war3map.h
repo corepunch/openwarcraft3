@@ -2,6 +2,7 @@
 #define __r_war3map_h__
 
 #include "renderer/r_local.h"
+#include "renderer/r_camera_height.h"
 #include "r_terrain_layers.h"
 
 #define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; W3E's non-cliff corner sentinel; excluded from cliff texture selection
@@ -17,6 +18,8 @@ LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy);
 void R_ResetGroundTextures(void);
 void R_ResetCliffCache(void);
 void _W3M_ClearMap(void);
+FLOAT R_W3CameraHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT R_W3TerrainHeightAtPoint(FLOAT x, FLOAT y);
 
 VECTOR2 GetWar3MapPosition(LPCWAR3MAP war3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);

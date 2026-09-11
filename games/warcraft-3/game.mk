@@ -134,6 +134,10 @@ test-wc3-engine: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-classic.xml" TEST_JUNIT_SUITE="test-wc3-engine-classic" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test '$(WC3_PATTERN)'
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-tft.xml" TEST_JUNIT_SUITE="test-wc3-engine-tft" $(WC3_TEST_BINARY) -data $(TESTS_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
 
+.PHONY: test-client-camera
+test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
+	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-client-camera.xml" TEST_JUNIT_SUITE="test-client-camera" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'client_camera.*' +com_frame_limit 100
+
 .PHONY: test-jass-build
 test-jass-build: $(JASS_LIB)
 	@sh tests/test_jass_build.sh $(JASS_LIB)
@@ -168,12 +172,12 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
 		test-renderer-model test-renderer-view test-renderer-shadows test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine
+		test-wow-wmo test-menu test-wc3-engine test-client-camera
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c,-lshared -lm $(LIBS),))
-$(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-view,$(SHARED_LIB) renderer/r_view.c renderer/r_trace.c renderer/r_local.h,$(TEST_CFLAGS),$(BIN_DIR)/test_renderer_view$(EXE_EXT),tests/test_runner.c tests/test_renderer_view.c tests/test_renderer_trace.c renderer/r_trace.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_anim.c $(WC3_DIR)/renderer/mdx/r_mdx_interpolation.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c $(WC3_DIR)/renderer/mdx/r_mdx_light.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c games/starcraft-2/game/galaxy/galaxy_host.c,-lshared -ljass -lm,))
 $(eval $(call test_schema,test-menu,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_MENU_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) $(WC3_DIR)/common/campaign_progress.c common/mpq.c common/cmd.c common/common.c common/cvar.c common/msg.c common/net.c $(call CSRC,$(WC3_DIR)/menu),-lsheet -lshared -ljass -lm -lz $(NET_LIBS),))

@@ -18,13 +18,22 @@ static minimapPing_t minimap_pings[CL_MINIMAP_PING_COUNT];
 static VECTOR2 minimap_recent[CL_MINIMAP_RECENT_COUNT];
 static DWORD minimap_recent_count, minimap_recent_cursor;
 
+/* Keep each predicted XYZ sample terrain-relative before replacing its XY, including unacknowledged snapshots. */
+void CL_PredictCameraPosition(VECTOR2 pos) {
+    BOOL terrain = re.CameraUsesTerrainHeight();
+    FLOAT height = terrain ? re.GetHeightAtPoint(pos.x, pos.y) : 0.0f;
+    FOR_LOOP(i, 2) {
+        LPVECTOR3 org = &cl.viewDef.camerastate[i].origin;
+        /* Changing XY alone paired the previous terrain Z with the new location and caused acknowledgment jumps. */
+        if (terrain) org->z += height - re.GetHeightAtPoint(org->x, org->y);
+        org->x = pos.x; org->y = pos.y;
+    }
+}
+
 /* Apply one camera position through local prediction and the authoritative client message. */
 void CL_SetCameraPosition(VECTOR2 position) {
     position = CL_ClampCameraPosition(position);
-    cl.viewDef.camerastate[0].origin.x = position.x;
-    cl.viewDef.camerastate[0].origin.y = position.y;
-    cl.viewDef.camerastate[1].origin.x = position.x;
-    cl.viewDef.camerastate[1].origin.y = position.y;
+    CL_PredictCameraPosition(position);
     cl.camera_prediction.active = true;
     cl.camera_prediction.origin = position;
     cl.camera_prediction.focus_ms = cl.time;

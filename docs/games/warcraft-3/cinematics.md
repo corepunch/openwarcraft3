@@ -218,10 +218,11 @@ Camera follows units via `SetCameraTargetController`. The camera interpolation r
 `PanCameraToWithZ` and `PanCameraToTimedWithZ` author a camera-target Z offset in
 addition to X/Y. `G_RunClients()` interpolates that offset and the near/far clip
 planes alongside the other camera values, and the WC3 player snapshot transports
-all three to the client. The server retains the camera target's terrain
-reference while a setup transition changes fields or Z offset; it does not
-resample the destination terrain every frame. This matches the measured retail
-transition behavior. Camera setups support `CAMERA_FIELD_NEARZ`,
+all three to the client. The server camera sample remains exact; during map
+registration the renderer builds a separate blurred terrain source, and the
+client applies that source to the current camera XY while preserving the
+server-authored terrain-relative Z offset, interpolated between snapshots. Terrain-derived camera Z is not
+temporally smoothed. Prediction rebases each sample before changing its XY; see [camera samples](../../architecture/client.md#camera-samples). Camera setups support `CAMERA_FIELD_NEARZ`,
 `CAMERA_FIELD_FARZ`, and `CAMERA_FIELD_ZOFFSET`; the `...WithZ` apply variants
 override the setup Z offset with their explicit argument.
 `CameraSetupApply(..., doPan=false, ...)` and

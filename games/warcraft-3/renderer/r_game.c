@@ -10,7 +10,6 @@ void _W3M_DrawWorld(void);
 void _W3M_DrawTerrainShadows(void);
 void _W3M_DrawAlphaSurfaces(void);
 bool _W3M_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
-float GetAccurateHeightAtPoint(float sx, float sy);
 
 /* MMP v0 is a fixed little-endian header followed by 16-byte icon records. */
 typedef struct { DWORD kind, x, y; COLOR32 bgra; } MMPICON;
@@ -282,8 +281,11 @@ bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point
 }
 
 FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
-    return GetAccurateHeightAtPoint(x, y);
+    return R_W3TerrainHeightAtPoint(x, y);
 }
+
+FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_W3CameraHeightAtPoint(x, y); }
+BOOL R_CameraUsesTerrainHeight(void) { return true; }
 
 
 static BOOL R_W3WalkableSurfaceHit(renderEntity_t const *surface, FLOAT x, FLOAT y, LPFLOAT z) {

@@ -4,6 +4,12 @@
 
 LPMAPSEGMENT g_mapSegments = NULL;
 LPMAPLAYER g_groundLayers = NULL;
+static cameraHeightMap_t w3_camera_height;
+
+#define WC3_CAMERA_HEIGHT_RADIUS 4 // terrain cells; half-width of the client camera blur footprint
+static FLOAT r_w3_camera_grid_height(LPCVOID data, DWORD x, DWORD y) {
+    return GetWar3MapVertexHeight(GetWar3MapVertex(data, x, y));
+}
 
 static void R_FreeMapLayers(LPMAPLAYER *layers) {
     while (*layers) {
@@ -38,6 +44,7 @@ void _W3M_ClearMap(void) {
     R_FreeMapLayers(&g_groundLayers);
     R_ResetGroundTextures();
     R_ResetCliffCache();
+    R_FreeCameraHeightMap(&w3_camera_height);
     R_ShutdownFogOfWar();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     tr.texture[TEX_TERRAIN_SHADOW] = NULL;
@@ -278,9 +285,35 @@ void _W3M_RegisterMap(char const *mapFilename) {
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;
+    R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &w3_camera_height, .data = map,
+        .width = map->width, .height_count = map->height, .radius = WC3_CAMERA_HEIGHT_RADIUS,
+        .samples = BZ_BROAD_HEIGHT_SAMPLES, .origin = map->center, .cell_size = TILE_SIZE,
+        .get_height = r_w3_camera_grid_height });
 
     R_LoadMapSegments(map);
     R_BuildGroundLayers(map);
+}
+
+FLOAT R_W3CameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SampleCameraHeightMap(&w3_camera_height, x, y); }
+
+/* Sample the exact world terrain source used to build the client camera height map. */
+FLOAT R_W3TerrainHeightAtPoint(FLOAT x, FLOAT y) {
+    FLOAT gx, gy, tx, ty, h0, h1;
+    DWORD x0, y0, x1, y1;
+
+    if (!tr.world || !tr.world->vertices || !tr.world->width || !tr.world->height) return 0.0f;
+    gx = (x - tr.world->center.x) / TILE_SIZE;
+    gy = (y - tr.world->center.y) / TILE_SIZE;
+    gx = MAX(0.0f, MIN((FLOAT)tr.world->width - 1.0f, gx));
+    gy = MAX(0.0f, MIN((FLOAT)tr.world->height - 1.0f, gy));
+    x0 = (DWORD)floorf(gx); y0 = (DWORD)floorf(gy);
+    x1 = MIN(tr.world->width - 1, x0 + 1); y1 = MIN(tr.world->height - 1, y0 + 1);
+    tx = gx - x0; ty = gy - y0;
+    h0 = LerpNumber(GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x0, y0)),
+                    GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x1, y0)), tx);
+    h1 = LerpNumber(GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x0, y1)),
+                    GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x1, y1)), tx);
+    return LerpNumber(h0, h1, ty);
 }
 
 void _W3M_DrawTerrainShadows(void) {

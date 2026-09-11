@@ -892,6 +892,7 @@ static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, LPVECTOR3
 static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
     (void)y; *point = (VECTOR2){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
+static BOOL CL_TestCameraUsesTerrainHeight(void) { return false; }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
 static int smart_trace_order;
@@ -983,6 +984,7 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     INPUTCMD cmd;
 
     re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
+    re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; input.select = false; cl.selection.in_progress = false;
     mouse.origin = (VECTOR2){ 10, 20 };
@@ -1054,6 +1056,7 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     memset(&cl, 0, sizeof(cl)); input = (__typeof__(input)){ .focus = true };
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
+    re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
     SZ_Init(&msg, packet, sizeof(packet));
     MSG_WriteByte(&msg, LAYER_CONSOLE);

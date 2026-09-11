@@ -292,7 +292,7 @@ static VECTOR3 SC2_ViewAngles(LPCVECTOR3 camera_angles) {
 }
 
 static VECTOR3 SC2_CameraAnglesFromPlayer(LPCPLAYER ps) {
-    return SC2_CameraFromEuler(&ps->viewangles, ps->vieworigin.z - SC2_MapCameraHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y));
+    return SC2_CameraFromEuler(&ps->viewangles, ps->vieworigin.z - SC2_MapHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y));
 }
 
 static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
@@ -302,7 +302,7 @@ static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance
     defaults.fov = fov;
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
         sc2_clients[i].ps.vieworigin = (VECTOR3){
-            origin->x, origin->y, SC2_MapCameraHeightAtPoint(origin->x, origin->y) + angles->z
+            origin->x, origin->y, SC2_MapHeightAtPoint(origin->x, origin->y) + angles->z
         };
         sc2_edicts[i].s.origin = sc2_clients[i].ps.vieworigin;
         sc2_clients[i].ps.viewangles = SC2_ViewAngles(angles);
@@ -564,7 +564,7 @@ static void SC2_InitClients(void) {
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
         ent->client->ps.vieworigin = (VECTOR3){
             camera.target.x, camera.target.y,
-            SC2_MapCameraHeightAtPoint(camera.target.x, camera.target.y) + camera.height_offset
+            SC2_MapHeightAtPoint(camera.target.x, camera.target.y) + camera.height_offset
         };
         ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
@@ -699,7 +699,7 @@ static void SC2_RunFrame(void) {
             fprintf(stderr, "SC2 cutscene trace: frame=%u camera=(%.2f,%.2f) pitch=%.2f yaw=%.2f dist=%.2f height=%.2f",
                     (unsigned)trace_frame, sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y,
                     cam.x, cam.z, (double)sc2_clients[0].ps.distance,
-                    sc2_clients[0].ps.vieworigin.z - SC2_MapCameraHeightAtPoint(sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y));
+                    sc2_clients[0].ps.vieworigin.z - SC2_MapHeightAtPoint(sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y));
             if (dropship) {
                 DWORD number = SC2_EdictNumber(dropship);
                 fprintf(stderr, " dropship=(%.2f,%.2f,%.2f) moving=%d target=(%.2f,%.2f) flying=%d height=%.2f",
