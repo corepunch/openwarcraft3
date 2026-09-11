@@ -370,8 +370,8 @@ second weapon has damage dice, and `showUI2` is true. A populated dormant attack
 Buff/status presentation is a separate runtime strip at the bottom of `SimpleInfoPanelUnitDetail`. The `Status:` frame is
 `0.035 x 0.010` at `BOTTOMLEFT + (0.030, 0.003)`; visible buff icons are `0.015 x 0.015`, with the first icon attached to the
 label's right edge at `+0.001` and later icons chained at the same gap. Icon, tip, and ubertip metadata comes from Warcraft's
-`Units\AbilityBuffData.slk` (`Buffart`, `Bufftip`, `Buffubertip`) with standard profile TXT values allowed to override it. The shared
-`abilstatus[]` array also carries cooldown bookkeeping, so only entries that resolve as buff UI metadata are rendered in this strip;
+`Units\AbilityBuffData.slk` (`Buffart`, `Bufftip`, `Buffubertip`) with standard profile TXT values allowed to override it. The shared `abilstatus[]` array carries buffs and timed statuses only; ability cooldowns use the independent per-unit
+`abilitycooldowns[]` store and never enter this strip. Only entries that resolve as buff UI metadata are rendered here;
 `BTLF` and `Bmil` are reserved for the generic timed-status presentation rather than normal buff icons. Their authoritative
 remaining fraction is published through player-state snapshots to the retail `SimpleProgressIndicator`; see
 [Timed Status Presentation](timed-status-presentation.md). Adding, replacing, removing, or expiring a status invalidates the selected-unit

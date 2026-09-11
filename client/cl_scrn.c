@@ -964,6 +964,19 @@ static COLOR32 SCR_CommandButtonColor(LPCUIFRAME frame) {
     return color;
 }
 
+static FLOAT SCR_CommandButtonRadialShade(LPCUIFRAME frame) {
+    uiCommandButton_t const *state;
+    DWORD duration;
+
+    if (!frame || !(frame->flagsvalue & UIFLAG_RADIAL_SHADE) ||
+        frame->buffer.size != sizeof(uiCommandButton_t) || !frame->buffer.data) return 0.0f;
+    state = frame->buffer.data;
+    duration = (DWORD)(state->radialEndTime - state->radialStartTime);
+    if (!duration || (LONG)(cl.time - state->radialEndTime) >= 0) return 0.0f;
+    if ((LONG)(cl.time - state->radialStartTime) <= 0) return 1.0f;
+    return MIN(1.0f, (FLOAT)(DWORD)(state->radialEndTime - cl.time) / (FLOAT)duration);
+}
+
 void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE sel = SCR_LayoutSelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
@@ -977,7 +990,8 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         .shader      = SHADER_COMMANDBUTTON,
         .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
                        /* 255 means no ability on both sides, so idle units must not light every build choice. */
-                       (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat)));
+                       (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat),
+        .uRadialShade = SCR_CommandButtonRadialShade(frame)));
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {

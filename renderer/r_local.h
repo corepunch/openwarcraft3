@@ -142,6 +142,7 @@ typedef struct SPRITESTATE {
     MATRIX4 model;
     int texture;
     FLOAT activeGlow;
+    FLOAT radialShade;
 } SPRITESTATE;
 typedef struct SPRITESTATE *LPSPRITESTATE;
 typedef const struct SPRITESTATE *LPCSPRITESTATE;
@@ -435,7 +436,7 @@ void R_DrawCharScaled(float x, float y, int c, float scale);
 void R_DrawFill(LPCRECT rect, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
-void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
+void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, FLOAT uRadialShade, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
 void R_DrawMinimapScene(LPCRECT screen, LPCSTR map);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
 bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen);

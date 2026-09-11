@@ -113,6 +113,8 @@ typedef struct {
     FLOAT manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */
     char alternate[256]; /* optional secondary command, normally activated by right click */
     BYTE alternate_active; /* presentation state for the secondary command */
+    DWORD cooldown_start_time; /* authoritative server milliseconds; zero when ready */
+    DWORD cooldown_end_time;   /* authoritative server milliseconds; zero when ready */
 } gameCommandButton_t;
 
 typedef struct {

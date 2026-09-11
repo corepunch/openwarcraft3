@@ -66,6 +66,7 @@ typedef struct drawImage_s {
     COLOR32 color;
     FLOAT angle;
     FLOAT uActiveGlow;
+    FLOAT uRadialShade; /* generic clockwise remaining-fraction shade, 0 disables it */
     BYTE flags;
     RECT clip;
 } drawImage_t;

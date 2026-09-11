@@ -121,3 +121,8 @@ make test-wc3-engine WC3_PATTERN="wc3_combat.grant_kill_xp_*"
 make test-wc3-engine WC3_PATTERN="wc3_api.hero_xp_*"
 make test-wc3-engine WC3_PATTERN="wc3_api.hero_skill_points_*"
 ```
+
+## See Also
+
+- [Ability Cooldowns](ability-cooldowns.md)
+- [JASS Native Coverage](jass-native-coverage.md)

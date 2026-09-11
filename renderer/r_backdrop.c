@@ -109,7 +109,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
         num_vertices += 6;
 
         R_DrawImageBatch(db->bg.texture, SHADER_UI, BLEND_MODE_BLEND,
-                         0, false, NULL, vertices, num_vertices,
+                         0, 0, false, NULL, vertices, num_vertices,
                          (db->flags & DRAW_TILE) && (fabsf(bg_uv.w) > 1 || bg_uv.h > 1));
     }
 
@@ -155,7 +155,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
 
         if (num_vertices > 0) {
             R_DrawImageBatch(db->edge.texture, SHADER_UI, BLEND_MODE_BLEND,
-                             0, false, NULL, vertices, num_vertices, edge_repeat);
+                             0, 0, false, NULL, vertices, num_vertices, edge_repeat);
         }
     }
 }

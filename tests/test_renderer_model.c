@@ -1476,3 +1476,8 @@ TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
         T_EQ(backdrop_repeat, cases[i].repeat);
     }
 }
+
+TEST(renderer_shader, commandbutton_supports_generic_radial_shade) {
+    T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "u_radialShade"));
+    T_NOT_NULL(strstr(sd_commandbutton.FragmentBody, "atan(radial.x, -radial.y)"));
+}

@@ -122,6 +122,7 @@ static DWORD UI_CommandButtonImage(gameCommandButton_t const *button) {
 
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     uiFrame_t frame;
+    uiCommandButton_t state;
     char onclick[320];
     char tooltip[1024];
 
@@ -131,11 +132,15 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     FLOAT const x = 0.6175f + (FLOAT)button->x * 0.0434f;
     FLOAT const y = 0.4660f + (FLOAT)button->y * 0.0440f;
     memset(&frame, 0, sizeof(frame));
+    memset(&state, 0, sizeof(state));
     frame.flags.type = FT_COMMANDBUTTON;
     frame.color = COLOR32_WHITE;
     frame.tex.index = UI_CommandButtonImage(button);
     frame.stat = button->active;
     frame.value = button->cooldown;
+    state.radialStartTime = button->cooldown_start_time;
+    state.radialEndTime = button->cooldown_end_time;
+    if (state.radialEndTime != state.radialStartTime) frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
     frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
     UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
@@ -144,7 +149,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.onclick = button->disabled ? NULL : onclick;
     frame.text = button->disabled || !button->alternate[0] ? NULL : button->alternate;
     UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    UI_WriteProxyFrame(&frame, &state, sizeof(state));
     UI_WriteCommandButtonNumber(x, y, 0.039f, 0.039f, button->number);
 }
 

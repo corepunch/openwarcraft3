@@ -902,6 +902,7 @@ typedef enum {
     FT_LOADING_BAR,
 } FRAMETYPE;
 
+#define UIFLAG_RADIAL_SHADE      (1 << 9) // FT_COMMANDBUTTON: uiCommandButton_t carries a client-clock radial timer
 #define UIFLAG_SIZE_TO_CONTENT   (1 << 10) // flag bit; derives a composite frame's size from rendered content; used by FT_NAMETAG
 #define UIFLAG_ALTERNATE_ACTIVE (1 << 11) // flag bit; secondary command state is active (for example an autocast toggle)
 #define UIFLAG_SPRITE_STAT_SEQUENCE (1 << 12) // FT_SPRITE: frame.value names a stats[] slot selecting an explicit #N sequence
@@ -961,6 +962,11 @@ typedef struct UIMODEL {
 } UIMODEL;
 typedef struct UIMODEL *LPUIMODEL;
 typedef const struct UIMODEL *LPCUIMODEL;
+
+typedef struct {
+    DWORD radialStartTime; /* absolute server/client clock milliseconds */
+    DWORD radialEndTime;   /* <= start means no radial progress overlay */
+} uiCommandButton_t;
 
 typedef struct uiFrame_s {
     DWORD number;

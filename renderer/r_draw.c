@@ -144,6 +144,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
                       SHADERTYPE shaderType,
                       BLEND_MODE alphamode,
                       FLOAT uActiveGlow,
+                      FLOAT uRadialShade,
                       BOOL hasClip,
                       LPCRECT clip,
                       LPCVERTEX vertices,
@@ -166,6 +167,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     shader->state.viewProjection = ui_matrix;
     shader->state.model = model_matrix;
     shader->state.activeGlow = uActiveGlow;
+    shader->state.radialShade = uRadialShade;
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_DYNAMIC_DRAW);
@@ -225,6 +227,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
                      drawImage->shader,
                      drawImage->alphamode,
                      drawImage->uActiveGlow,
+                     drawImage->uRadialShade,
                      drawImage->flags & DRAW_CLIP,
                      &drawImage->clip,
                      simp,

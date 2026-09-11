@@ -5,6 +5,13 @@ This document tracks the Warcraft III JASS host callbacks registered by
 signature authority. HiveWorkshop references are useful for observable editor
 and map-script behavior, but do not replace the native declarations.
 
+Cooldown control now registers `UnitResetCooldown`, `BlzStartUnitAbilityCooldown`,
+`BlzEndUnitAbilityCooldown`, and `BlzGetUnitAbilityCooldownRemaining`. They use the
+same normalized per-unit cooldown records as normal casts. `BlzGetAbilityCooldown`,
+`BlzSetUnitAbilityCooldown`, and `BlzGetUnitAbilityCooldown` remain unimplemented
+because OpenRealm does not yet have per-unit mutable ability-field overrides. See
+[Ability Cooldowns](ability-cooldowns.md).
+
 `TimerStart(timer, timeout, periodic, null)` is legal and starts or resets the
 timer without an expiration callback. `TimerStart` must detect that null before
 calling strict `jass_checkcode()`; non-null handlers still require the exact

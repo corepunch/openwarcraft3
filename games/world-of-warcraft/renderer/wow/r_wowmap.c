@@ -326,7 +326,7 @@ static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
         v[i].color = MAKE(COLOR32, (BYTE)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
             (BYTE)(255.0f*(pos[i].y-draw->mask.y)/draw->mask.h), 255, 255);
     }
-    R_DrawImageBatch(draw->tex, SHADER_MINIMAP, BLEND_MODE_BLEND, 0, false, NULL, v, 6, false);
+    R_DrawImageBatch(draw->tex, SHADER_MINIMAP, BLEND_MODE_BLEND, 0, 0, false, NULL, v, 6, false);
 }
 
 /* Blizzard ships an authoritative 64x64 tile atlas; crop its local 256px tiles around the camera. */

@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
 #include <ctype.h>
+#include <math.h>
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
 
@@ -131,77 +132,118 @@ FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero) {
     return S_SpellNumber(code, hero ? ABILITY_NUMBER_HERO_DURATION : ABILITY_NUMBER_DURATION, level);
 }
 
-BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
-    DWORD now;
+static void S_SpellInvalidateCooldownUI(LPEDICT caster) {
+    LPGAMECLIENT client;
+    if (!caster) return;
+    client = G_GetPlayerClientByNumber(caster->s.player);
+    if (client && client->ps.number == caster->s.player) G_InvalidateCommands(client);
+}
 
-    if (!caster) {
-        return false;
+static DWORD S_SpellCooldownCode(DWORD code) {
+    return code ? G_AbilityCode(code) : 0;
+}
+
+static abilityCooldown_t *S_SpellFindCooldown(LPEDICT caster, DWORD code) {
+    DWORD const cooldown_code = S_SpellCooldownCode(code);
+
+    if (!caster || !cooldown_code) return NULL;
+    FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
+        abilityCooldown_t *cooldown = caster->abilitycooldowns + i;
+        if (cooldown->code == cooldown_code) return cooldown;
     }
-    now = G_Time();
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t const *status = caster->abilstatus + i;
-        if (status->level && status->code == code && status->timestamp > now) {
-            return false;
-        }
+    return NULL;
+}
+
+static abilityCooldown_t *S_SpellAllocCooldown(LPEDICT caster, DWORD code) {
+    DWORD const cooldown_code = S_SpellCooldownCode(code);
+    DWORD const now = G_Time();
+    abilityCooldown_t *available = NULL;
+
+    if (!caster || !cooldown_code) return NULL;
+    FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
+        abilityCooldown_t *cooldown = caster->abilitycooldowns + i;
+        if (cooldown->code == cooldown_code) return cooldown;
+        if (!available && (!cooldown->code || (LONG)(cooldown->end_time - now) <= 0)) available = cooldown;
     }
+    if (available) {
+        memset(available, 0, sizeof(*available));
+        available->code = cooldown_code;
+    }
+    return available;
+}
+
+BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
+    abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
+    return !cooldown || (LONG)(cooldown->end_time - G_Time()) <= 0;
+}
+
+FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code) {
+    abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
+    DWORD const now = G_Time();
+    if (!cooldown || (LONG)(cooldown->end_time - now) <= 0) return 0.0f;
+    return (FLOAT)(DWORD)(cooldown->end_time - now) / 1000.0f;
+}
+
+FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code) {
+    abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
+    if (!cooldown || cooldown->end_time == cooldown->start_time) return 0.0f;
+    return (FLOAT)(DWORD)(cooldown->end_time - cooldown->start_time) / 1000.0f;
+}
+
+BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, LPDWORD start_time, LPDWORD end_time) {
+    abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
+    if (!cooldown || (LONG)(cooldown->end_time - G_Time()) <= 0) return false;
+    if (start_time) *start_time = cooldown->start_time;
+    if (end_time) *end_time = cooldown->end_time;
     return true;
 }
 
-/* Fraction of an ability's cooldown still remaining for this caster: ~1.0 just
- * after it was used, decaying to 0.0 when it becomes ready again.  Returns 0 if
- * the ability is off cooldown or has none.  Drives the command-card cooldown
- * shade (the darkened icon while an ability recharges). */
+/* Fraction of an ability's authored cooldown still remaining. The total comes
+ * from the cooldown record captured at cast time, so learning another level
+ * while a cooldown is active cannot make the command-card sweep jump. */
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level) {
-    DWORD now;
+    FLOAT const remaining = S_SpellCooldownRemaining(caster, code);
+    FLOAT const total = S_SpellCooldownLength(caster, code);
+    (void)level;
+    if (remaining <= 0.0f || total <= 0.0f) return 0.0f;
+    return MIN(1.0f, remaining / total);
+}
 
-    if (!caster) {
-        return 0.0f;
+void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT duration) {
+    abilityCooldown_t *cooldown;
+    DWORD duration_ms;
+
+    if (!caster || !code) return;
+    if (duration <= 0.0f) {
+        S_SpellEndCooldown(caster, code);
+        return;
     }
-    now = G_Time();
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t const *status = caster->abilstatus + i;
-        if (status->level && status->code == code && status->timestamp > now) {
-            FLOAT const total = S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level ? level : status->level);
-            if (total <= 0.0f) {
-                return 0.0f;
-            }
-            return MIN(1.0f, (FLOAT)(status->timestamp - now) / (total * 1000.0f));
-        }
-    }
-    return 0.0f;
+    cooldown = S_SpellAllocCooldown(caster, code);
+    if (!cooldown) return;
+    duration_ms = (DWORD)ceilf(duration * 1000.0f);
+    cooldown->code = S_SpellCooldownCode(code);
+    cooldown->start_time = G_Time();
+    cooldown->end_time = cooldown->start_time + MAX(duration_ms, 1u);
+    S_SpellInvalidateCooldownUI(caster);
 }
 
 void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {
-    FLOAT cooldown;
-    DWORD now;
-    heroabilitystatus_t *slot = NULL;
+    S_SpellStartCooldownDuration(caster, code,
+        S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level));
+}
 
-    if (!caster) {
-        return;
+void S_SpellEndCooldown(LPEDICT caster, DWORD code) {
+    abilityCooldown_t *cooldown = S_SpellFindCooldown(caster, code);
+    if (cooldown) {
+        memset(cooldown, 0, sizeof(*cooldown));
+        S_SpellInvalidateCooldownUI(caster);
     }
-    cooldown = S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level);
-    if (cooldown <= 0) {
-        return;
-    }
+}
 
-    now = G_Time();
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        heroabilitystatus_t *status = caster->abilstatus + i;
-        if (status->level && status->code == code) {
-            slot = status;
-            break;
-        }
-        if (!status->level && !slot) {
-            slot = status;
-        }
-    }
-    if (!slot) {
-        return;
-    }
-    slot->code = code;
-    slot->level = level ? level : 1;
-    slot->duration_ms = (DWORD)(cooldown * 1000.0f);
-    slot->timestamp = now + slot->duration_ms;
+void S_SpellResetCooldowns(LPEDICT caster) {
+    if (!caster) return;
+    memset(caster->abilitycooldowns, 0, sizeof(caster->abilitycooldowns));
+    S_SpellInvalidateCooldownUI(caster);
 }
 
 BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level) {

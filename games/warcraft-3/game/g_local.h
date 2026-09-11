@@ -32,6 +32,7 @@
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_ABILITIES 16 // slots; extra ability codes granted or stripped at runtime
+#define MAX_UNIT_COOLDOWNS 16 // independent per-unit ability cooldown records; does not consume buff/status capacity
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
@@ -834,6 +835,12 @@ typedef struct {
     DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
 } heroabilitystatus_t;
 
+typedef struct {
+    DWORD code;       /* normalized AbilityData.code rawcode; zero means unused slot */
+    DWORD start_time; /* authoritative game time in milliseconds */
+    DWORD end_time;   /* authoritative game time in milliseconds */
+} abilityCooldown_t;
+
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
 
@@ -976,6 +983,7 @@ struct edict_s {
     DWORD hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
     DWORD autocast_code; /* one selected autocast ability; zero means disabled */
     struct edictAvatar_s {
@@ -2092,6 +2100,14 @@ void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 BOOL G_UnitIsHero(LPCEDICT ent);
 FLOAT G_UnitArmorValue(LPCEDICT ent);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
+FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code);
+FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code);
+BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, LPDWORD start_time, LPDWORD end_time);
+FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
+void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT seconds);
+void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level);
+void S_SpellEndCooldown(LPEDICT caster, DWORD code);
+void S_SpellResetCooldowns(LPEDICT caster);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
 void order_attack(LPEDICT, LPEDICT);

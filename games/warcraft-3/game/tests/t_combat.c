@@ -1567,15 +1567,43 @@ TEST(wc3_combat, spell_mana_and_cooldown) {
 
     S_SpellStartCooldown(caster, thunder, 1);
     T_ASSERT(!S_SpellCooldownReady(caster, thunder));
+    T_FEQ(S_SpellCooldownRemaining(caster, thunder), 9.0f, 0.01f);
+    T_FEQ(S_SpellCooldownLength(caster, thunder), 9.0f, 0.01f);
     /* Just used -> full cooldown shade on the command-card icon. */
     T_FEQ(S_SpellCooldownFraction(caster, thunder, 1), 1.0f, 0.01f);
     level.time += 4500; /* halfway through the 9s cooldown */
     T_FEQ(S_SpellCooldownFraction(caster, thunder, 1), 0.5f, 0.01f);
+    /* The fraction is captured from the running cooldown, not a newly learned level. */
+    T_FEQ(S_SpellCooldownFraction(caster, thunder, 4), 0.5f, 0.01f);
     level.time += 4501; /* past the end */
-    unit_updatestatuses(caster);
     T_ASSERT(S_SpellCooldownReady(caster, thunder));
     /* Ready again -> no shade. */
     T_FEQ(S_SpellCooldownFraction(caster, thunder, 1), 0.0f, 0.01f);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_combat, spell_cooldowns_do_not_consume_buff_slots_and_share_base_code) {
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    DWORD const alias = MAKEFOURCC('A','h','r','p');
+    DWORD const base = MAKEFOURCC('A','r','e','p');
+    LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+
+    level.time = 2000;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        caster->abilstatus[i].code = MAKEFOURCC('B','0','0','0') + i;
+        caster->abilstatus[i].level = 1;
+    }
+    S_SpellStartCooldownDuration(caster, alias, 3.0f);
+    T_ASSERT(!S_SpellCooldownReady(caster, alias));
+    T_ASSERT(!S_SpellCooldownReady(caster, base));
+    T_FEQ(S_SpellCooldownRemaining(caster, base), 3.0f, 0.01f);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) T_EQ(caster->abilstatus[i].level, 1);
+
+    S_SpellEndCooldown(caster, base);
+    T_ASSERT(S_SpellCooldownReady(caster, alias));
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);

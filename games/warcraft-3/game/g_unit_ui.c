@@ -4,9 +4,14 @@
 
 #include "g_local.h"
 
-/* Defined in skills/s_spell.c — remaining cooldown fraction for a unit's ability,
- * used to shade the command-card button while it recharges. */
-FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
+static void G_SetCommandCooldown(LPEDICT ent, DWORD code, DWORD level, gameCommandButton_t *button) {
+    if (!button) return;
+    button->cooldown = S_SpellCooldownFraction(ent, code, level);
+    if (!S_SpellCooldownWindow(ent, code, &button->cooldown_start_time, &button->cooldown_end_time)) {
+        button->cooldown_start_time = 0;
+        button->cooldown_end_time = 0;
+    }
+}
 
 static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
     if (!out || out_size == 0) {
@@ -297,7 +302,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, rawcode, 0);
+    if (*count > idx) G_SetCommandCooldown(ent, rawcode, 0, &buttons[idx]);
     if (!(ability->flags & ABILITY_SEPARATE_OFF) || *count >= max_buttons) return;
     if (G_BuildCommandButtonState(ent, code, false, 0, 1, &buttons[*count])) {
         size_t used;
@@ -438,7 +443,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             BYTE const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
-                buttons[idx].cooldown = S_SpellCooldownFraction(ent, ha->code, ha->level);
+                G_SetCommandCooldown(ent, ha->code, ha->level, &buttons[idx]);
             }
         }
     }
