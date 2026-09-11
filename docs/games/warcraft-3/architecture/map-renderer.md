@@ -114,7 +114,11 @@ For each tile the four corner vertices are examined. Their relative height diffe
 | 1 | `B` | `H` |
 | 2 | `C` | `X` |
 
-Corner order is `[SW, NW, SE, NE]` (stored in `remap[] = {3,1,0,2}`). The resulting string like `"AABB"` selects the correct model variant.
+Corner order is `[SW, NW, NE, SE]` (`r_cliff_corners[] = {3,1,0,2}`), while `GetTileVertices` stores
+`[NE, NW, SE, SW]`. The resulting string like `"AABB"` selects the correct model variant.
+
+`R_CliffTexture` selects the first authored cliff index in this same configuration order. W3E index 15 marks a
+non-cliff corner, not a texture layer. Checking only SW discards legitimate faces whose other corners identify the cliff.
 
 ### Ground Override
 
@@ -122,7 +126,49 @@ When a cliff tile is built, the renderer overwrites the `ground` index of all fo
 
 ### Ramp Placement
 
-For ramp tiles the model is translated by ±`TILE_SIZE` in X or Y depending on which side has the lower terrain. The axis is chosen by comparing the model's bounding-box extents: if the model is wider in X the ramp runs east–west and the X offset is adjusted; otherwise it runs north–south and Y is adjusted.
+The base MDX translation is `((x+1)*TILE_SIZE, y*TILE_SIZE)`. `R_CliffRampOffset` extends the two-cell model
+into the low-side neighbour that the ground baker intentionally omits. The longer bounding-box axis identifies the ramp axis.
+East–west MDX models occupy local X `[-256,0]`: west-high ramps add 128 to X, east-high ramps keep the base X.
+North–south models occupy local Y `[0,256]`: north-high ramps subtract 128 from Y, south-high ramps keep the base Y.
+The two axes are not interchangeable: applying the Y adjustment rule to X leaves every E/W ramp one cell west.
+
+### Human02Interlude terrain-hole regression
+
+`Maps/Campaign/Human02Interlude.w3m` is a standalone cinematic map and can be launched directly; completing Human02 with
+the `win` cheat reaches the same map. The inspected local ROC data has 97x65 vertices, tileset X, 9 ground textures,
+2 cliff textures, tile size 128, and world offset `(-7168,-3072)`. Coordinates below are zero-based SW cell coordinates.
+
+Targeted logs at ground rejection and cliff-model baking identified two independent geometry omissions:
+
+- 73 of 2,284 cliff cells had SW cliff index 15 and were rejected by every cliff layer despite valid indices at other corners.
+  Examples: `(10,29)` AACA and `(65,35)` ABBA use cliff 1; `(75,25)` CCAC and `(77,9)` BBBA use cliff 0.
+- The screenshot's courtyard holes remained after fixing that selection. E/W ramp models at `(36,33)` HAAL,
+  `(36,34)` AHLA, and `(36,36)/(36,37)/(36,41)/(36,42)` HBAL/BHLA were baked across columns 35–36 instead of 36–37.
+  The ground baker correctly skipped low-side cells `(37,33)`, `(37,34)`, `(37,36)`, `(37,37)`, `(37,41)`, `(37,42)`;
+  the misplaced meshes never covered them. The foreground pair starts at world `(-2432,1536)` and `(-2432,1664)`;
+  the background pair starts at `(-2432,2176)` and `(-2432,2304)`.
+
+The HBAL MDX vertices confirm X endpoints -256 (high) and 0 (low), with the midpoint at -128. For `(36,36)`,
+the old translation was `(37,36)` tiles and bounds `[35,37] x [36,37]`; the correct translation is `(38,36)` and
+bounds `[36,38] x [36,37]`. This is placement, not inverted normals or flipped UVs. Drawing the skipped cliff ground
+does not repair the ramp holes. The incorrect X rule dates to `62e559a76` (2023), not the recent ramp-classification change.
+
+Windowed, bounded visual check (the built-in screenshot captures only the game drawable):
+
+```sh
+make -j8 build test-renderer-model
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_fullscreen 0 +set vid_native 0 +set vid_mode 4 +set skip_cutscene 1 +com_frame_limit 230 +map 'Maps/Campaign/Human02Interlude.w3m' +screenshot 180
+```
+
+Inspect the generated `screenshots/shot*.jpg` at the courtyard close-up: the foreground and background ramp edges must be
+continuous, without black/sky-coloured gaps. Cinematic timing can vary; adjust the capture frame if necessary.
+`renderer_terrain.cliff_texture_skips_non_cliff_corners` covers corner priority/sentinel handling, and
+`renderer_terrain.ramp_footprints_cover_the_low_neighbour` checks the sampled ramp levels and all four directions without
+requiring retail MPQ data. Camera behavior is a separate issue; see [cinematics](../cinematics.md).
+
+Verification: temporarily restoring only the old X placement reproduced the reported black/sky-coloured holes in the
+same courtyard view and failed 10 footprint assertions. Restoring the fix removed those holes in the matching windowed
+capture; all 2,833 assertions in the 75 renderer-model tests passed. Investigative logs were removed afterward.
 
 ### Height Snapping
 
