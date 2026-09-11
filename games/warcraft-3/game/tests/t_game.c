@@ -244,6 +244,27 @@ TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget)
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, hero_select_cheat_selects_owned_hero_without_mouse_input) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT hero;
+    LPCSTR command[] = { "hero", "select" };
+
+    setup_test_world();
+    client->connected = false;
+    client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->svflags |= SVF_MONSTER;
+    hero->s.player = 0;
+
+    G_ClientCommand(&g_edicts[0], 2, command);
+
+    T_ASSERT(G_IsEntitySelected(client, hero));
+    T_EQ(G_GetMainSelectedUnit(client), hero);
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
     LPGAMECLIENT client = &game.clients[0];

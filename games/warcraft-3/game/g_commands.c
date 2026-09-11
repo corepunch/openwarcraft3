@@ -968,6 +968,7 @@ static BOOL G_ParseHeroStatAmount(LPCSTR text, FLOAT maximum, FLOAT *value) {
 CLIENTCOMMAND(Hero) {
     LPGAMECLIENT client = clent ? clent->client : NULL;
     LPEDICT hero;
+    char hero_number[16];
     DWORD max_level, spent_points = 0, expected_points;
     FLOAT value;
 
@@ -975,10 +976,32 @@ CLIENTCOMMAND(Hero) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
     }
+    if (argc == 2 && !strcasecmp(argv[1], "select")) {
+        if (!client) {
+            G_CheatPrintf(clent, "WC3: hero select requires a player client");
+            return;
+        }
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT candidate = &globals.edicts[i];
+            if (!candidate->inuse || !(candidate->svflags & SVF_MONSTER) ||
+                    candidate->s.player != client->ps.number || !G_UnitIsHero(candidate) ||
+                    !G_UnitCanBeSelected(client, candidate) || !G_UnitCanControl(client, candidate)) continue;
+            snprintf(hero_number, sizeof(hero_number), "%u", (unsigned)candidate->s.number);
+            {
+                LPCSTR select[] = { "select", hero_number };
+                G_PrepareUnitShortcut(clent);
+                CMD_Select(clent, 2, select);
+            }
+            G_CheatPrintf(clent, "WC3: selected hero unit %u", (unsigned)candidate->s.number);
+            return;
+        }
+        G_CheatPrintf(clent, "WC3: no controllable hero found for player %u", (unsigned)client->ps.number);
+        return;
+    }
     if (argc < 2 || argc > 3 ||
             (strcasecmp(argv[1], "max") && strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana")) ||
             (!strcasecmp(argv[1], "max") && argc != 2)) {
-        G_CheatPrintf(clent, "WC3: usage: hero max | hero health [amount] | hero mana [amount]");
+        G_CheatPrintf(clent, "WC3: usage: hero select | hero max | hero health [amount] | hero mana [amount]");
         return;
     }
     hero = client ? G_GetMainSelectedUnit(client) : NULL;
