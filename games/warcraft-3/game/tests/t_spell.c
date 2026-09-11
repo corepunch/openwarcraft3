@@ -1109,7 +1109,8 @@ TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_sta
     T_EQ(target->s.model, 17); T_FEQ(target->s.scale, 1.25f, 0.001f);
     T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
     T_EQ(target->class_id, MAKEFOURCC('h','f','o','o'));
-    T_EQ(G_OrderId("polymorph"), 852074); T_STREQ(G_OrderId2String(852074), "polymorph");
+    T_EQ(G_OrderId("polymorph"), WC3_ORDER_ID_POLYMORPH);
+    T_STREQ(G_OrderId2String(WC3_ORDER_ID_POLYMORPH), "polymorph");
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
