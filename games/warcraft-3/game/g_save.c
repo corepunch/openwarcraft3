@@ -1261,6 +1261,11 @@ BOOL ReadGame(LPCSTR filename) {
     }
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && gi.LinkEntity) gi.LinkEntity(g_edicts + i);
     fclose(f);
+    /* Cinefilters are transient client presentation, not part of the save
+     * contract. Map reload can leave its baseline black filter displayed;
+     * terminate that stale filter before the restored gameplay snapshot is
+     * published, otherwise the client remains behind an opaque fade. */
+    level.cinefilter.displayed = false;
     /* Configstrings were rebuilt while reloading the map. Re-publish the
      * restored authoritative scene fog before client-side presentation resumes. */
     G_EnvironmentFogPublish();
