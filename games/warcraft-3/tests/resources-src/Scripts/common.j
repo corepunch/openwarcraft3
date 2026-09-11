@@ -176,6 +176,9 @@ native GetSpellTargetItem     takes nothing returns item
 native GetSpellTargetUnit     takes nothing returns unit
 native OrderId                takes string orderIdString returns integer
 native OrderId2String         takes integer orderId returns string
+native IssuePointOrderById     takes unit whichUnit, integer order, real x, real y returns boolean
+native IssuePointOrderByIdLoc  takes unit whichUnit, integer order, location whichLocation returns boolean
+native IssueBuildOrderById     takes unit whichPeon, integer unitId, real x, real y returns boolean
 native GetLocationY           takes location whichLocation returns real
 native IsPointInRegion        takes region whichRegion, real x, real y returns boolean
 native IsLocationInRegion     takes region whichRegion, location whichLocation returns boolean

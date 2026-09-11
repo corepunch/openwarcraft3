@@ -1736,6 +1736,99 @@ TEST(wc3_api, build_placement_publishes_point_order_event_context) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_api, issue_build_order_by_id_uses_authoritative_build_path) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testBuilder = null\n"
+        "endglobals\n"
+        "function issueBuild takes nothing returns nothing\n"
+        "  call BJassAssert(IssueBuildOrderById(testBuilder, 'hbar', 64.0, 64.0), \"build native must accept a legal structure\")\n"
+        "  call BJassAssert(not IssueBuildOrderById(testBuilder, 'hfoo', 96.0, 96.0), \"build native must reject a non-Builds rawcode\")\n"
+        "endfunction\n"
+        "function issuePointBuild takes nothing returns nothing\n"
+        "  call BJassAssert(IssuePointOrderById(testBuilder, 'hbar', 128.0, 128.0), \"point-order-by-id must accept a building rawcode\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set testBuilder = CreateUnit(Player(0), 'hpea', -128.0, -128.0, 0.0)\n"
+        "endfunction\n"));
+
+    builder = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(builder);
+    builder->data.UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    jass_callbyname(level.vm, "issueBuild", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(builder->build_project, barracks);
+    T_NOT_NULL(builder->goalentity);
+    T_FEQ(builder->goalentity->s.origin2.x, 64.0f, 0.001f);
+    T_FEQ(builder->goalentity->s.origin2.y, 64.0f, 0.001f);
+
+    unit_stand(builder);
+    jass_callbyname(level.vm, "issuePointBuild", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(builder->build_project, barracks);
+    T_NOT_NULL(builder->goalentity);
+}
+
+TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_context) {
+    LPEDICT building;
+    LPGAMECLIENT saved;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit testBuilding = null\n"
+        "  integer playerFinish = 0\n"
+        "  integer unitFinish = 0\n"
+        "endglobals\n"
+        "function onPlayerFinish takes nothing returns nothing\n"
+        "  call BJassAssert(GetConstructedStructure() == testBuilding, \"player finish structure context\")\n"
+        "  set playerFinish = playerFinish + 1\n"
+        "endfunction\n"
+        "function onUnitFinish takes nothing returns nothing\n"
+        "  call BJassAssert(GetConstructedStructure() == testBuilding, \"unit finish structure context\")\n"
+        "  set unitFinish = unitFinish + 1\n"
+        "endfunction\n"
+        "function verifyFinish takes nothing returns nothing\n"
+        "  call BJassAssert(playerFinish == 1, \"player construct finish must fire once\")\n"
+        "  call BJassAssert(unitFinish == 1, \"unit construct finish must fire once\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger playerTrig = CreateTrigger()\n"
+        "  local trigger unitTrig = CreateTrigger()\n"
+        "  set testBuilding = CreateUnit(Player(0), 'hbar', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(playerTrig, Player(0), EVENT_PLAYER_UNIT_CONSTRUCT_FINISH, null)\n"
+        "  call TriggerRegisterUnitEvent(unitTrig, testBuilding, EVENT_UNIT_CONSTRUCT_FINISH)\n"
+        "  call TriggerAddAction(playerTrig, function onPlayerFinish)\n"
+        "  call TriggerAddAction(unitTrig, function onUnitFinish)\n"
+        "endfunction\n"));
+
+    building = find_test_unit(MAKEFOURCC('h','b','a','r'));
+    T_NOT_NULL(building);
+    building->construction.active = true;
+    saved = g_edicts[0].client;
+    g_edicts[0].client = NULL;
+    G_CompleteConstruction(building);
+    g_edicts[0].client = saved;
+
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyFinish", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
     LPEDICT caster, target;
     VECTOR2 point = { 96.0f, 144.0f };
