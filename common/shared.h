@@ -13,6 +13,14 @@
 #ifdef _WIN32
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+static inline char const *bz_strcasestr(char const *haystack, char const *needle) {
+    size_t needle_len = strlen(needle);
+    if (!needle_len) return haystack;
+    for (; *haystack; haystack++)
+        if (!strncasecmp(haystack, needle, needle_len)) return haystack;
+    return NULL;
+}
+#define strcasestr bz_strcasestr
 #endif
 
 /* Windows and older Linux C libraries lack BSD strlcpy/strlcat. */
