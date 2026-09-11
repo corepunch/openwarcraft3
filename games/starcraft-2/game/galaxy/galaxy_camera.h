@@ -4,6 +4,7 @@
 typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov, height; } sc2GCam_t;
 static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
 static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
+static sc2GCam_t sc2_gcam_current;  /* last applied camera state, for Save/Pan */
 
 /* CameraInfoFromId: look up map camera by ID, store in local table, return handle. */
 static DWORD sc2_CameraInfoFromId(LPJASS j) {
@@ -21,6 +22,12 @@ static DWORD sc2_CameraInfoFromId(LPJASS j) {
 
 static DWORD sc2_CameraInfoDefault(LPJASS j) { return jass_pushnullhandle(j, "camerainfo"); }
 
+static void sc2_camera_fire(sc2GCam_t *c, FLOAT dur) {
+    sc2_gcam_current = *c;
+    if (sc2_galaxy_on_camera)
+        sc2_galaxy_on_camera(c->tx, c->ty, c->yaw, c->pitch, c->dist, c->fov, c->height, dur);
+}
+
 /* CameraApplyInfo: apply stored camera to client (duration = 0 → instant snap). */
 static DWORD sc2_CameraApplyInfo(LPJASS j) {
     LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "camerainfo");
@@ -29,16 +36,43 @@ static DWORD sc2_CameraApplyInfo(LPJASS j) {
     fprintf(stderr, "CameraApplyInfo: handle=%ld count=%ld duration=%.2f callback=%d\n",
             (long)h, (long)sc2_gcam_n, dur, sc2_galaxy_on_camera != NULL);
 #endif
-    if (h > 0 && h < sc2_gcam_n && sc2_galaxy_on_camera) {
-        sc2GCam_t *c = &sc2_gcams[h];
-        sc2_galaxy_on_camera(c->tx, c->ty, c->yaw, c->pitch, c->dist, c->fov, c->height, dur);
+    if (h > 0 && h < sc2_gcam_n)
+        sc2_camera_fire(&sc2_gcams[h], dur);
+    return jass_pushnull(j);
+}
+
+/* CameraPan: move camera target to a point at given speed (seconds). */
+static DWORD sc2_CameraPan(LPJASS j) {
+    LONG  pt_h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "point");
+    FLOAT dur  = jass_checknumber(j, 2);   /* panSpeed: duration in seconds */
+    if (pt_h > 0 && pt_h < (LONG)sc2_gpoint_n) {
+        sc2GCam_t c = sc2_gcam_current;
+        c.tx = sc2_gpoints[pt_h].x;
+        c.ty = sc2_gpoints[pt_h].y;
+        sc2_camera_fire(&c, dur);
     }
     return jass_pushnull(j);
 }
 
-static DWORD sc2_CameraPan(LPJASS j)         { (void)j; return jass_pushnull(j); }
-static DWORD sc2_CameraSave(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_CameraRestore(LPJASS j)     { (void)j; return jass_pushnull(j); }
+/* CameraSave: capture current camera state into a new slot, return handle. */
+static DWORD sc2_CameraSave(LPJASS j) {
+    (void)j;
+    if (sc2_gcam_n >= MAX_GALAXY_CAMS)
+        return jass_pushnullhandle(j, "camerainfo");
+    LONG h = sc2_gcam_n++;
+    sc2_gcams[h] = sc2_gcam_current;
+    return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "camerainfo");
+}
+
+/* CameraRestore: apply saved camera with a fade-in duration. */
+static DWORD sc2_CameraRestore(LPJASS j) {
+    LONG  h   = (LONG)(uintptr_t)jass_checkhandle(j, 1, "camerainfo");
+    FLOAT dur = jass_checknumber(j, 2);   /* durationIn */
+    if (h > 0 && h < sc2_gcam_n)
+        sc2_camera_fire(&sc2_gcams[h], dur);
+    return jass_pushnull(j);
+}
+
 static DWORD sc2_CameraLockInput(LPJASS j)   { (void)j; return jass_pushnull(j); }
 static DWORD sc2_CameraShakeStart(LPJASS j)  { (void)j; return jass_pushnull(j); }
 static DWORD sc2_CameraGetTarget(LPJASS j)   { return jass_pushinteger(j, 0); }
