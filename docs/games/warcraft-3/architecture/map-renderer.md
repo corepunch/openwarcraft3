@@ -314,9 +314,9 @@ Ground textures are cached globally in `g_groundTextures[]`, indexed by the grou
 | `TILE_SIZE` | 128 | `games/warcraft-3/common/mapinfo.h` | World units per heightmap tile |
 | `SEGMENT_SIZE` | 8 | `games/warcraft-3/common/mapinfo.h` | Tiles per segment side |
 | `SHADOW_TEXSIZE` | 1024 | `r_local.h` | Shadow-map texture resolution |
-| `DECODE_HEIGHT(v)` | `v / 4.0f` | `common.h` | Raw heightmap int → world units |
-| `HEIGHT_COR` | (see `common.h`) | `common.h` | Cliff-level baseline correction |
-| `WATER_HEIGHT_COR` | (see `common.h`) | `common.h` | Water-level baseline correction |
+| `DECODE_HEIGHT(v)` | `(v - 0x2000) / 4` | `games/warcraft-3/common/terrain.h` | Raw W3E heightmap int → world units |
+| `HEIGHT_COR` | `TILE_SIZE * 2` | `games/warcraft-3/common/terrain.h` | Cliff-level baseline correction |
+| `WATER_HEIGHT_COR` | `80` | `games/warcraft-3/common/terrain.h` | Water-level baseline correction |
 | `MAX_MAP_LAYERS` | 16 | `r_war3map_ground.c` | Max ground texture slots |
 
 ## Key Files

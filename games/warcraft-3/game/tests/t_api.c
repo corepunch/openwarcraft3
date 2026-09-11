@@ -1414,6 +1414,44 @@ TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {
     T_FEQ(scaled->s.scale, 1.5f, 0.001f);
 }
 
+TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
+    BYTE data[256];
+    LPEDICT tinted, clent;
+    DWORD size, offset;
+    USHORT header, count;
+    BOOL found = false;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 32.0, 64.0, 0.0)\n"
+        "  call SetUnitVertexColor(u, 300, 128, -10, 0)\n"
+        "endfunction\n"));
+
+    tinted = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    T_NOT_NULL(tinted);
+    T_ASSERT(tinted->vertex_color_set);
+    T_EQ(tinted->vertex_color.r, 255); T_EQ(tinted->vertex_color.g, 128);
+    T_EQ(tinted->vertex_color.b, 0); T_EQ(tinted->vertex_color.a, 0);
+
+    clent = G_GetPlayerEntityByNumber(0);
+    T_NOT_NULL(clent);
+    size = G_WriteClientDatagram(clent, data, sizeof(data));
+    T_ASSERT(size >= sizeof(header) + sizeof(count));
+    memcpy(&header, data, sizeof(header));
+    T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
+    offset = sizeof(header) + (header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS) * sizeof(wc3WeatherEffect_t);
+    memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
+    FOR_LOOP(i, count) {
+        USHORT number; COLOR32 color;
+        memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+        memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+        if (number != tinted->s.number) continue;
+        T_EQ(color.r, 255); T_EQ(color.g, 128); T_EQ(color.b, 0); T_EQ(color.a, 0);
+        found = true;
+    }
+    T_ASSERT(found);
+}
+
 TEST(wc3_api, narrator_and_hint_text_share_message_log) {
     LPGAMECLIENT gc = &game.clients[0];
 

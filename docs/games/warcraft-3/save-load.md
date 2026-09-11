@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 16, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 17, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -28,6 +28,7 @@ The version 4 layout packs `PLAYER.cinematic_portrait`, `team`, `color`, and `ra
 Version 10 extends the authoritative `level.timeofday` record with the Warsmash-style temporary/false clock (`hour`, `minute`,
 remaining simulation ticks, active, initialized), so a loaded save cannot silently resume the canonical day/night cycle while a saved
 Moonstone-style override should still be active. Version 11 adds per-slot JASS group lifecycle state so destroyed group slots can be safely recycled and restored. Version 12 expands the raw `GAMECLIENT` snapshot with semantic Warcraft music state (map/default selection, current source, start/seek position, pause state, and music/thematic volumes). Version 13 replaces the fixed inline group array with a growable stable-pointer registry and serializes that registry separately, so v12 and earlier saves are rejected rather than being interpreted with the wrong level layout. Version 15 accompanies the natural-creep sleep edict fields. Version 16 adds `level.environment_fog.active` and `.defaults` so scripted distance mist and the `ResetTerrainFog` target survive save/load.
+Version 17 accompanies the WC3 `edict_t` vertex-colour fields used by `SetUnitVertexColor`; the changed edict size and format version reject older records instead of interpreting shifted state.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

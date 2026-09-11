@@ -23,6 +23,8 @@ typedef struct {
     entityState_t current;
     entityState_t prev;
     DWORD serverframe;
+    COLOR32 tint;
+    bool tint_valid;
     bool selected;
 } centity_t;
 

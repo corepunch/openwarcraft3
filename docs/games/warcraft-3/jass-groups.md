@@ -37,7 +37,7 @@ JASS `group` handles serialize as stable ordinal IDs in the dynamic pointer tabl
 
 Load first ensures that the pointer table contains the saved number of stable group objects, then restores every record before the JASS VM snapshot resolves group handle IDs. `G_SaveJassHandle()` and `G_LoadJassHandle()` use `G_JassGroupIndex()` / `G_JassGroupByIndex()` rather than pointer arithmetic because the group objects are no longer contiguous.
 
-Save format version 13 introduced the group registry outside the inline `level_fields` schema and writes it explicitly. The current format is version 16; version 14 added research-event callback context, version 15 added natural-creep sleep state, and version 16 adds environmental distance-fog state. Older saves are intentionally rejected by the exact-version guard. Runtime creation has no 1024-style handle ceiling; the save reader/writer separately rejects more than 65,536 group ordinals as a corrupt/oversized-save safety bound.
+Save format version 13 introduced the group registry outside the inline `level_fields` schema and writes it explicitly. The current format is version 17; version 14 added research-event callback context, version 15 added natural-creep sleep state, version 16 added environmental distance-fog state, and version 17 adds persistent WC3 unit vertex-colour state. Older saves are intentionally rejected by the exact-version guard. Runtime creation has no 1024-style handle ceiling; the save reader/writer separately rejects more than 65,536 group ordinals as a corrupt/oversized-save safety bound.
 
 ## Verification
 

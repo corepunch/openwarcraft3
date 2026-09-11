@@ -123,6 +123,8 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
             CL_RemoveActiveEntity(nument);
             memset(&ent->current, 0, sizeof(ent->current));
             memset(&ent->prev, 0, sizeof(ent->prev));
+            ent->tint = COLOR32_WHITE;
+            ent->tint_valid = false;
             removed++;
             continue;
         }
@@ -257,7 +259,9 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         centity_t *ce = &cl.ents[cl.active_entities[i]];
         ce->prev = ce->current;
     }
-    DWORD count = MSG_ReadShort(msg);
+    DWORD header = (USHORT)MSG_ReadShort(msg);
+    BOOL const has_entity_tints = (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) != 0;
+    DWORD count = header & ~BZ_GAME_DATAGRAM_ENTITY_TINTS;
     if (count > MAX_WEATHER_EFFECTS || msg->readcount + count * sizeof(wc3WeatherEffect_t) > msg->cursize) {
         fprintf(stderr, "CL_ParseFrame: invalid weather snapshot count=%u\n", (unsigned)count);
         msg->readcount = msg->cursize;
@@ -267,6 +271,23 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     cl.viewDef.num_weather_effects = count;
     cl.num_weather_effects = count;
     FOR_LOOP(i, count) MSG_Read(msg, &cl.weather_effects[i], sizeof(wc3WeatherEffect_t));
+    if (has_entity_tints) {
+        DWORD tint_count = (USHORT)MSG_ReadShort(msg);
+        DWORD const tint_wire_size = sizeof(USHORT) + sizeof(COLOR32);
+        if (tint_count > MAX_CLIENT_ENTITIES || msg->readcount + tint_count * tint_wire_size > msg->cursize) {
+            msg->readcount = msg->cursize;
+            return;
+        }
+        FOR_LOOP(i, cl.num_active) cl.ents[cl.active_entities[i]].tint_valid = false;
+        FOR_LOOP(i, tint_count) {
+            DWORD number = (USHORT)MSG_ReadShort(msg);
+            COLOR32 color;
+            MSG_Read(msg, &color, sizeof(color));
+            if (number >= MAX_CLIENT_ENTITIES) continue;
+            cl.ents[number].tint = color;
+            cl.ents[number].tint_valid = true;
+        }
+    }
 }
 
 void CL_ParsePlayerInfo(LPSIZEBUF msg) {
