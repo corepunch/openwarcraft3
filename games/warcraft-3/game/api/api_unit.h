@@ -235,6 +235,7 @@ DWORD SetUnitBlendTime(LPJASS j) {
     //FLOAT blendTime = jass_checknumber(j, 2);
     return 0;
 }
+/* Store the clamped persistent RGBA override consumed by the WC3 presentation datagram. */
 DWORD SetUnitVertexColor(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG red = jass_checkinteger(j, 2);
