@@ -1,6 +1,6 @@
 /* galaxy_host.c — SC2 Galaxy scripting host.
  * Provides all native functions referenced by TRaynor01 campaign scripts.
- * Unimplemented functions return zero/null via galaxy_stub().
+ * Unimplemented functions return zero/null via named sc2_* stubs.
  */
 
 #include "galaxy_host.h"
@@ -332,11 +332,6 @@ void galaxy_tick(LPJASS vm) {
         jass_rterror_clear(vm);
     }
 }
-
-/* -------------------------------------------------------------------------
- * Generic no-op stub
- * ------------------------------------------------------------------------- */
-static DWORD galaxy_stub(LPJASS j) { (void)j; return jass_pushnull(j); }
 
 /* -------------------------------------------------------------------------
  * Trigger natives
@@ -1103,6 +1098,95 @@ static DWORD sc2_PreloadScript(LPJASS j) { (void)j; return jass_pushnull(j); }
 static DWORD sc2_PreloadSound(LPJASS j)  { (void)j; return jass_pushnull(j); }
 
 /* -------------------------------------------------------------------------
+ * Named no-op stubs (one per unimplemented native for grep-ability)
+ * ------------------------------------------------------------------------- */
+static DWORD sc2_AchievementAward(LPJASS j)              { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementErase(LPJASS j)              { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementPanelSetCategory(LPJASS j)   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementPanelSetVisible(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementPercentText(LPJASS j)        { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementTermQuantitySet(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AchievementsDisable(LPJASS j)           { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorCreate(LPJASS j)                   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorFrom(LPJASS j)                     { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorFromScope(LPJASS j)                { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorRegionCreate(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorRegionSend(LPJASS j)               { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorScopeFromUnit(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ActorSend(LPJASS j)                     { (void)j; return jass_pushnull(j); }
+static DWORD sc2_AIDisableAllScouting(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankExists(LPJASS j)                    { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_BankKeyRemove(LPJASS j)                 { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankLastCreated(LPJASS j)               { (void)j; return jass_pushnullhandle(j, "bank"); }
+static DWORD sc2_BankLoad(LPJASS j)                      { (void)j; return jass_pushnullhandle(j, "bank"); }
+static DWORD sc2_BankSave(LPJASS j)                      { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankValueSetFromFlag(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankValueSetFromInt(LPJASS j)           { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankValueSetFromString(LPJASS j)        { (void)j; return jass_pushnull(j); }
+static DWORD sc2_BankValueSetFromText(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static DWORD sc2_CampaignMode(LPJASS j)                  { (void)j; return jass_pushnull(j); }
+static DWORD sc2_CinematicDataRun(LPJASS j)              { (void)j; return jass_pushnull(j); }
+static DWORD sc2_CinematicDataStop(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataResetNodeState(LPJASS j)  { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataResetStateValues(LPJASS j){ (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataSaveNodeState(LPJASS j)   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataSaveStateValues(LPJASS j) { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataStateFixedValue(LPJASS j) { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataStateGetValue(LPJASS j)   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataStateIndex(LPJASS j)      { (void)j; return jass_pushinteger(j, 0); }
+static DWORD sc2_ConversationDataStateIndexCount(LPJASS j) { (void)j; return jass_pushinteger(j, 0); }
+static DWORD sc2_ConversationDataStateName(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataStateSetValue(LPJASS j)   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ConversationDataStateText(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static DWORD sc2_DataTableSetString(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static DWORD sc2_DataTableValueExists(LPJASS j)          { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_DialogControlSetPropertyAsText(LPJASS j){ (void)j; return jass_pushnull(j); }
+static DWORD sc2_DialogControlSetVisible(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static DWORD sc2_FixedToInt(LPJASS j)                    { (void)j; return jass_pushinteger(j, 0); }
+static DWORD sc2_FixedToString(LPJASS j)                 { (void)j; return jass_pushnull(j); }
+static DWORD sc2_FormatNumber(LPJASS j)                  { (void)j; return jass_pushnull(j); }
+static DWORD sc2_GameCheatAllow(LPJASS j)                { (void)j; return jass_pushnull(j); }
+static DWORD sc2_GameGetSpeedValue(LPJASS j)             { (void)j; return jass_pushnumber(j, 1.0f); }
+static DWORD sc2_GameIsDebugOptionSet(LPJASS j)          { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_GameIsTestMap(LPJASS j)                 { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_GameIsTransitionMap(LPJASS j)           { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_GameMapIsBlizzard(LPJASS j)             { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_GamePauseAllCharges(LPJASS j)           { (void)j; return jass_pushnull(j); }
+static DWORD sc2_GameSetSeedLocked(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static DWORD sc2_GameSetSpeedLocked(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static DWORD sc2_GameSetSpeedValue(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static DWORD sc2_HelpPanelAddTutorial(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static DWORD sc2_HelpPanelShowTechTreeRace(LPJASS j)     { (void)j; return jass_pushnull(j); }
+static DWORD sc2_IntToFixed(LPJASS j)                    { (void)j; return jass_pushnumber(j, 0.0f); }
+static DWORD sc2_IntToString(LPJASS j)                   { (void)j; return jass_pushnull(j); }
+static DWORD sc2_ObjectiveGetPrimary(LPJASS j)           { (void)j; return jass_pushnullhandle(j, "objective"); }
+static DWORD sc2_PingCreate(LPJASS j)                    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_PlayerType(LPJASS j)                    { (void)j; return jass_pushinteger(j, 0); }
+static DWORD sc2_PointSetFacing(LPJASS j)                { (void)j; return jass_pushnull(j); }
+static DWORD sc2_SoundChannelSetVolume(LPJASS j)         { (void)j; return jass_pushnull(j); }
+static DWORD sc2_StringReplaceWord(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static DWORD sc2_StringSub(LPJASS j)                     { (void)j; return jass_pushnull(j); }
+static DWORD sc2_StringToText(LPJASS j)                  { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TechTreeAbilityAllow(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TechTreeAbilityIsAllowed(LPJASS j)      { (void)j; return jass_pushboolean(j, true); }
+static DWORD sc2_TechTreeRestrictionsEnable(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TechTreeUnitHelp(LPJASS j)              { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TechTreeUnitHelpDefault(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TechTreeUpgradeCount(LPJASS j)          { (void)j; return jass_pushinteger(j, 0); }
+static DWORD sc2_TextCase(LPJASS j)                      { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TimerPause(LPJASS j)                    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TransmissionSetOption(LPJASS j)         { (void)j; return jass_pushnull(j); }
+static DWORD sc2_TriggerDebugOutput(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UIClearMessages(LPJASS j)               { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UIFlyerHelperClearOverride(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UIFlyerHelperOverride(LPJASS j)         { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UIFrameVisible(LPJASS j)                { (void)j; return jass_pushboolean(j, false); }
+static DWORD sc2_UISetCursorVisible(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UISetGameMenuItemVisible(LPJASS j)      { (void)j; return jass_pushnull(j); }
+static DWORD sc2_UISetRestartLoadingScreen(LPJASS j)     { (void)j; return jass_pushnull(j); }
+static DWORD sc2_VisEnable(LPJASS j)                     { (void)j; return jass_pushnull(j); }
+
+/* -------------------------------------------------------------------------
  * Native table
  * ------------------------------------------------------------------------- */
 static JASSMODULE sc2_galaxy_natives[] = {
@@ -1116,32 +1200,32 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "AbilityCommandGetCommand",            sc2_AbilityCommandGetCommand },
     { "AbilityCommandGetAction",             sc2_AbilityCommandGetAction },
     { "AbsF",                                sc2_AbsF },
-    { "AchievementAward",                    galaxy_stub },
-    { "AchievementErase",                    galaxy_stub },
-    { "AchievementPanelSetCategory",         galaxy_stub },
-    { "AchievementPanelSetVisible",          galaxy_stub },
-    { "AchievementPercentText",              galaxy_stub },
-    { "AchievementTermQuantitySet",          galaxy_stub },
-    { "AchievementsDisable",                 galaxy_stub },
-    { "ActorCreate",                         galaxy_stub },
-    { "ActorFrom",                           galaxy_stub },
-    { "ActorFromScope",                      galaxy_stub },
-    { "ActorRegionCreate",                   galaxy_stub },
-    { "ActorRegionSend",                     galaxy_stub },
-    { "ActorScopeFromUnit",                  galaxy_stub },
-    { "ActorSend",                           galaxy_stub },
-    { "AIDisableAllScouting",                galaxy_stub },
+    { "AchievementAward",                    sc2_AchievementAward },
+    { "AchievementErase",                    sc2_AchievementErase },
+    { "AchievementPanelSetCategory",         sc2_AchievementPanelSetCategory },
+    { "AchievementPanelSetVisible",          sc2_AchievementPanelSetVisible },
+    { "AchievementPercentText",              sc2_AchievementPercentText },
+    { "AchievementTermQuantitySet",          sc2_AchievementTermQuantitySet },
+    { "AchievementsDisable",                 sc2_AchievementsDisable },
+    { "ActorCreate",                         sc2_ActorCreate },
+    { "ActorFrom",                           sc2_ActorFrom },
+    { "ActorFromScope",                      sc2_ActorFromScope },
+    { "ActorRegionCreate",                   sc2_ActorRegionCreate },
+    { "ActorRegionSend",                     sc2_ActorRegionSend },
+    { "ActorScopeFromUnit",                  sc2_ActorScopeFromUnit },
+    { "ActorSend",                           sc2_ActorSend },
+    { "AIDisableAllScouting",                sc2_AIDisableAllScouting },
     { "AITimePause",                         sc2_AITimePause },
     { "AngleBetweenPoints",                  sc2_AngleBetweenPoints },
-    { "BankExists",                          galaxy_stub },
-    { "BankKeyRemove",                       galaxy_stub },
-    { "BankLastCreated",                     galaxy_stub },
-    { "BankLoad",                            galaxy_stub },
-    { "BankSave",                            galaxy_stub },
-    { "BankValueSetFromFlag",                galaxy_stub },
-    { "BankValueSetFromInt",                 galaxy_stub },
-    { "BankValueSetFromString",              galaxy_stub },
-    { "BankValueSetFromText",                galaxy_stub },
+    { "BankExists",                          sc2_BankExists },
+    { "BankKeyRemove",                       sc2_BankKeyRemove },
+    { "BankLastCreated",                     sc2_BankLastCreated },
+    { "BankLoad",                            sc2_BankLoad },
+    { "BankSave",                            sc2_BankSave },
+    { "BankValueSetFromFlag",                sc2_BankValueSetFromFlag },
+    { "BankValueSetFromInt",                 sc2_BankValueSetFromInt },
+    { "BankValueSetFromString",              sc2_BankValueSetFromString },
+    { "BankValueSetFromText",                sc2_BankValueSetFromText },
     { "CameraApplyInfo",                     sc2_CameraApplyInfo },
     { "CameraGetTarget",                     sc2_CameraGetTarget },
     { "CameraInfoDefault",                   sc2_CameraInfoDefault },
@@ -1151,7 +1235,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "CameraRestore",                       sc2_CameraRestore },
     { "CameraSave",                          sc2_CameraSave },
     { "CameraShakeStart",                    sc2_CameraShakeStart },
-    { "CampaignMode",                        galaxy_stub }, /* void CampaignMode(playergroup, bool); TRaynor01 Init calls it */
+    { "CampaignMode",                        sc2_CampaignMode },
     { "CatalogEntryClass",                   sc2_CatalogEntryClass },
     { "CatalogEntryCount",                   sc2_CatalogEntryCount },
     { "CatalogEntryGet",                     sc2_CatalogEntryGet },
@@ -1166,29 +1250,29 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "CatalogFieldValueCount",              sc2_CatalogFieldValueCount },
     { "CatalogFieldValueGet",                sc2_CatalogFieldValueGet },
     { "CatalogFieldValueSet",                sc2_CatalogFieldValueSet },
-    { "CinematicDataRun",                    galaxy_stub },
-    { "CinematicDataStop",                   galaxy_stub },
+    { "CinematicDataRun",                    sc2_CinematicDataRun },
+    { "CinematicDataStop",                   sc2_CinematicDataStop },
     { "CinematicFade",                       sc2_CinematicFade },
     { "CinematicMode",                       sc2_CinematicMode },
     { "CinematicOverlay",                    sc2_CinematicOverlay },
     { "Color",                               sc2_Color },
     { "ColorWithAlpha",                      sc2_ColorWithAlpha },
-    { "ConversationDataResetNodeState",       galaxy_stub },
-    { "ConversationDataResetStateValues",    galaxy_stub },
-    { "ConversationDataSaveNodeState",       galaxy_stub },
-    { "ConversationDataSaveStateValues",     galaxy_stub },
-    { "ConversationDataStateFixedValue",     galaxy_stub },
-    { "ConversationDataStateGetValue",       galaxy_stub },
-    { "ConversationDataStateIndex",          galaxy_stub },
-    { "ConversationDataStateIndexCount",     galaxy_stub },
-    { "ConversationDataStateName",           galaxy_stub },
-    { "ConversationDataStateSetValue",       galaxy_stub },
-    { "ConversationDataStateText",           galaxy_stub },
+    { "ConversationDataResetNodeState",       sc2_ConversationDataResetNodeState },
+    { "ConversationDataResetStateValues",    sc2_ConversationDataResetStateValues },
+    { "ConversationDataSaveNodeState",       sc2_ConversationDataSaveNodeState },
+    { "ConversationDataSaveStateValues",     sc2_ConversationDataSaveStateValues },
+    { "ConversationDataStateFixedValue",     sc2_ConversationDataStateFixedValue },
+    { "ConversationDataStateGetValue",       sc2_ConversationDataStateGetValue },
+    { "ConversationDataStateIndex",          sc2_ConversationDataStateIndex },
+    { "ConversationDataStateIndexCount",     sc2_ConversationDataStateIndexCount },
+    { "ConversationDataStateName",           sc2_ConversationDataStateName },
+    { "ConversationDataStateSetValue",       sc2_ConversationDataStateSetValue },
+    { "ConversationDataStateText",           sc2_ConversationDataStateText },
     { "Cos",                                 sc2_Cos },
-    { "DataTableSetString",                  galaxy_stub },
-    { "DataTableValueExists",                galaxy_stub },
-    { "DialogControlSetPropertyAsText",      galaxy_stub },
-    { "DialogControlSetVisible",             galaxy_stub },
+    { "DataTableSetString",                  sc2_DataTableSetString },
+    { "DataTableValueExists",                sc2_DataTableValueExists },
+    { "DialogControlSetPropertyAsText",      sc2_DialogControlSetPropertyAsText },
+    { "DialogControlSetVisible",             sc2_DialogControlSetVisible },
     { "DifficultyEnabled",                   sc2_DifficultyEnabled },
     { "DifficultyName",                      sc2_DifficultyName },
     { "DifficultyNameCampaign",              sc2_DifficultyNameCampaign },
@@ -1196,41 +1280,41 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "EventUnit",                           sc2_EventUnit },
     { "EventUnitCargo",                      sc2_EventUnitCargo },
     { "EventUnitTarget",                     sc2_EventUnitTarget },
-    { "FixedToInt",                          galaxy_stub },
-    { "FixedToString",                       galaxy_stub },
-    { "FormatNumber",                        galaxy_stub },
-    { "GameCheatAllow",                      galaxy_stub },
-    { "GameGetSpeedValue",                   galaxy_stub },
-    { "GameIsDebugOptionSet",                galaxy_stub },
-    { "GameIsTestMap",                       galaxy_stub },
-    { "GameIsTransitionMap",                 galaxy_stub },
-    { "GameMapIsBlizzard",                   galaxy_stub },
-    { "GamePauseAllCharges",                 galaxy_stub },
+    { "FixedToInt",                          sc2_FixedToInt },
+    { "FixedToString",                       sc2_FixedToString },
+    { "FormatNumber",                        sc2_FormatNumber },
+    { "GameCheatAllow",                      sc2_GameCheatAllow },
+    { "GameGetSpeedValue",                   sc2_GameGetSpeedValue },
+    { "GameIsDebugOptionSet",                sc2_GameIsDebugOptionSet },
+    { "GameIsTestMap",                       sc2_GameIsTestMap },
+    { "GameIsTransitionMap",                 sc2_GameIsTransitionMap },
+    { "GameMapIsBlizzard",                   sc2_GameMapIsBlizzard },
+    { "GamePauseAllCharges",                 sc2_GamePauseAllCharges },
     { "GameSetBackground",                   sc2_GameSetBackground },
     { "GameSetLighting",                     sc2_GameSetLighting },
-    { "GameSetSeedLocked",                   galaxy_stub },
-    { "GameSetSpeedLocked",                  galaxy_stub },
-    { "GameSetSpeedValue",                   galaxy_stub },
+    { "GameSetSeedLocked",                   sc2_GameSetSeedLocked },
+    { "GameSetSpeedLocked",                  sc2_GameSetSpeedLocked },
+    { "GameSetSpeedValue",                   sc2_GameSetSpeedValue },
     { "GameTimeOfDayPause",                  sc2_GameTimeOfDayPause },
     { "GameTimeOfDaySet",                    sc2_GameTimeOfDaySet },
     { "HelpPanelAddTip",                     sc2_HelpPanelAddTip },
     { "HelpPanelDisplayPage",                sc2_HelpPanelDisplayPage },
-    { "HelpPanelAddTutorial",                galaxy_stub },
+    { "HelpPanelAddTutorial",                sc2_HelpPanelAddTutorial },
     { "HelpPanelEnableTechTreeButton",       sc2_HelpPanelEnableTechTreeButton },
-    { "HelpPanelShowTechTreeRace",           galaxy_stub },
+    { "HelpPanelShowTechTreeRace",           sc2_HelpPanelShowTechTreeRace },
     { "IntLoopBegin",                        sc2_IntLoopBegin },
     { "IntLoopDone",                         sc2_IntLoopDone },
     { "IntLoopEnd",                          sc2_IntLoopEnd },
     { "IntLoopStep",                         sc2_IntLoopStep },
-    { "IntToFixed",                          galaxy_stub },
-    { "IntToString",                         galaxy_stub },
+    { "IntToFixed",                          sc2_IntToFixed },
+    { "IntToString",                         sc2_IntToString },
     { "IntToText",                           sc2_IntToText },
     { "MaxF",                                sc2_MaxF },
     { "MinF",                                sc2_MinF },
     { "MinimapPing",                         sc2_MinimapPing },
     { "ModF",                                sc2_ModF },
     { "ObjectiveCreate3",                    sc2_ObjectiveCreate3 },
-    { "ObjectiveGetPrimary",                 galaxy_stub },
+    { "ObjectiveGetPrimary",                 sc2_ObjectiveGetPrimary },
     { "ObjectiveGetState",                   sc2_ObjectiveGetState },
     { "ObjectiveLastCreated",                sc2_ObjectiveLastCreated },
     { "ObjectiveSetName",                    sc2_ObjectiveSetName },
@@ -1240,7 +1324,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "OrderTargetingPoint",                 sc2_OrderTargetingPoint },
     { "OrderTargetingUnit",                  sc2_OrderTargetingUnit },
     { "UnitOrderIsValid",                    sc2_UnitOrderIsValid },
-    { "PingCreate",                          galaxy_stub },
+    { "PingCreate",                          sc2_PingCreate },
     { "PingDestroy",                         sc2_PingDestroy },
     { "PingLastCreated",                     sc2_PingLastCreated },
     { "PingSetScale",                        sc2_PingSetScale },
@@ -1293,7 +1377,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "PlayerScoreValueSetFromInt",          sc2_PlayerScoreValueSetFromInt },
     { "PlayerSetAlliance",                   sc2_PlayerSetAlliance },
     { "PlayerSetState",                      sc2_PlayerSetState },
-    { "PlayerType",                          galaxy_stub },
+    { "PlayerType",                          sc2_PlayerType },
     { "PlayerValidateEffectPoint",           sc2_PlayerValidateEffectPoint },
     { "PlayerValidateEffectUnit",            sc2_PlayerValidateEffectUnit },
     { "Point",                               sc2_Point },
@@ -1304,7 +1388,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "PointGetY",                           sc2_PointGetY },
     { "PointPathingCliffLevel",              sc2_PointPathingCliffLevel },
     { "PointReflect",                        sc2_PointReflect },
-    { "PointSetFacing",                      galaxy_stub },
+    { "PointSetFacing",                      sc2_PointSetFacing },
     { "PointWithOffset",                     sc2_PointWithOffset },
     { "PointWithOffsetPolar",                sc2_PointWithOffsetPolar },
     { "Pow",                                 sc2_Pow },
@@ -1347,7 +1431,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "SoundPlayOnUnit",                     sc2_SoundPlayOnUnit },
     { "SoundPlayScene",                      sc2_SoundPlayScene },
     { "SoundPlaySceneFile",                  sc2_SoundPlaySceneFile },
-    { "SoundChannelSetVolume",               galaxy_stub },
+    { "SoundChannelSetVolume",               sc2_SoundChannelSetVolume },
     { "SoundStop",                           sc2_SoundStop },
     { "SoundWait",                           sc2_SoundWait },
     { "SoundtrackDefault",                   sc2_SoundtrackDefault },
@@ -1355,27 +1439,27 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "SoundtrackPlay",                      sc2_SoundtrackPlay },
     { "SquareRoot",                          sc2_SquareRoot },
     { "StringExternal",                      sc2_StringExternal },
-    { "StringReplaceWord",                   galaxy_stub },
-    { "StringSub",                           galaxy_stub },
-    { "StringToText",                        galaxy_stub },
+    { "StringReplaceWord",                   sc2_StringReplaceWord },
+    { "StringSub",                           sc2_StringSub },
+    { "StringToText",                        sc2_StringToText },
     { "StringWord",                          sc2_StringWord },
     { "Tan",                                 sc2_Tan },
-    { "TechTreeAbilityAllow",                galaxy_stub },
-    { "TechTreeAbilityIsAllowed",            galaxy_stub },
-    { "TechTreeRestrictionsEnable",          galaxy_stub },
-    { "TechTreeUnitHelp",                    galaxy_stub },
-    { "TechTreeUnitHelpDefault",             galaxy_stub },
+    { "TechTreeAbilityAllow",                sc2_TechTreeAbilityAllow },
+    { "TechTreeAbilityIsAllowed",            sc2_TechTreeAbilityIsAllowed },
+    { "TechTreeRestrictionsEnable",          sc2_TechTreeRestrictionsEnable },
+    { "TechTreeUnitHelp",                    sc2_TechTreeUnitHelp },
+    { "TechTreeUnitHelpDefault",             sc2_TechTreeUnitHelpDefault },
     { "TechTreeUpgradeAddLevel",             sc2_TechTreeUpgradeAddLevel },
-    { "TechTreeUpgradeCount",                galaxy_stub },
-    { "TextCase",                            galaxy_stub },
-    { "TimerPause",                          galaxy_stub },
+    { "TechTreeUpgradeCount",                sc2_TechTreeUpgradeCount },
+    { "TextCase",                            sc2_TextCase },
+    { "TimerPause",                          sc2_TimerPause },
     { "TransmissionClear",                   sc2_TransmissionClear },
     { "TransmissionClearAll",                sc2_TransmissionClearAll },
     { "TransmissionLastSent",                sc2_TransmissionLastSent },
     { "TransmissionSend",                    sc2_TransmissionSend },
     { "TransmissionSource",                  sc2_TransmissionSource },
     { "TransmissionSourceFromModel",         sc2_TransmissionSourceFromModel },
-    { "TransmissionSetOption",               galaxy_stub },
+    { "TransmissionSetOption",               sc2_TransmissionSetOption },
     { "TransmissionSourceFromUnit",          sc2_TransmissionSourceFromUnit },
     { "TransmissionWait",                    sc2_TransmissionWait },
     { "TriggerAddEventMapInit",              sc2_TriggerAddEventMapInit },
@@ -1394,7 +1478,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "TriggerAddEventUnitRange",            sc2_TriggerAddEventUnitRange },
     { "TriggerAddEventUnitRangePoint",       sc2_TriggerAddEventUnitRangePoint },
     { "TriggerAddEventUnitRegion",           sc2_TriggerAddEventUnitRegion },
-    { "TriggerDebugOutput",                  galaxy_stub },
+    { "TriggerDebugOutput",                  sc2_TriggerDebugOutput },
     { "TriggerCreate",                       sc2_TriggerCreate },
     { "TriggerEnable",                       sc2_TriggerEnable },
     { "TriggerExecute",                      sc2_TriggerExecute },
@@ -1411,15 +1495,15 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "TriggerStop",                         sc2_TriggerStop },
     { "UIAlertPoint",                        sc2_UIAlertPoint },
     { "UIAlertUnit",                         sc2_UIAlertUnit },
-    { "UIClearMessages",                     galaxy_stub },
-    { "UIFlyerHelperClearOverride",          galaxy_stub },
-    { "UIFlyerHelperOverride",               galaxy_stub },
-    { "UIFrameVisible",                      galaxy_stub },
-    { "UISetCursorVisible",                  galaxy_stub },
+    { "UIClearMessages",                     sc2_UIClearMessages },
+    { "UIFlyerHelperClearOverride",          sc2_UIFlyerHelperClearOverride },
+    { "UIFlyerHelperOverride",               sc2_UIFlyerHelperOverride },
+    { "UIFrameVisible",                      sc2_UIFrameVisible },
+    { "UISetCursorVisible",                  sc2_UISetCursorVisible },
     { "UISetFrameVisible",                   sc2_UISetFrameVisible },
-    { "UISetGameMenuItemVisible",            galaxy_stub },
+    { "UISetGameMenuItemVisible",            sc2_UISetGameMenuItemVisible },
     { "UISetMode",                           sc2_UISetMode },
-    { "UISetRestartLoadingScreen",           galaxy_stub },
+    { "UISetRestartLoadingScreen",           sc2_UISetRestartLoadingScreen },
     { "UnitBehaviorAdd",                     sc2_UnitBehaviorAdd },
     { "UnitBehaviorRemove",                  sc2_UnitBehaviorRemove },
     { "UnitCargoCreate",                     sc2_UnitCargoCreate },
@@ -1512,7 +1596,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "VictoryPanelAddAchievement",          sc2_VictoryPanelAddAchievement },
     { "VictoryPanelAddCustomStatisticLine",  sc2_VictoryPanelAddCustomStatisticLine },
     { "VictoryPanelAddTrackedStatistic",     sc2_VictoryPanelAddTrackedStatistic },
-    { "VisEnable",                           galaxy_stub },
+    { "VisEnable",                           sc2_VisEnable },
     { "VisExploreArea",                      sc2_VisExploreArea },
     { "VisRevealArea",                       sc2_VisRevealArea },
     { "VisRevealerCreate",                   sc2_VisRevealerCreate },
