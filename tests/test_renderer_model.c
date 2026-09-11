@@ -1448,8 +1448,8 @@ static size2_t test_backdrop_size(LPCTEXTURE tex) { (void)tex; return backdrop_s
 static VERTEX *test_backdrop_quad(VERTEX *buf, LPCRECT rect, LPCRECT uv, COLOR32 color, float z) {
     (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
 }
-static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, FLOAT glow, BOOL hasclip, LPCRECT clip, LPCVERTEX verts, DWORD count, BOOL repeat) {
-    (void)tex; (void)shader; (void)blend; (void)glow; (void)hasclip; (void)clip; (void)verts;
+static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, FLOAT glow, FLOAT radialShade, BOOL hasclip, LPCRECT clip, LPCVERTEX verts, DWORD count, BOOL repeat) {
+    (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat;
 }
 #define R_GetTextureSize test_backdrop_size
