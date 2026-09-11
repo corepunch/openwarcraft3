@@ -106,7 +106,9 @@ void S_CancelRepair(LPEDICT ent) {
 static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     LPEDICT building = ent ? ent->build : NULL;
     BOOL resume_harvest = building && building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
-                          (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete"));
+                          (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
+                           (!strcmp(reason, "work_target_invalid") && !building->construction.active &&
+                            building->health.value >= building->health.max_value));
 #ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1 && ent) {
         fprintf(stderr,
@@ -125,7 +127,8 @@ static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     repair_release(ent);
     if (resume_harvest) {
         /* Retail returns Town Hall builders to work after the final Repair tick;
-         * standing here left the Human04 workers idle. */
+         * standing here left the Human04 workers idle.  Remaining builders see
+         * work_target_invalid after the first builder fills the shared target. */
         unit_issueimmediateorder(ent, "autoharvestgold");
         return;
     }
