@@ -102,6 +102,7 @@ void S_CancelRepair(LPEDICT ent) {
     if (ent->goalentity == building) ent->goalentity = NULL;
 }
 
+/* Finish Repair consistently: completed Town Halls return their workers to gold mining. */
 static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     LPEDICT building = ent ? ent->build : NULL;
     BOOL resume_harvest = building && building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
