@@ -1082,6 +1082,25 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+TEST(wc3_unit, ravenform_takeoff_interpolates_from_ground_to_authored_height) {
+    LPEDICT ent;
+
+    reset_test_entities(); setup_test_world();
+    ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    ent->raven.fly_height = 100.0f;
+    ent->raven.rise_start = 1000;
+    ent->raven.rise_duration = 2.0f;
+    ent->raven.rise_state = RAVEN_RISE_ACTIVE;
+    level.time = 2000;
+    unit_raven_update_height(ent);
+    T_FEQ(ent->unitinfo.FlyHeight, 50.0f, 0.001f);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    level.time = 3000;
+    unit_raven_update_height(ent);
+    T_FEQ(ent->unitinfo.FlyHeight, 100.0f, 0.001f);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+}
+
 TEST(wc3_unit, issueimmediateorder_autoharvestlumber_uses_nearest_live_tree) {
     reset_test_entities();
     LPEDICT worker = make_unit(0, 0);
