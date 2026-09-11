@@ -135,6 +135,8 @@ void galaxy_reset(void) {
     sc2_scope_n = sc2_scope_last = 0;
     memset(sc2_scopes, 0, sizeof(sc2_scopes));
     memset(sc2_unit_scope, 0, sizeof(sc2_unit_scope));
+    memset(sc2_int_loops, 0, sizeof(sc2_int_loops));
+    sc2_group_loop.active = false;
     galaxy_loaded_reset();
 }
 

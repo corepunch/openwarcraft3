@@ -220,7 +220,19 @@ static DWORD sc2_UnitInventoryGroup(LPJASS j)        { return jass_pushnullhandl
 static DWORD sc2_UnitTechTreeBehaviorCount(LPJASS j) { return jass_pushinteger(j, 0); }
 static DWORD sc2_UnitTechTreeUnitCount(LPJASS j)     { return jass_pushinteger(j, 0); }
 static DWORD sc2_UnitTechTreeUpgradeCount(LPJASS j)  { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitGroupUnit(LPJASS j)             { return jass_pushinteger(j, 0); }
+/* UnitGroupUnit(group, index): 1-based index; supports cargo groups. */
+static DWORD sc2_UnitGroupUnit(LPJASS j) {
+    LONG h   = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+    LONG idx = jass_checkinteger(j, 2) - 1;  /* 1-based → 0-based */
+    if (h & CARGO_GROUP_FLAG) {
+        LONG t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (LONG)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1]) {
+            LONG cargo_h = sc2_gcargo[t - 1][idx];
+            return jass_pushlighthandle(j, (HANDLE)(uintptr_t)cargo_h, "unit");
+        }
+    }
+    return jass_pushnullhandle(j, "unit");
+}
 static DWORD sc2_UnitGroupIssueOrder(LPJASS j)       { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitGroupIdle(LPJASS j)             { return jass_pushboolean(j, false); }
 static DWORD sc2_UnitGroupFilter(LPJASS j)           { return jass_pushinteger(j, 0); }
@@ -234,11 +246,54 @@ static DWORD sc2_UnitGroupFilterPlane(LPJASS j)      { return jass_pushnullhandl
 static DWORD sc2_UnitGroupFilterRegion(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
 static DWORD sc2_UnitGroupFilterThreat(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
 static DWORD sc2_UnitGroupFromId(LPJASS j)           { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupLoopBegin(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGroupLoopCurrent(LPJASS j)      { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_UnitGroupLoopDone(LPJASS j)         { return jass_pushboolean(j, true); }
-static DWORD sc2_UnitGroupLoopEnd(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGroupLoopStep(LPJASS j)         { (void)j; return jass_pushnull(j); }
+
+/* UnitGroupLoop: tracks a single active group iteration (single-coroutine). */
+typedef struct { LONG group_h; LONG cur; BOOL active; } SC2GroupLoop;
+static SC2GroupLoop sc2_group_loop;
+
+static LONG sc2_group_size(LONG h) {
+    if (h & CARGO_GROUP_FLAG) {
+        LONG t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (LONG)sc2_gunit_n) return sc2_gcargo_n[t - 1];
+    }
+    return 0;
+}
+static LONG sc2_group_nth(LONG h, LONG idx) {
+    if (h & CARGO_GROUP_FLAG) {
+        LONG t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (LONG)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1])
+            return sc2_gcargo[t - 1][idx];
+    }
+    return 0;
+}
+
+static DWORD sc2_UnitGroupLoopBegin(LPJASS j) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+    sc2_group_loop = (SC2GroupLoop){ h, 0, true };
+    return jass_pushnull(j);
+}
+static DWORD sc2_UnitGroupLoopDone(LPJASS j) {
+    (void)j;
+    if (!sc2_group_loop.active) return jass_pushboolean(j, true);
+    return jass_pushboolean(j, sc2_group_loop.cur >= sc2_group_size(sc2_group_loop.group_h));
+}
+static DWORD sc2_UnitGroupLoopCurrent(LPJASS j) {
+    (void)j;
+    if (!sc2_group_loop.active) return jass_pushnullhandle(j, "unit");
+    LONG h = sc2_group_nth(sc2_group_loop.group_h, sc2_group_loop.cur);
+    return h ? jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "unit")
+             : jass_pushnullhandle(j, "unit");
+}
+static DWORD sc2_UnitGroupLoopStep(LPJASS j) {
+    (void)j;
+    if (sc2_group_loop.active) sc2_group_loop.cur++;
+    return jass_pushnull(j);
+}
+static DWORD sc2_UnitGroupLoopEnd(LPJASS j) {
+    (void)j;
+    sc2_group_loop.active = false;
+    return jass_pushnull(j);
+}
 static DWORD sc2_UnitGroupNearestUnit(LPJASS j)      { return jass_pushnullhandle(j, "unit"); }
 static DWORD sc2_UnitGroupRandomUnit(LPJASS j)       { return jass_pushnullhandle(j, "unit"); }
 static DWORD sc2_UnitGroupTestPlane(LPJASS j)        { return jass_pushboolean(j, false); }

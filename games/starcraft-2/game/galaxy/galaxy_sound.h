@@ -17,9 +17,27 @@ static DWORD sc2_SoundLink(LPJASS j) {
 }
 static DWORD sc2_SoundLinkAsset(LPJASS j)     { return jass_pushnullhandle(j, "soundlink"); }
 static DWORD sc2_SoundLinkId(LPJASS j)        { return jass_pushnullhandle(j, "soundlink"); }
-static DWORD sc2_SoundPlay(LPJASS j)          { return jass_pushnullhandle(j, "sound"); }
-static DWORD sc2_SoundPlayAtPoint(LPJASS j)   { return jass_pushnullhandle(j, "sound"); }
-static DWORD sc2_SoundPlayOnUnit(LPJASS j)    { return jass_pushnullhandle(j, "sound"); }
+/* SoundPlay(soundlink, bool looping, bool is3d, bool stopIfDeath, int mask) */
+static DWORD sc2_SoundPlay(LPJASS j) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "soundlink");
+    if (h > 0 && h < sc2_gsound_n && sc2_galaxy_on_sound)
+        sc2_galaxy_on_sound(sc2_gsounds[h].id, sc2_gsounds[h].asset);
+    return jass_pushnullhandle(j, "sound");
+}
+/* SoundPlayAtPoint(soundlink, int mask, point, float height) */
+static DWORD sc2_SoundPlayAtPoint(LPJASS j) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "soundlink");
+    if (h > 0 && h < sc2_gsound_n && sc2_galaxy_on_sound)
+        sc2_galaxy_on_sound(sc2_gsounds[h].id, sc2_gsounds[h].asset);
+    return jass_pushnullhandle(j, "sound");
+}
+/* SoundPlayOnUnit(soundlink, int mask, unit) */
+static DWORD sc2_SoundPlayOnUnit(LPJASS j) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "soundlink");
+    if (h > 0 && h < sc2_gsound_n && sc2_galaxy_on_sound)
+        sc2_galaxy_on_sound(sc2_gsounds[h].id, sc2_gsounds[h].asset);
+    return jass_pushnullhandle(j, "sound");
+}
 static DWORD sc2_SoundPlayScene(LPJASS j)     { return jass_pushnullhandle(j, "sound"); }
 static DWORD sc2_SoundPlaySceneFile(LPJASS j) { return jass_pushnullhandle(j, "sound"); }
 static DWORD sc2_SoundStop(LPJASS j)          { (void)j; return jass_pushnull(j); }

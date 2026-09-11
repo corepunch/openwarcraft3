@@ -12,5 +12,13 @@ static DWORD sc2_ASin(LPJASS j)  { return jass_pushnumber(j, asinf(jass_checknum
 static DWORD sc2_ACos(LPJASS j)  { return jass_pushnumber(j, acosf(jass_checknumber(j,1))); }
 static DWORD sc2_ATan(LPJASS j)  { return jass_pushnumber(j, atanf(jass_checknumber(j,1))); }
 static DWORD sc2_ATan2(LPJASS j) { return jass_pushnumber(j, atan2f(jass_checknumber(j,1), jass_checknumber(j,2))); }
-static DWORD sc2_RandomFixed(LPJASS j) { (void)j; return jass_pushnumber(j, 0.0f); }
-static DWORD sc2_RandomInt(LPJASS j)   { return jass_pushinteger(j, jass_checkinteger(j, 1)); }
+static DWORD sc2_RandomFixed(LPJASS j) {
+    FLOAT lo = jass_checknumber(j, 1), hi = jass_checknumber(j, 2);
+    FLOAT r = lo + (hi - lo) * ((FLOAT)rand() / (FLOAT)RAND_MAX);
+    return jass_pushnumber(j, r);
+}
+static DWORD sc2_RandomInt(LPJASS j) {
+    LONG lo = jass_checkinteger(j, 1), hi = jass_checkinteger(j, 2);
+    LONG r = hi > lo ? lo + rand() % (hi - lo + 1) : lo;
+    return jass_pushinteger(j, r);
+}
