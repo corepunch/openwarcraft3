@@ -403,9 +403,9 @@ TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
         .max = { 1024.0f,  1024.0f}));
     worker->currentmove->think(worker);
 
-    T_ASSERT(worker->movement.path_valid);
-    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
-    T_ASSERT(fabsf(worker->movement.path_waypoint.y) >= CM_PathCellWorldSize());
+    T_ASSERT(worker->movement.path.valid);
+    T_FEQ(worker->movement.path.radius, worker->collision, 0.001f);
+    T_ASSERT(fabsf(worker->movement.path.waypoint.y) >= CM_PathCellWorldSize());
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
@@ -453,10 +453,10 @@ TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
     T_ASSERT(harvest_gold_return_to(worker, hall));
     worker->currentmove->think(worker);
 
-    T_ASSERT(worker->movement.path_valid);
-    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
-    T_ASSERT(worker->movement.path_target.x < hall->s.origin2.x);
-    T_ASSERT(worker->movement.path_target.x > worker->s.origin2.x);
+    T_ASSERT(worker->movement.path.valid);
+    T_FEQ(worker->movement.path.radius, worker->collision, 0.001f);
+    T_ASSERT(worker->movement.path.target.x < hall->s.origin2.x);
+    T_ASSERT(worker->movement.path.target.x > worker->s.origin2.x);
 
     hall->pathtex = NULL;
     gi.MemFree(hall_pathtex);
@@ -498,10 +498,10 @@ TEST(wc3_movement, worker_resource_lumber_return_targets_near_side_edge) {
     T_ASSERT(harvest_lumber_return_to(worker, mill));
     worker->currentmove->think(worker);
 
-    T_ASSERT(worker->movement.path_valid);
-    T_FEQ(worker->movement.path_radius, worker->collision, 0.001f);
-    T_ASSERT(worker->movement.path_target.x < mill->s.origin2.x);
-    T_ASSERT(worker->movement.path_target.x > worker->s.origin2.x);
+    T_ASSERT(worker->movement.path.valid);
+    T_FEQ(worker->movement.path.radius, worker->collision, 0.001f);
+    T_ASSERT(worker->movement.path.target.x < mill->s.origin2.x);
+    T_ASSERT(worker->movement.path.target.x > worker->s.origin2.x);
 
     mill->pathtex = NULL;
     gi.MemFree(mill_pathtex);
@@ -1009,8 +1009,8 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
 
     T_EQ(unit->movement.flow_generation, 0);
     T_ASSERT(!unit->movement.flow_direct);
-    T_ASSERT(unit->movement.path_valid);
-    T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path_waypoint, unit->collision));
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path.waypoint, unit->collision));
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
     T_STREQ(unit->currentmove->animation, "walk");
 }
@@ -1373,14 +1373,14 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
         T_FEQ(Vector2_distance(&workers[i]->s.origin2, &origin[i]), 0.0f, 0.001f);
         T_EQ(workers[i]->movement.flow_generation, 0);
         T_ASSERT(!workers[i]->movement.flow_direct);
-        T_ASSERT(!workers[i]->movement.path_valid);
+        T_ASSERT(!workers[i]->movement.path.valid);
     }
 
     CM_ProcessPathJobs(65536);
     FOR_LOOP(i, WORKERS) {
         workers[i]->currentmove->think(workers[i]);
         T_ASSERT(workers[i]->movement.flow_generation != 0);
-        T_ASSERT(!workers[i]->movement.path_valid);
+        T_ASSERT(!workers[i]->movement.path.valid);
         T_ASSERT(Vector2_distance(&workers[i]->s.origin2, &origin[i]) > 0.001f);
     }
 
@@ -1537,12 +1537,12 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     T_FEQ(Vector2_distance(&worker->s.origin2, &origin), 0.0f, 0.001f);
     T_EQ(worker->movement.flow_generation, 0);
     T_ASSERT(!worker->movement.flow_direct);
-    T_ASSERT(!worker->movement.path_valid);
+    T_ASSERT(!worker->movement.path.valid);
 
     CM_ProcessPathJobs(65536);
     worker->currentmove->think(worker);
     T_ASSERT(worker->movement.flow_generation != 0);
-    T_ASSERT(!worker->movement.path_valid);
+    T_ASSERT(!worker->movement.path.valid);
     T_ASSERT(Vector2_distance(&worker->s.origin2, &origin) > 0.001f);
 }
 

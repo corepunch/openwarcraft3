@@ -10,6 +10,7 @@
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
+#include "server/routing.h"
 #include "g_shared.h"
 #include "g_unitrow.h"
 #include "jass/jlex.h"
@@ -21,7 +22,6 @@
 #define MAX_EVENT_QUEUE 256
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
-#define WC3_PATH_WORK_BUDGET 32768 // queue pops/server frame; completes a 256x256 open field in two 10 Hz ticks
 #define BZ_STRINGIFY_INNER(value) #value
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
@@ -1056,9 +1056,7 @@ struct edict_s {
         BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
-        VECTOR2 path_waypoint, path_target; /* persistent accelerated turn and the destination that produced it */
-        FLOAT path_radius;
-        BOOL path_valid;
+        ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */

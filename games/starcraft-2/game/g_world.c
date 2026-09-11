@@ -23,7 +23,7 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 #define Com_Error(code, ...) gi.error(__VA_ARGS__)
 #include "common/world.c"
 /* This shared routing unit owns CM_GetPathingFlagsAt, including the empty-pathmap result used by SC2. */
-#include "games/warcraft-3/common/routing.c"
+#include "server/sv_routing.c"
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/common/world_sc2.c"
 

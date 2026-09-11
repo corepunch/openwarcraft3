@@ -2270,8 +2270,7 @@ TEST(net, fow_malformed_payload_does_not_overread) {
     reset_fow_client_state();
 }
 
-/* WC3 selection radii (buildings/destructables) exceed the packed-float range of ±65.5, so radius must stay
- * NFT_ROUND. Guard the WC3 delta path against a regression back to a narrow two-byte encoding. */
+/* Static entities must not consume snapshot bandwidth when their state is unchanged. */
 TEST(net, unchanged_entity_delta_emits_nothing) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -2299,6 +2298,27 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
 
         T_EQ(number, 9);
         T_FEQ(out.radius, radii[i], 0.001f);
+    }
+}
+
+/* Small RTS units need fractional radii and positions on both initial and moving snapshots. */
+TEST(net, entity_delta_preserves_fractional_geometry) {
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .radius = 0.375f,
+        .origin = { 42.375f, -44.625f, 8.125f }, .renderfx = RF_SELECTED }, out = { 0 };
+    FOR_LOOP(i, 2) {
+        BYTE buf[256];
+        sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+        DWORD bits = 0;
+        MSG_WriteDeltaEntity(&sb, &from, &to, true);
+        int num = MSG_ReadEntityBits(&sb, &bits);
+        MSG_ReadDeltaEntity(&sb, &out, num, bits);
+        T_FEQ(out.radius, to.radius, 0.00001f);
+        T_FEQ(out.origin.x, to.origin.x, 0.00001f);
+        T_FEQ(out.origin.y, to.origin.y, 0.00001f);
+        T_FEQ(out.origin.z, to.origin.z, 0.00001f);
+        T_ASSERT(out.renderfx & RF_SELECTED);
+        from = to;
+        to.origin.x += 0.125f; to.origin.y -= 0.25f;
     }
 }
 

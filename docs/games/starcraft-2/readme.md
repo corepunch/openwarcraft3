@@ -111,3 +111,5 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 | Catalog-driven unit → model resolution | Layered unit/actor/model lookup implemented; broader catalog conformance remains partial |
 | `.m3a` animation supplements | **not started** |
 | Team-color texture swapping | **not started** |
+
+- [Selection and control](selection-and-control.md): dropped-unit ownership, shared WC3 routing, M3 picking and rings.

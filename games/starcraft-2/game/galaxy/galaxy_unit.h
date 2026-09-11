@@ -75,8 +75,8 @@ static DWORD sc2_UnitSetFacing(LPJASS j) {
 
 static DWORD sc2_UnitSetOwner(LPJASS j)             { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitGetOwner(LPJASS j) {
-    (void)jass_checkhandle(j, 1, "unit");  /* consume arg */
-    return jass_pushinteger(j, 0);
+    void *ent = sc2_ent_from_handle(j, 1);
+    return jass_pushinteger(j, ent && sc2_galaxy_unit_owner ? sc2_galaxy_unit_owner(ent) : 0);
 }
 static DWORD sc2_UnitSetHeight(LPJASS j)            { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitSetScale(LPJASS j)             { (void)j; return jass_pushnull(j); }
@@ -141,11 +141,18 @@ static DWORD sc2_UnitCargoCreate(LPJASS j) {
     LONG   t_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
     LPCSTR type = jass_checkstring(j, 2);
     LONG   cnt  = jass_checkinteger(j, 3);
+    void *transport = t_h > 0 && t_h <= (LONG)sc2_gunit_n ? sc2_gunits[t_h - 1] : NULL;
+    if (!transport || !sc2_galaxy_unit_owner) {
+        fprintf(stderr, "UnitCargoCreate: transport %ld or owner callback unavailable\n", (long)t_h);
+        return jass_pushnullhandle(j, "unit");
+    }
+    /* Cargo inherits its transport's owner; neutral cargo could never receive the user's orders. */
+    int player = sc2_galaxy_unit_owner(transport);
     if (cnt < 1) cnt = 1;
     LONG handle  = 0;
     for (LONG i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
-            sc2_galaxy_on_unit_create(type ? type : "", 0, 0.0f, 0.0f, 0.0f) : NULL;
+            sc2_galaxy_on_unit_create(type ? type : "", player, 0.0f, 0.0f, 0.0f) : NULL;
         if (!ent)
             fprintf(stderr, "sc2_UnitCargoCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — cargo unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)cnt);

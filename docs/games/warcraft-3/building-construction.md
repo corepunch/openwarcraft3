@@ -135,7 +135,7 @@ The placement cursor carries its authored pathing-texture width/height in dedica
 - live unit-circle occupancy, excluding the builder;
 - exact build-on-target presence when `isBuildOn` requires a `canBuildOn` structure.
 
-The common collision-model contract exposes `CM_GetPathingFlagsAt()` so the generic client can sample immutable terrain + baked-static pathing without reaching into WC3 routing internals or mutating movement's dynamic path map. WC3 implements the byte-mask query in `games/warcraft-3/common/routing.c`; game backends without this style of pathing grid return `false`, which suppresses cell classification rather than leaving a cross-game unresolved symbol.
+The common collision-model contract exposes `CM_GetPathingFlagsAt()` so the generic client can sample immutable terrain + baked-static pathing without reaching into WC3 routing internals or mutating movement's dynamic path map. WC3 implements the byte-mask query in `server/sv_routing.c`; game backends without this style of pathing grid return `false`, which suppresses cell classification rather than leaving a cross-game unresolved symbol.
 
 A declared pathing texture that fails to load is a placement failure. Do not silently degrade such a structure to a one-cell footprint; `M_LoadPathTex()` already reports the missing asset.
 

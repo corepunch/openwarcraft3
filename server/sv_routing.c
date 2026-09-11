@@ -3,6 +3,7 @@
 #define EDICT_NUM(n) (globals.edicts + (n))
 #endif
 
+#include "server/routing.h"
 #include <float.h>
 #include <limits.h>
 #include <stdlib.h>  /* abs (CM_LineIsWalkable) */
@@ -1524,3 +1525,36 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
     CM_SetupPathMap(width, height, cells);
 }
 #endif
+
+/* WC3's mover-owned turn cache: retain the accelerated waypoint until reached or invalidated. */
+BOOL CM_AccelerateRoute(LPROUTEPATH path, pathAccelParams_t const *params, LPVECTOR2 dir) {
+    FLOAT const reached = CM_PathCellWorldSize();
+    if (!path || !params || !dir) return false;
+    if (path->valid && (Vector2_distance(&path->target, params->target) >= 1.0f ||
+        fabsf(path->radius - params->radius) >= 0.01f ||
+        Vector2_distance(params->from, &path->waypoint) <= reached ||
+        !CM_LineIsWalkableForRadius(params->from, &path->waypoint, params->radius)))
+        path->valid = false;
+    if (!path->valid) {
+        if (!CM_FindPathWaypoint(params, &path->waypoint)) return false;
+        path->target = *params->target;
+        path->radius = params->radius;
+        path->valid = true;
+    }
+    *dir = Vector2_sub(&path->waypoint, params->from);
+    return true;
+}
+
+/* Share WC3's bounded left/right deflection; each game supplies its movement collision policy. */
+FLOAT CM_SlideRoute(LPCROUTESLIDE slide) {
+    for (int ring = 1; ring <= slide->rings; ring++) {
+        for (int sign = 1; sign >= -1; sign -= 2) {
+            FLOAT angle = slide->angle + sign * ring * BZ_ROUTE_SLIDE_STEP;
+            while (angle > (FLOAT)M_PI) angle -= 2.0f * (FLOAT)M_PI;
+            while (angle < -(FLOAT)M_PI) angle += 2.0f * (FLOAT)M_PI;
+            VECTOR2 cand = Vector2_mad(&slide->ent->s.origin2, slide->dist, &MAKE(VECTOR2, cosf(angle), sinf(angle)));
+            if (slide->valid(slide->ent, &cand)) return angle;
+        }
+    }
+    return slide->angle; /* Boxed in; the caller's move-time check holds the unit in place. */
+}

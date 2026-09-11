@@ -5,6 +5,8 @@
 #include "sc2/r_sc2map.h"
 #include <math.h>
 
+#define BZ_SC2_SPLAT_LIFT 0.02f // world units; avoids terrain depth fighting for selection splats
+
 void M3_Init(void);
 void M3_Shutdown(void);
 void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
@@ -14,6 +16,17 @@ typedef struct {
     DWORD count;
     char paths[256][512];
 } model_texture_cache_t;
+
+typedef struct {
+    LPCVECTOR2 mins, maxs;
+    FLOAT z;
+    LPCTEXTURE texture;
+    splat_shader_t *shader;
+    COLOR32 color;
+    BOOL terrain;
+} SC2SPLAT;
+typedef SC2SPLAT *LPSC2SPLAT;
+typedef SC2SPLAT const *LPCSC2SPLAT;
 
 static model_texture_cache_t model_texture_cache = { 0 };
 
@@ -98,13 +111,13 @@ void R_EvalKeyframeValue(void const *left,
     }
 }
 
-void R_RenderFlatRectSplat(LPCVECTOR2 mins,
-                           LPCVECTOR2 maxs,
-                           FLOAT z,
-                           LPCTEXTURE texture,
-                           splat_shader_t *shader,
-                           COLOR32 color)
-{
+/* Ground rings sample the terrain; explicit plane splats retain their caller-owned elevation. */
+static void R_SC2DrawSplat(LPCSC2SPLAT draw) {
+    LPCVECTOR2 mins = draw->mins, maxs = draw->maxs;
+    FLOAT z = draw->z;
+    LPCTEXTURE texture = draw->texture;
+    splat_shader_t *shader = draw->shader;
+    COLOR32 color = draw->color;
     MATRIX4 model_matrix;
     FLOAT const width = maxs->x - mins->x;
     FLOAT const height = maxs->y - mins->y;
@@ -121,6 +134,9 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
         { .position = { mins->x, maxs->y, z }, .texcoord = { 0, 0 }, .normal = { 0, 0, 1 }, .color = color },
     };
 
+    if (draw->terrain) {
+        FOR_LOOP(i, 6) vertices[i].position.z = R_GetHeightAtPoint(vertices[i].position.x, vertices[i].position.y) + BZ_SC2_SPLAT_LIFT;
+    }
     Matrix4_identity(&model_matrix);
     R_BindTexture(texture, 0);
 
@@ -138,13 +154,18 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     R_Call(glDepthMask, GL_TRUE);
 }
 
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
+    R_SC2DrawSplat(&(SC2SPLAT){ .mins = mins, .maxs = maxs, .z = z, .texture = texture, .shader = shader, .color = color });
+}
+
 void R_RenderRectSplat(LPCVECTOR2 mins,
                        LPCVECTOR2 maxs,
                        LPCTEXTURE texture,
                        splat_shader_t *shader,
                        COLOR32 color)
 {
-    R_RenderFlatRectSplat(mins, maxs, 0.0f, texture, shader, color);
+    /* Selection rings previously lay at Z=0 underneath the campaign terrain. */
+    R_SC2DrawSplat(&(SC2SPLAT){ .mins = mins, .maxs = maxs, .texture = texture, .shader = shader, .color = color, .terrain = true });
 }
 
 void R_RenderSplat(LPCVECTOR2 position,
@@ -174,7 +195,10 @@ void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR3
 }
 void R_EndSplatBatch(void) { }
 
+/* SC2 uses the shared procedural ring for the basic model-selection presentation. */
 void R_LoadAssets(void) {
+    LPTEXTURE ring = R_MakeSelectionCircleTexture();
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES) tr.texture[TEX_SELECTION_CIRCLE+i] = ring;
 }
 
 void R_Init(void) {
@@ -293,11 +317,19 @@ void R_RenderModel(renderEntity_t const *entity) {
     M3_RenderModel(entity, entity->model->m3, &transform);
 }
 
+/* Pick in model space so authored M3 bounds follow the rendered rotation and scale. */
 bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
-    (void)entity;
-    (void)line;
-    (void)distance;
-    return false;
+    MATRIX4 matrix, inverse;
+    VECTOR3 hit;
+    BOX3 box;
+    if (!R_GetEntityBounds(entity, &box)) return false;
+    R_GetEntityMatrix(entity, &matrix);
+    Matrix4_inverse(&matrix, &inverse);
+    LINE3 local = { Matrix4_multiply_vector3(&inverse, &line->a), Matrix4_multiply_vector3(&inverse, &line->b) };
+    if (!Line3_intersect_box3(&local, &box, &hit)) return false;
+    hit = Matrix4_multiply_vector3(&matrix, &hit);
+    if (distance) *distance = Vector3_distance(&line->a, &hit);
+    return true;
 }
 
 bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
@@ -307,8 +339,10 @@ bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
 }
 
 bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
-    (void)entity; (void)bounds;
-    return false;
+    if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3)
+        return false;
+    *bounds = (BOX3){ entity->model->m3->boundings.min, entity->model->m3->boundings.max };
+    return true;
 }
 
 bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {

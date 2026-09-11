@@ -76,6 +76,13 @@ static void *gal_unit_create(LPCSTR type, int player, float x, float y, float an
     (void)type; (void)player; (void)x; (void)y; (void)angle;
     return (void *)(uintptr_t)1;
 }
+static int gal_owners[8], gal_units;
+static void *gal_owned_create(LPCSTR type, int player, float x, float y, float angle) {
+    (void)type; (void)x; (void)y; (void)angle;
+    gal_owners[gal_units] = player;
+    return &gal_owners[gal_units++];
+}
+static int gal_unit_owner(void *ent) { return *(int *)ent; }
 static void gal_unit_move(void *ent, float x, float y) {
     (void)ent; (void)y; gal_move_count++; gal_move_x = x; gal_unit_moving = true;
 }
@@ -1000,7 +1007,26 @@ TEST(galaxy, vm_objective_lifecycle) {
     gal_destroy(&s);
 }
 
-/* The native signature must accept a non-null scope in argument one, as NativeLib's attachment helper does. */
+/* Cargo must retain the real transport owner rather than defaulting to neutral. */
+TEST(galaxy, cargo_inherits_transport_owner) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_units = 0;
+    sc2_galaxy_on_unit_create = gal_owned_create;
+    sc2_galaxy_unit_owner = gal_unit_owner;
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg); void main() {"
+        "UnitCreate(1, \"Dropship\", 0, 4, Point(0.0, 0.0), 0.0);"
+        "unit ship = UnitLastCreated(); UnitCargoCreate(ship, \"Marine\", 2);"
+        "if (UnitGetOwner(UnitCargoLastCreated()) != 4) { TestFail(\"cargo owner\"); }"
+        "if (UnitGetOwner(ship) != 4) { TestFail(\"transport owner\"); }"
+        "UnitCargoCreate(null, \"Marine\", 1);"
+        "}"));
+    T_EQ(gal_units, 3); T_EQ(gal_owners[1], 4); T_EQ(gal_owners[2], 4);
+    sc2_galaxy_on_unit_create = NULL; sc2_galaxy_unit_owner = NULL;
+    galaxy_reset(); gal_destroy(&s);
+}
+
 TEST(galaxy, vm_actor_scope_first) {
     gal_state_t s = gal_new();
     galaxy_reset();
