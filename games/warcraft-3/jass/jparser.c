@@ -648,9 +648,11 @@ PARSER(galaxy_statement_continue) {
     return token;
 }
 
-/* Parse a local variable declaration: `type [N]* name [= expr];` */
+/* Parse a local variable declaration: `[const] type [N]* name [= expr];` */
 PARSER(galaxy_parse_local) {
     LPTOKEN token    = alloc_token(TT_VARDECL);
+    /* Consume the qualifier first; previously const int declared a variable named int and lost the real name. */
+    if (eat_token(p, "const")) token->flags |= TF_CONSTANT;
     token->primary   = strdup(galaxy_normalize_type(parse_token(p)));
     if (eat_token(p, "[")) {
         token->flags |= TF_ARRAY;

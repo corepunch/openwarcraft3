@@ -35,12 +35,21 @@ SC2 computes camera target Z as terrain height at the target XY plus the camera'
 WC3 lifecycle: `MeleeUI` samples terrain under `cameraManager.target`, then `GameCameraManager.updateTargetZ` adds preset height and
 target offset before deriving the eye from pitch and distance. Treating `HeightOffset` as absolute world Z puts the eye underground.
 
-During renderer map registration, the client builds a separate blurred height source from the exact heightmap: the same stateless 4x4
-box filter over a 16-world-unit footprint used by `HeightMap="Air"`, sampled bilinearly while rendering the camera. This spatial filter
-makes a narrow canyon contribute little to camera height while broad terrain tiers still affect it. Do not replace it with a temporal
+During renderer map registration, the client builds a separate blurred height source from the exact heightmap. It averages every grid
+sample within an eight-world-unit radius (`ceil(radius / cell_size)` cells), then samples that cache bilinearly while rendering the
+camera. On the unit-spaced SC2 grid this is a dense 17x17 box filter. The previous sparse 4x4 kernel sampled offsets -8, -3, +3, +8;
+cliffs appeared repeatedly as those taps crossed them instead of contributing continuously across the footprint. The server Air-height
+query retains its separate broad 4x4 sampling contract. This camera spatial filter makes a narrow canyon contribute little to camera
+height while broad terrain tiers still affect it. Do not replace it with a temporal
 filter: retaining the previous frame's height makes the camera rubber-band toward every local depression. Ground units, commands, roads,
 collision, and the server camera state continue to use exact `SC2_MapHeightAtPoint` queries; the client applies the blurred terrain base
 to the current camera XY while interpolating only the authored height offsets between snapshots.
+
+A bounded TRaynor01 comparison along X=20..45, Y=28.75 at quarter-cell intervals measured maximum adjacent camera-height changes
+of 0.254 before and 0.112 world units after dense filtering; maximum changes in that increment fell from 0.423 to 0.063. These are
+local-map measurements, not tuning constants. `renderer_view.camera_height_dense_blur` checks a synthetic cliff's continuous ramp,
+bilinear interpolation, non-unit grid spacing, clamped edges, and cache release (`make test-renderer-view`). Shared camera offset and
+prediction coverage is documented in [Client camera samples](../../architecture/client.md#camera-samples).
 
 SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewDef.target.z`, the rendered terrain-relative camera target height.
 It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera

@@ -154,6 +154,38 @@ errors, objective state/text/lifetime, actor ABI/identity/scope cleanup, and cat
 SC2 unity builds now depend on the game headers: otherwise edits to `galaxy_*.h` did not rebuild `libgame-sc2`, leaving stale native
 bindings in a diagnostic run. Temporary investigative logs must be removed; optional traces remain behind `SC2_DEBUG_CUTSCENE`.
 
+## Campaign Local Constants and Native ABI
+
+The September 2026 startup trace found four independent errors:
+
+- CampaignLib's `libCamp_gf_TS_DebugProgressInitMissionPathAverage` and `...Late` declare `const int lv_type`. The local parser
+  consumed `const` as a type and `int` as a name, leaving `lv_type = ...` as an assignment to a missing variable. Local declarations
+  now consume `const` and retain `TF_CONSTANT` before reading the real type/name, matching global declarations.
+- `libCamp_gf_FormatCredits` calls the archive-declared `FormatNumber(int number)`. A newly added native incorrectly read a second
+  boolean, aborting `libCamp_gf_TS_DebugBuyTechUpdateCredits`. The binding now reads only the authored integer.
+- NativeLib's `libNtve_gf_PlayAnimation` calls `StringReplaceWord(string, string, string, int maxCount, bool caseSens)`. The binding
+  read the fourth argument as a boolean and aborted `gt_Init03Units_Func`. It now reads slots four/five correctly and honors positive
+  replacement limits. NativeLib's animation/filter conversion calls use zero to replace all separators; `natives.galaxy` also defines
+  `c_stringReplaceAll = -1`. Replacement output is sized from the input and expansion bound, avoiding the former silent 1KB truncation.
+- `gt_IntroSetup_Func` passes fractional percentage components to `ColorWithAlpha`; integer-byte argument checks aborted the
+  cinematic fade. Both color constructors now accept numeric percentages (0..100), convert channels together to the existing packed
+  ARGB representation, and preserve explicit alpha zero. `Color` supplies opaque alpha.
+
+The incorrect native signatures entered in `2b33814f8`; the local qualifier omission dates to `d0352ebf8`. Read the mounted
+`TriggerLibs/natives.galaxy`, `NativeLib.galaxy`, and `CampaignLib.galaxy` using the extraction commands in
+[the native coverage guide](galaxy-native-coverage.md), rather than inferring ABI from a script call or an existing binding.
+`make test-galaxy` covers local constants in synchronous/coroutine execution, nested credit formatting, replacement count/case
+modes and long output, and percentage-based color construction. The repaired TRaynor01 startup and intro complete a 1,500-tick bounded run without a Galaxy runtime error:
+
+```sh
+XDG_DATA_HOME=/tmp/ow3-sc2-state build/bin/opensc2 -data data/StarCraft2 -com_fast_forward \
+  +map Maps/Campaign/TRaynor01.SC2Map +vid_hidden 1 +com_frame_limit 1500
+```
+
+For real-time camera verification, omit fast-forward and add `+set com_maxfps 60`. An uncapped hidden window can exhaust the frame
+limit while waiting for the first server snapshot, without rendering the camera. Hidden windows also lack gameplay input focus;
+scripted cinematic movement exercises the rendered camera without requiring keyboard focus.
+
 ## Remaining Gaps
 
 The bounded intro lifecycle loads all 2,657 TRaynor01 objects with `SC2_MAX_MAP_OBJECTS` set to 4,096. Camera IDs 1660 and

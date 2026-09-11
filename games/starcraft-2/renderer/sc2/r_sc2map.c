@@ -1490,14 +1490,17 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
 static void r_sc2_build_terrain(sc2Map_t const *map) {
     BOX2 bounds;
     FLOAT max_z = 1.0f;
+    DWORD radius;
 
     r_sc2_release_terrain();
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return;
+    /* Four sparse taps repeated cliff edges in the camera surface; average every cell in the footprint. */
+    radius = (DWORD)ceilf(SC2_BROAD_HEIGHT_RADIUS / map->cell_size);
     R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &sc2_camera_height, .data = map,
         .width = map->t3HeightMap ? map->t3HeightMap->width : 0,
         .height_count = map->t3HeightMap ? map->t3HeightMap->height : 0,
-        .radius = (DWORD)SC2_BROAD_HEIGHT_RADIUS, .samples = BZ_BROAD_HEIGHT_SAMPLES,
+        .radius = radius, .samples = radius * 2 + 1,
         .origin = map->origin, .cell_size = map->cell_size, .get_height = r_sc2_camera_grid_height });
 
     r_sc2_init_terrain_shader();

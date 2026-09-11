@@ -763,6 +763,86 @@ TEST(galaxy, vm_const_global) {
     gal_destroy(&s);
 }
 
+/* CampaignLib declares local constants before ordinary locals in coroutine-dispatched helpers. */
+TEST(galaxy, vm_const_locals) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "void main() {\n"
+        "    const int lv_type = 2; int index = lv_type + 1;\n"
+        "    const bool enabled = true; const string name = \"path\";\n"
+        "    if (index != 3 || !enabled || name != \"path\") { TestFail(\"const local lost\"); }\n"
+        "}"));
+    FOR_LOOP(i, 2) {
+        jass_callbyname(s.j, "main", i != 0);
+        jass_runevents(s.j);
+        T_ASSERT(!jass_rterror_pending(s.j));
+    }
+    gal_destroy(&s);
+}
+
+/* The real native takes one integer, including when nested in campaign text concatenation. */
+TEST(galaxy, vm_format_number) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg); native text FormatNumber(int number);\n"
+        "text credits(int value) { return \"Credits: \" + FormatNumber(value); }\n"
+        "void main() {\n"
+        "    if (credits(1234567) != \"Credits: 1,234,567\") { TestFail(\"nested format\"); }\n"
+        "    if (FormatNumber(-1234) != \"-1,234\") { TestFail(\"negative format\"); }\n"
+        "    if (FormatNumber(0) != \"0\" || FormatNumber(999) != \"999\") { TestFail(\"small format\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+/* Match the authored animation call, finite replacement limits, and both case modes. */
+TEST(galaxy, vm_replace_word) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native string StringReplaceWord(string s, string word, string replace, int maxCount, bool caseSens);\n"
+        "void main() {\n"
+        "    if (StringReplaceWord(\"Stand Work Start\", \" \", \",\", 0, true) != \"Stand,Work,Start\") { TestFail(\"animation\"); }\n"
+        "    if (StringReplaceWord(\"aAa\", \"a\", \"xx\", 1, false) != \"xxAa\") { TestFail(\"limit\"); }\n"
+        "    if (StringReplaceWord(\"aAa\", \"a\", \"\", -1, true) != \"A\") { TestFail(\"case\"); }\n"
+        "    if (StringReplaceWord(\"aAa\", \"a\", \"xx\", -1, false) != \"xxxxxx\") { TestFail(\"all\"); }\n"
+        "    string src = \"a\"; int i = 0;\n"
+        "    while (i < 11) { src = src + src; i = i + 1; }\n"
+        "    if (StringReplaceWord(src, \"a\", \"aa\", 0, true) != src + src) { TestFail(\"truncation\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+/* CinematicFade's color uses fixed percentages, while Color supplies opaque alpha. */
+TEST(galaxy, vm_color_percentages) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_parse(&s,
+        "native color Color(fixed r, fixed g, fixed b);\n"
+        "native color ColorWithAlpha(fixed r, fixed g, fixed b, fixed a);\n"
+        "color opaque() { return Color(100.0, 50.2, 0.0); }\n"
+        "color alpha() { return ColorWithAlpha(0.0, 100.0, 50.2, 50.2); }\n"
+        "color clear() { return ColorWithAlpha(0.0, 0.0, 0.0, 0.0); }"));
+    LPCSTR names[] = {
+        "opaque",
+        "alpha",
+        "clear"
+    };
+    DWORD values[] = { 0xffff8000u, 0x8000ff80u, 0 };
+    FOR_LOOP(i, 3) {
+        jass_callbyname(s.j, names[i], false);
+        T_ASSERT(!jass_rterror_pending(s.j));
+        T_EQ((DWORD)jass_checkinteger(s.j, -1), values[i]);
+        jass_pop(s.j, 1);
+    }
+    gal_destroy(&s);
+}
+
 TEST(galaxy, vm_local_var_scoping) {
     gal_state_t s = gal_new();
     T_ASSERT(gal_run(&s,
