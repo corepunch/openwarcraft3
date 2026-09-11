@@ -5,6 +5,17 @@
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v') // rawcode; timed Avatar buff that owns immunity and bonuses
 #define BZ_POLYMORPH MAKEFOURCC('A', 'p', 'l', 'y') // rawcode; stock Polymorph ability code
 
+typedef struct {
+    LPCSTR name;
+    DWORD slot;
+} polymorphMoveType_t;
+
+static polymorphMoveType_t const polymorph_move_types[] = {
+    { "fly", 3 },
+    { "amph", 4 },
+    { "float", 5 }
+};
+
 void human_ability_think(LPEDICT thinker);
 
 static LPCSTR human_buff(spell_info_t const *spell, DWORD level) {
@@ -141,10 +152,12 @@ static void invisibility_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     st.entity->s.renderfx |= RF_HIDDEN;
 }
 
+/* Expose the authoritative runtime flag used by order validation and JASS. */
 BOOL S_UnitPolymorphed(LPCEDICT unit) {
     return unit && unit->polymorph.active;
 }
 
+/* Select the authored Ply2-Ply5 form from the target's movement class. */
 static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
     LPCSTR movetp;
     DWORD data_slot = 2; /* Ply2: ground morph unit */
@@ -152,9 +165,11 @@ static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
     if (!target || !target->data.UnitData) return 0;
     movetp = target->data.UnitData->moveTypeName;
     if (movetp) {
-        if (!strcmp(movetp, "fly")) data_slot = 3;       /* Ply3 */
-        else if (!strcmp(movetp, "amph")) data_slot = 4; /* Ply4 */
-        else if (!strcmp(movetp, "float")) data_slot = 5; /* Ply5 */
+        FOR_LOOP(i, sizeof(polymorph_move_types) / sizeof(polymorph_move_types[0]))
+            if (!strcmp(movetp, polymorph_move_types[i].name)) {
+                data_slot = polymorph_move_types[i].slot;
+                break;
+            }
     }
     /* AbilityData stores Ply1..Ply5 in DataA..DataE.  The typed FOURCC view
      * deliberately keeps the first rawcode from Warcraft's unit-list string;
@@ -162,6 +177,7 @@ static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
     return S_SpellDataId(BZ_POLYMORPH, level, data_slot);
 }
 
+/* Reject invalid targets and authored morph forms before spell resources commit. */
 static BOOL polymorph_validate(LPEDICT caster, spellTarget_t st) {
     DWORD level, max_creep_level, form_type;
     UnitBalance_t const *balance;
@@ -175,9 +191,18 @@ static BOOL polymorph_validate(LPEDICT caster, spellTarget_t st) {
     if (st.entity->s.player == PLAYER_NEUTRAL_AGGRESSIVE && max_creep_level && balance &&
         balance->level > (LONG)max_creep_level) return false;
     form_type = polymorph_form_type(st.entity, level);
-    return form_type && G_UnitUI(form_type)->modelFile;
+    if (!form_type) {
+        fprintf(stderr, "WC3 Polymorph: no authored morph form for target %08x\n", st.entity->class_id);
+        return false;
+    }
+    if (!G_UnitUI(form_type)->modelFile) {
+        fprintf(stderr, "WC3 Polymorph: morph form %08x has no model data\n", form_type);
+        return false;
+    }
+    return true;
 }
 
+/* Restore the target's saved presentation and movement state when Polymorph ends. */
 void S_PolymorphRemove(LPEDICT unit) {
     LPGAMECLIENT client;
 
@@ -200,6 +225,7 @@ void S_PolymorphRemove(LPEDICT unit) {
     G_InvalidateUnitPortrait(unit);
 }
 
+/* Apply the authored morph presentation while preserving the target edict and stats. */
 static void polymorph_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level, form_type, buff_code = 0;
     LPCSTR buff;
@@ -213,18 +239,36 @@ static void polymorph_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     level = S_SpellLevel(caster, spell->code);
     form_type = polymorph_form_type(st.entity, level);
     buff = human_buff(spell, level);
-    if (!form_type || !buff) return;
+    if (!form_type) {
+        fprintf(stderr, "WC3 Polymorph: no authored morph form for target %08x\n", st.entity->class_id);
+        return;
+    }
+    if (!buff) {
+        fprintf(stderr, "WC3 Polymorph: ability %08x has no configured buff\n", spell->code);
+        return;
+    }
     memcpy(&buff_code, buff, MIN((size_t)4, strlen(buff)));
     ui = G_UnitUI(form_type);
     balance = G_UnitBalance(form_type);
-    if (!ui->modelFile) return;
+    if (!ui->modelFile) {
+        fprintf(stderr, "WC3 Polymorph: morph form %08x has no model data\n", form_type);
+        return;
+    }
     G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
     model = G_RegisterModel(model_filename);
-    if (!model) return;
+    if (!model) {
+        fprintf(stderr, "WC3 Polymorph: failed to register model '%s' for form %08x\n",
+                model_filename, form_type);
+        return;
+    }
 
     duration = S_SpellDuration(spell->code, level, false);
     unit_addtimedstatus(st.entity, buff, level, duration);
-    if (!G_UnitStatusLevel(st.entity, buff_code)) return;
+    if (!G_UnitStatusLevel(st.entity, buff_code)) {
+        fprintf(stderr, "WC3 Polymorph: failed to apply buff %08x to target %08x\n",
+                buff_code, st.entity->class_id);
+        return;
+    }
 
     if (!st.entity->polymorph.active) {
         st.entity->polymorph.original_model = st.entity->s.model;
