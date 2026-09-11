@@ -229,7 +229,7 @@ FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
 FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code);
 FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code);
-BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, LPDWORD start_time, LPDWORD end_time);
+BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *window);
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT seconds);
 void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level);

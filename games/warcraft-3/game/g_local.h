@@ -841,6 +841,11 @@ typedef struct {
     DWORD end_time;   /* authoritative game time in milliseconds */
 } abilityCooldown_t;
 
+typedef struct {
+    DWORD start_time;
+    DWORD end_time;
+} abilityCooldownWindow_t;
+
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
 
@@ -2102,7 +2107,7 @@ FLOAT G_UnitArmorValue(LPCEDICT ent);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
 FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code);
 FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code);
-BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, LPDWORD start_time, LPDWORD end_time);
+BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *window);
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT seconds);
 void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level);

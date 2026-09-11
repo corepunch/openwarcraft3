@@ -190,11 +190,11 @@ FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code) {
     return (FLOAT)(DWORD)(cooldown->end_time - cooldown->start_time) / 1000.0f;
 }
 
-BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, LPDWORD start_time, LPDWORD end_time) {
+BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *window) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
-    if (!cooldown || (LONG)(cooldown->end_time - G_Time()) <= 0) return false;
-    if (start_time) *start_time = cooldown->start_time;
-    if (end_time) *end_time = cooldown->end_time;
+    if (!cooldown || !window || (LONG)(cooldown->end_time - G_Time()) <= 0) return false;
+    window->start_time = cooldown->start_time;
+    window->end_time = cooldown->end_time;
     return true;
 }
 
