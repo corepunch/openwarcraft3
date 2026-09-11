@@ -10,6 +10,8 @@
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ARMOR         MAKEFOURCC('r', 'a', 'r', 'm')
+#define ID_UPGRADE_EFFECT_MAX_MANA      MAKEFOURCC('r', 'm', 'n', 'x') // fourcc; maximum-mana upgrade effect
+#define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
 static BYTE G_PlacementFlags(LPCSTR list) {
     BYTE flags = 0;
@@ -176,6 +178,18 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                 unit->armor_value += delta;
                 changed = true;
             }
+        } else if (effect == ID_UPGRADE_EFFECT_MAX_MANA) {
+            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+                                G_UpgradeEffectValue(upgrade, i, old_level);
+            if (delta != 0.0f) {
+                unit->mana.max_value = MAX(0.0f, unit->mana.max_value + delta);
+                unit->mana.value = MAX(0.0f, MIN(unit->mana.max_value, unit->mana.value + delta));
+                changed = true;
+            }
+        } else if (effect == ID_UPGRADE_EFFECT_MANA_REGEN) {
+            unit->mana_regen_bonus += G_UpgradeEffectValue(upgrade, i, new_level) -
+                                      G_UpgradeEffectValue(upgrade, i, old_level);
+            changed = true;
         }
     }
     if (changed) G_InvalidateUnitInfoPanel(unit);
