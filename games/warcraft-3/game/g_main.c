@@ -693,7 +693,20 @@ static void G_RunClients(void) {
 }
 
 void G_InvalidateCommands(LPGAMECLIENT client) {
-    if (client) client->commands_dirty = true;
+    if (!client) return;
+    client->commands_dirty = true;
+    /* Shared-control viewers render the owner's production state. Keep their
+     * cards live when the owner changes tech, queue, food, or resources. */
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT viewer = game.clients + i;
+        if (!viewer->connected || viewer == client) continue;
+        FOR_CONTROLLABLE_SELECTED_UNITS(viewer, ent) {
+            if (ent->s.player == client->ps.number) {
+                viewer->commands_dirty = true;
+                break;
+            }
+        }
+    }
 }
 
 static void G_UpdateClientCommandCards(void) {

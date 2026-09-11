@@ -227,6 +227,7 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
+    button->level = level;
     button->active = (BYTE)GetAbilityIndex(ability);
     if (ability_code) {
         button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
