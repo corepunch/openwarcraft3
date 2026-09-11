@@ -57,7 +57,9 @@ void G_WeatherInitMap(void) {
  * reconnects and dropped packets converge without widening entityState_t. */
 static BOOL G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
     DWORD player;
-    if (!unit->inuse || !unit->vertex_color_set || !unit->s.model) return false;
+    /* Vertex colour is authoritative unit state; publish it before model resolution too,
+     * because the client may receive the tint before the unit's presentation model. */
+    if (!unit->inuse || !unit->vertex_color_set) return false;
     if (!client_ent || !client_ent->client) return true;
     player = client_ent->client->ps.number;
     return unit->s.player == player || G_FowPlayerCanSeeEntity(player, unit);
