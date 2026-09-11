@@ -495,6 +495,8 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     co->wake_time = jass_gettime();
     co->yielded = false;
     co->done = false;
+    co->loop_a_index = 0;
+    co->loop_a_index_valid = false;
     co->next = NULL;
     if (context->func) {
         jass_coroutine_pushframe(co,
@@ -891,6 +893,10 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     DWORD now = jass_gettime();
     LPPLAYER previous_player;
     LPEDICT previous_unit;
+    LPJASSVAR loop_index = find_global(jass_root(j), "bj_forLoopAIndex");
+    LONG previous_loop_index = 0;
+    BOOL restore_loop_index = co && co->loop_a_index_valid && loop_index && loop_index->value &&
+        jass_getvarbasetype(loop_index) == jasstype_integer;
 
     if (!co || co->done || co->wake_time > now) {
         return false;
@@ -900,6 +906,14 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     previous_unit = currentunit;
 
     root->current_coroutine = co;
+    if (restore_loop_index) {
+        previous_loop_index = *(LONG *)loop_index->value;
+        /* Restore the captured index while this coroutine resumes; the original shared
+         * global is put back below so its caller continues with its own loop state. */
+        jass_pushinteger(root, co->loop_a_index);
+        jass_copy(root, loop_index, jass_topvalue(root));
+        jass_discard(root, 1);
+    }
     currentplayer = co->state->context.localPlayerState;
     currentunit = co->state->context.unit;
     if (jass_host.CoroutineTrace) {
@@ -921,6 +935,11 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     currentunit = previous_unit;
     currentplayer = previous_player;
     root->current_coroutine = NULL;
+    if (restore_loop_index) {
+        jass_pushinteger(root, previous_loop_index);
+        jass_copy(root, loop_index, jass_topvalue(root));
+        jass_discard(root, 1);
+    }
 
     return true;
 }
@@ -1035,7 +1054,7 @@ static void jass_executetriggercontext(LPJASS j,
                                        LONG eventValue) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
-        jass_startcoroutine(j, &MAKE(JASSCONTEXT,
+        LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = trigger,
                                   .func = action->func,
                                   .unit = unit,
@@ -1045,6 +1064,13 @@ static void jass_executetriggercontext(LPJASS j,
                                   .localPlayerState = currentplayer,
                                   .timer = currenttimer,
                               ));
+        LPJASSVAR loop_index = find_global(j, "bj_forLoopAIndex");
+        /* TriggerExecute defers actions; retain the loop index from queue time instead of
+         * letting every coroutine observe the caller's final shared bj_forLoopAIndex. */
+        if (co && loop_index && loop_index->value && jass_getvarbasetype(loop_index) == jasstype_integer) {
+            co->loop_a_index = *(LONG *)loop_index->value;
+            co->loop_a_index_valid = true;
+        }
     }
 }
 
