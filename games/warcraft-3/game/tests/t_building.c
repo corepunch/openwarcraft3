@@ -1052,7 +1052,9 @@ TEST(wc3_building, building_charge_rejects_short_gold_and_refund_restores_resour
 
 TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge) {
     LPEDICT builder;
+    LPEDICT worker;
     LPEDICT blocker;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
     VECTOR2 requested = { 64.0f, 64.0f };
     VECTOR2 snapped;
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
@@ -1060,6 +1062,12 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
 
+    T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OK);
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), snapped.x, snapped.y);
+    worker->data.UnitAbilities = &abilities;
+    worker->svflags |= SVF_MONSTER;
+    worker->collision = 16.0f;
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OK);
 
     blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), snapped.x, snapped.y);
