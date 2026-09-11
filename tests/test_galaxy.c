@@ -1306,10 +1306,10 @@ TEST(galaxy, smoke_init_globals) {
 
     gal_state_t s = gal_new();
     gal_load_errors = 0;
-    gal_load(s.j, "data/TRaynor01-galaxy/TriggerLibs/GameDataAllNatives.galaxy");
-    gal_load(s.j, "data/TRaynor01-galaxy/TriggerLibs/natives.galaxy");
-    gal_load(s.j, "data/TRaynor01-galaxy/TriggerLibs/NativeLib.galaxy");
-    gal_load(s.j, "data/TRaynor01-galaxy/TriggerLibs/LibertyLib.galaxy");
+    /* Load MapScript.galaxy only: it resolves its includes (NativeLib, LibertyLib, CampaignLib)
+     * via the include-once guard, exactly like galaxy_open().  Loading TriggerLibs separately
+     * would cause MapScript's include directives to re-parse them a second time. */
+    gal_load(s.j, "data/TRaynor01-galaxy/MapScript.galaxy");
     T_ASSERT(gal_load_errors == 0);
 
     jass_rterror_clear(s.j);
