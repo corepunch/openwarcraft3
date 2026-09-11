@@ -75,6 +75,14 @@ All `sv_cheats 1` Warcraft III cheat commands print their result to the issuing 
 hero max
 ```
 
+`hero select` selects the first live controllable Hero owned by the issuing player through the ordinary authoritative selection path. It is useful for headless/GDB campaign diagnostics when the normal mouse selection path is unavailable:
+
+```
+hero select
+```
+
+The command requires `sv_cheats 1` and refreshes the normal selection events, portrait, command card, and client selection snapshot.
+
 The command uses the ordinary Hero XP/level-up path so attribute growth and Hero level events remain authoritative. After leveling, it ensures the Hero has at least one total skill point per Hero level minus already learned Hero ability ranks; existing extra skill points awarded by map scripts are preserved. The command requires `sv_cheats 1` and a selected controllable Hero.
 
 The same selected-Hero command family can restore or directly set current health and mana:
