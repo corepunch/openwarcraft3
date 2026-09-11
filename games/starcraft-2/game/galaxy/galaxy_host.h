@@ -76,6 +76,13 @@ extern void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 extern BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
+/* Actor lifecycle — called when Galaxy scripts create, message, or destroy actors.
+ * actor_id: 1-based index into sc2_gactors[]; unit_id: owning unit or 0. */
+extern void (*sc2_galaxy_on_actor_create)(unsigned actor_id, const char *model,
+                                          unsigned unit_id, float x, float y);
+extern void (*sc2_galaxy_on_actor_send)(unsigned actor_id, const char *msg);
+extern void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
+
 /* Debug-only state inspection for bounded cinematic traces. */
 extern void *sc2_gunits[];
 extern DWORD sc2_gunit_n;

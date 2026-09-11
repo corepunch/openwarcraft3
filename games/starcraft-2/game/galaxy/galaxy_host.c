@@ -78,15 +78,20 @@ void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
+void (*sc2_galaxy_on_actor_create)(unsigned actor_id, const char *model,
+                                   unsigned unit_id, float x, float y);
+void (*sc2_galaxy_on_actor_send)(unsigned actor_id, const char *msg);
+void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
+
 /* -------------------------------------------------------------------------
  * Domain modules — each brings its own state, helpers, and native functions.
  * ------------------------------------------------------------------------- */
 #include "galaxy_trigger.h"
-#include "galaxy_camera.h"
-#include "galaxy_cinematic.h"
 #include "galaxy_point.h"
 #include "galaxy_catalog.h"
 #include "galaxy_unit.h"
+#include "galaxy_camera.h"
+#include "galaxy_cinematic.h"
 #include "galaxy_player.h"
 #include "galaxy_sound.h"
 #include "galaxy_transmission.h"
@@ -125,6 +130,9 @@ void galaxy_reset(void) {
     memset(sc2_uorder_n, 0, sizeof(sc2_uorder_n));
     memset(sc2_gsounds, 0, sizeof(sc2_gsounds));
     sc2_gsound_n = 1;
+    memset(sc2_gactors, 0, sizeof(sc2_gactors));
+    sc2_gactor_n = 0;
+    sc2_last_actor_handle = 0;
     galaxy_loaded_reset();
 }
 
