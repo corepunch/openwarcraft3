@@ -10,6 +10,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#define mkdir_one(path) _mkdir(path)
+#else
+#define mkdir_one(path) mkdir(path, 0775)
+#endif
+
 #ifdef __APPLE__
 #include <ApplicationServices/ApplicationServices.h>
 #endif
@@ -391,7 +398,7 @@ static bool mkdir_p(char const *path) {
     for (p = copy + 1; *p; p++) {
         if (*p == '/') {
             *p = '\0';
-            if (mkdir(copy, 0775) != 0 && errno != EEXIST) {
+            if (mkdir_one(copy) != 0 && errno != EEXIST) {
                 fprintf(stderr, "mkdir %s: %s\n", copy, strerror(errno));
                 free(copy);
                 return false;
@@ -399,7 +406,7 @@ static bool mkdir_p(char const *path) {
             *p = '/';
         }
     }
-    if (mkdir(copy, 0775) != 0 && errno != EEXIST) {
+    if (mkdir_one(copy) != 0 && errno != EEXIST) {
         fprintf(stderr, "mkdir %s: %s\n", copy, strerror(errno));
         free(copy);
         return false;
