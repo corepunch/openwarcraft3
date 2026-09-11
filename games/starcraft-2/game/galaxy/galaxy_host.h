@@ -76,6 +76,7 @@ extern void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float f
 extern void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 extern BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
+extern int (*sc2_galaxy_unit_owner)(void *ent);
 
 /* Actor lifecycle — called when Galaxy scripts create, message, or destroy actors.
  * actor_id: 1-based index into sc2_gactors[]; unit_id: owning unit or 0. */

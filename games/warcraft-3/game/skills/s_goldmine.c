@@ -110,8 +110,8 @@ static void goldmine_debug_log_approach(LPEDICT ent, LPEDICT mine,
             ent->s.number, (LPCSTR)&ent->s.class_id, ent->s.origin.x, ent->s.origin.y, ent->collision,
             mine->s.number, (LPCSTR)&mine->s.class_id, mine->s.origin.x, mine->s.origin.y,
             mine->s.angle, mine->collision, dist, contact, step, footprint_dist,
-            ent->movement.heading, ent->movement.flow_direct, ent->movement.path_valid,
-            ent->movement.path_waypoint.x, ent->movement.path_waypoint.y,
+            ent->movement.heading, ent->movement.flow_direct, ent->movement.path.valid,
+            ent->movement.path.waypoint.x, ent->movement.path.waypoint.y,
             ent->movement.flow_generation, ent->movement.flow_goal_reached,
             ent->movement.flow_unreachable);
 }
@@ -121,7 +121,7 @@ static void goldmine_debug_log_approach(LPEDICT ent, LPEDICT mine,
  * in an unrelated direction while the shared route is still being built. */
 static BOOL gold_route_pending(LPCEDICT worker) {
     return worker && !worker->movement.flow_direct &&
-           !worker->movement.path_valid &&
+           !worker->movement.path.valid &&
            worker->movement.flow_generation == 0;
 }
 

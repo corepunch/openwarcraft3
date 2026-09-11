@@ -8,7 +8,7 @@ WC3 movement keeps target selection, static routing, and interaction behavior se
 order / behavior -> target + interaction range -> routing -> collision-aware step
 ```
 
-`games/warcraft-3/game/g_ai.c` owns per-tick steering and local block-and-slide. `games/warcraft-3/common/routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
+`games/warcraft-3/game/g_ai.c` owns per-tick steering and local block-and-slide. `server/sv_routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
 Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach uses ordinary collision-sized generic movement.
 
@@ -225,3 +225,15 @@ Generic radius-0 point fields are still used for mine entry, resource return, at
 ## See Also
 
 - [Unit Altitude And Support Surfaces](unit-altitude.md) — vertical support surfaces share the WPM terrain classification but are independent of horizontal routing.
+
+### Shared SC2 movement consumers
+
+SC2 and WC3 include the same `server/sv_routing.c` in their server worlds.
+`CM_AccelerateRoute` retains the mover-owned waypoint; `CM_SlideRoute` is WC3's
+bounded generic left/right deflection loop extracted from `unit_desired_heading`.
+WC3 retains its speed-priority ring limit, resource-worker policy, collision
+callbacks, and turn-rate handling. SC2 calls the shared search for blocked static
+steps instead of repeatedly rejecting the same flow direction at a corner.
+See [SC2 selection and control](../starcraft-2/selection-and-control.md) for the
+separate snapshot-precision defect that made both ground and cinematic movement
+appear to advance in whole cells.

@@ -29,7 +29,7 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 #pragma GCC visibility push(hidden)
 #include "common/world.c"
 #include "common/world_w3.c"
-#include "games/warcraft-3/common/routing.c"
+#include "server/sv_routing.c"
 #pragma GCC visibility pop
 
 #undef FS_ReadFile

@@ -146,7 +146,7 @@ TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
-WORLD_CORE_SRCS := common/world.c
+WORLD_CORE_SRCS := common/world.c server/sv_routing.c server/routing.h
 FONT_SRC := renderer/conchars.pcx
 FONT_HEADER := renderer/conchars_sysfont.h
 FONT_SYMBOL := conchars_sysfont_pcx
@@ -176,7 +176,7 @@ endef
 define app_schema
 $(1): $(2) | $$(BIN_DIR) install-share
 	@echo "[$(3)]"
-	@$$(call UNITY,client server common sound $(6),! -name 'stb_vorbis.c') | \
+	@$$(call UNITY,client server common sound $(6),! -name 'stb_vorbis.c' ! -name 'sv_routing.c') | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
 endef
 
@@ -218,7 +218,7 @@ diag: clean
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-APP_SRCS          := $(shell find client server common sound -name '*.c')
+APP_SRCS          := $(filter-out server/sv_routing.c,$(shell find client server common sound -name '*.c'))
 RENDERER_BASE_DEPS  := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
 RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
 SERVER_GAME_SRCS  := server/sv_quest.c

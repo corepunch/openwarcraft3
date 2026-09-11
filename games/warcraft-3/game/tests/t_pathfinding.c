@@ -314,9 +314,9 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
     goal = make_waypoint(128.0f, 128.0f);
 
     T_EQ(CM_RequestHeatmapForRadius(goal, 0.0f), 0);
-    CM_ProcessPathJobs(WC3_PATH_WORK_BUDGET);
+    CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
     if (!CM_RequestHeatmapForRadius(goal, 0.0f))
-        CM_ProcessPathJobs(WC3_PATH_WORK_BUDGET);
+        CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
     T_ASSERT(CM_RequestHeatmapForRadius(goal, 0.0f) != 0);
 }
 

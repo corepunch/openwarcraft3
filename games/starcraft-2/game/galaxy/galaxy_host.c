@@ -75,6 +75,7 @@ void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
 void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
+int (*sc2_galaxy_unit_owner)(void *ent);
 
 void (*sc2_galaxy_on_actor_create)(unsigned actor_id, const char *model,
                                    unsigned unit_id, float x, float y);

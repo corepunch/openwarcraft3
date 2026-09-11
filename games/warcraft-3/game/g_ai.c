@@ -57,8 +57,8 @@ FLOAT unit_movedistance(LPEDICT self) {
  * immovable obstacles: walking into one never displaces it (the WC3 invariant
  * that the old post-move push solver violated). */
 
-#define MOVE_SLIDE_STEP        (15.0f * (FLOAT)M_PI / 180.0f)  /* deflection step */
-#define MOVE_SLIDE_RINGS       6                               /* up to +/- 90 deg */
+#define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
+#define MOVE_SLIDE_RINGS BZ_ROUTE_SLIDE_RINGS
 #define MOVE_SLIDE_RINGS_YIELD 2                               /* +/- 30 deg: faster unit holds its line */
 #define MOVE_WORKER_QUEUE_TICKS 4                              /* same-stream blocker: queue before passing */
 #define MOVE_WORKER_ESCAPE_TICKS 8                             /* widen bounded escape corridor after this */
@@ -185,6 +185,9 @@ static BOOL move_is_valid(LPEDICT self, LPCVECTOR2 cand) {
     return move_is_valid_policy(self, cand, MOVE_COLLIDE_UNITS);
 }
 
+/* Shared steering uses the same static-only policy as resource interaction movement. */
+static BOOL move_static_is_valid(LPEDICT self, LPCVECTOR2 cand) { return move_is_valid_policy(self, cand, MOVE_IGNORE_UNITS); }
+
 /* Public: would 'pos' be a free standing spot for 'self' (terrain + units)?
  * Used by the move arrival to avoid snapping a unit onto an occupied goal. */
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos) {
@@ -221,7 +224,7 @@ static void unit_moveindirection_policy(LPEDICT self,
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && !self->movement.path_valid && self->movement.flow_generation == 0)
+    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0)
         return;
 
     FLOAT const dist = unit_movedistance(self);
@@ -386,16 +389,9 @@ static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist,
         unit_current_speed(self) > unit_current_speed(b)) {
         max_rings = MOVE_SLIDE_RINGS_YIELD;
     }
-    for (int ring = 1; ring <= max_rings; ring++) {
-        for (int sign = 1; sign >= -1; sign -= 2) {
-            FLOAT const angle = angle_wrap(goal_angle + sign * ring * MOVE_SLIDE_STEP);
-            VECTOR2 const cand = Vector2_mad(&self->s.origin2, dist,
-                                             &MAKE(VECTOR2, cosf(angle), sinf(angle)));
-            if (move_is_valid_policy(self, &cand, collision_policy))
-                return angle;
-        }
-    }
-    return goal_angle;  /* boxed in: aim at the goal, hold (move step will fail) */
+    ROUTESLIDE slide = { .ent = self, .angle = goal_angle, .dist = dist, .rings = max_rings,
+        .valid = collision_policy == MOVE_IGNORE_UNITS ? move_static_is_valid : move_is_valid };
+    return CM_SlideRoute(&slide);
 }
 
 static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir, moveAvoidPolicy_t policy) {
@@ -432,25 +428,9 @@ static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point
  * route progress on each mover instead of rebuilding from its current point. */
 static BOOL unit_accel_direction_to_point(LPEDICT self, LPCVECTOR2 target,
                                           FLOAT radius, LPVECTOR2 dir) {
-    FLOAT const reached = CM_PathCellWorldSize();
-
-    if (!self || !target || !dir)
-        return false;
-    if (self->movement.path_valid &&
-        (Vector2_distance(&self->movement.path_target, target) >= 1.0f ||
-         fabsf(self->movement.path_radius - radius) >= 0.01f ||
-         Vector2_distance(&self->s.origin2, &self->movement.path_waypoint) <= reached ||
-         !CM_LineIsWalkableForRadius(&self->s.origin2, &self->movement.path_waypoint, radius)))
-        self->movement.path_valid = false;
-    if (!self->movement.path_valid) {
-        pathAccelParams_t params = { &self->s.origin2, target, radius };
-        if (!CM_FindPathWaypoint(&params, &self->movement.path_waypoint)) return false;
-        self->movement.path_target = *target;
-        self->movement.path_radius = radius;
-        self->movement.path_valid = true;
-    }
-    *dir = Vector2_sub(&self->movement.path_waypoint, &self->s.origin2);
-    return true;
+    if (!self || !target || !dir) return false;
+    pathAccelParams_t params = { &self->s.origin2, target, radius };
+    return CM_AccelerateRoute(&self->movement.path, &params, dir);
 }
 
 static BOOL unit_accel_direction(LPEDICT self, FLOAT radius, LPVECTOR2 dir) {
@@ -484,7 +464,7 @@ BOOL unit_changeangle_towards_point_ignore_units(LPEDICT self, LPCVECTOR2 point)
      * collision-sized mover-owned A* accelerator used while shared fields are
      * pending.  Live units remain ignored by the steering/move policy. */
     if (CM_LineIsWalkableForRadius(&self->s.origin2, point, self->collision)) {
-        self->movement.path_valid = false;
+        self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
     } else if (!unit_accel_direction_to_point(self, point, self->collision, &dir)) {
@@ -516,7 +496,7 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
     if (CM_LineIsWalkableForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius)) {
-        self->movement.path_valid = false;
+        self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
@@ -530,7 +510,7 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
             unit_apply_heading(self, &dir, policy);
             return;
         }
-        self->movement.path_valid = false;
+        self->movement.path.valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
              * the owning behavior.  Interaction orders use a point field whose
@@ -597,7 +577,7 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
     if (CM_LineIsWalkableForRadius(&self->s.origin2,
                                    &self->goalentity->s.origin2,
                                    radius)) {
-        self->movement.path_valid = false;
+        self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
@@ -609,7 +589,7 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
             unit_apply_heading(self, &dir, policy);
             return;
         }
-        self->movement.path_valid = false;
+        self->movement.path.valid = false;
 
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             self->movement.flow_goal_reached = true;

@@ -14,7 +14,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 4 // version; svc_loading_screen replaces binary loading configstrings
+#define BZ_PROTOCOL_VERSION 5 // version; entity origins and selection radii retain world-unit float precision
 
 typedef void const *LPCVOID;
 typedef struct sizeBuf_s *LPSIZEBUF;
