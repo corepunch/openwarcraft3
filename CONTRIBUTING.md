@@ -105,11 +105,17 @@ Key points:
 
 ## Build and Linking
 
-The Linux CI build and test jobs run in the minimal `ubuntu:24.04` container. Their shared YAML dependency step installs the
-build tools and libraries with plain APT commands before checkout (which needs Git and CA certificates). Container steps run as
-root, so no `sudo` is needed. `--no-install-recommends` keeps optional packages out. The host's preinstalled software and APT
-repositories do not enter the container: this avoids failures such as CI #1487, where the host's unrelated Google Chrome index
-failed checksum verification before compilation. Keep build dependencies explicit here rather than relying on runner contents.
+The Linux CI build and test jobs use `ghcr.io/corepunch/open-realm-ci:ubuntu-24.04`, built from
+`.github/docker/ci/Dockerfile`. Keep Linux build dependencies in that Dockerfile rather than installing them in each job or relying
+on software preinstalled on the GitHub-hosted runner. The `prepare-linux-image` job checks only that Dockerfile: when it changes on
+`main`, CI builds and publishes the replacement image before the Linux test/build jobs start; ordinary commits reuse the existing
+image without running APT. Pull requests that change the Dockerfile build a local candidate and run the Linux tests/build inside it,
+but do not publish it. `.github/workflows/ci-image-refresh.yml` also rebuilds the published image once per day with `--pull --no-cache`
+so unchanged Dockerfiles still pick up current Ubuntu base and APT security updates; it can also be run manually. The same published
+image is used for the Linux release build. `--no-install-recommends` keeps optional packages out, and deleting `/var/lib/apt/lists`
+keeps the published image smaller. The isolated Ubuntu image also avoids host APT
+repository failures such as CI #1487. The Flatpak release path uses Flathub's matching `freedesktop-25.08` build image instead of
+installing Flatpak tooling with APT on the runner.
 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.

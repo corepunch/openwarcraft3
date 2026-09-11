@@ -46,7 +46,7 @@ if [ ! -f "$binary" ]; then
     exit 1
 fi
 if ! command -v r2 >/dev/null 2>&1; then
-    echo "ability-r2: r2 is not installed; install radare2 first" >&2
+    echo "ability-r2: r2 is not installed; install  radare2 first" >&2
     exit 1
 fi
 
