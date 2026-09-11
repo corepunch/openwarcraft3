@@ -2604,6 +2604,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].modal_flags = WC3_MODAL_CLIENT | WC3_MODAL_QUEST;
     game.clients[0].quest_dialog_open = true;
     T_ASSERT(WriteGame(filename));
+    level.cinefilter.displayed = true;
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
@@ -2640,6 +2641,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     memset(&level.timeofday, 0, sizeof(level.timeofday));
     memset(&level.environment_fog, 0, sizeof(level.environment_fog));
     T_ASSERT(ReadGame(filename));
+    T_ASSERT(!level.cinefilter.displayed);
     /* The sleeping unit's persistent ACsp overlay is a linked, non-selectable
      * edict and is included in the raw world query after save/load. */
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 4);
