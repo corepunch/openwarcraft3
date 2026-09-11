@@ -67,6 +67,45 @@ After installation, the main Warcraft III target built successfully:
 make -j2 openwarcraft3
 ```
 
+## Headless Warcraft III campaign runs
+
+The SDL client still needs an X11 display even when no physical desktop is
+available. The sandbox uses Xvfb with software OpenGL:
+
+```sh
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+```
+
+Run the client through `xvfb-run`, hide the window, and bound execution with
+`+com_frame_limit`:
+
+```sh
+xvfb-run -a env SDL_VIDEODRIVER=x11 LIBGL_ALWAYS_SOFTWARE=1 \
+  build/bin/openwarcraft3 -data 'data/warcraft-3' -roc \
+  +set vid_hidden 1 +set sv_cheats 1 \
+  +map 'Maps/Campaign/Prologue01.w3m' \
+  +com_frame_limit 1800
+```
+
+Commands that must run after the campaign intro are placed in a temporary
+config and executed after the map command. The config contains `camera edge 0`,
+approximately 900 `wait` commands for the intro, then the diagnostic actions:
+
+```text
+camera edge 0
+hero select
+smartpoint -5056 -1344
+camera selected
+```
+
+`camera edge 0` prevents local mouse-edge scrolling from moving the viewport;
+`camera selected` places the view on the selected Hero after the move. This
+sequence was used to verify the Prologue01 Circle of Power transition. The
+bounded log showed the Circle receiving team 15, reaching the renderer as
+`team=15`, and loading the team-15 texture. `hero select` requires
+`sv_cheats 1` and selects the first live controllable Hero for headless/GDB
+diagnostics.
+
 ## Optional FFmpeg support
 
 The default build does not link FFmpeg. To enable Warcraft III pre-rendered
