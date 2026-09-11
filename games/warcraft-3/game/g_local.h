@@ -1037,6 +1037,8 @@ struct edict_s {
     char animation_request[WC3_ANIMATION_REQUEST_SIZE];
     char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
+    COLOR32 vertex_color;
+    BOOL vertex_color_set;
     umove_t *currentmove;
     unitRace_t race;
     FLOAT wait;

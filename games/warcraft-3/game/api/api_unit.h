@@ -236,11 +236,16 @@ DWORD SetUnitBlendTime(LPJASS j) {
     return 0;
 }
 DWORD SetUnitVertexColor(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG red = jass_checkinteger(j, 2);
-    //LONG green = jass_checkinteger(j, 3);
-    //LONG blue = jass_checkinteger(j, 4);
-    //LONG alpha = jass_checkinteger(j, 5);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG red = jass_checkinteger(j, 2);
+    LONG green = jass_checkinteger(j, 3);
+    LONG blue = jass_checkinteger(j, 4);
+    LONG alpha = jass_checkinteger(j, 5);
+    if (whichUnit) {
+        whichUnit->vertex_color = MAKE(COLOR32,
+            BZ_CLAMP_U8(red), BZ_CLAMP_U8(green), BZ_CLAMP_U8(blue), BZ_CLAMP_U8(alpha));
+        whichUnit->vertex_color_set = true;
+    }
     return 0;
 }
 DWORD QueueUnitAnimation(LPJASS j) {

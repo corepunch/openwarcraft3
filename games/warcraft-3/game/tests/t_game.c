@@ -2841,6 +2841,23 @@ TEST(wc3_save, field_origin_round_trip) {
     T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
 }
 
+TEST(wc3_save, field_vertex_tint_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-field-vertex-tint.bin";
+    LPEDICT unit;
+
+    reset_entities();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    unit->vertex_color = MAKE(COLOR32, 11, 22, 33, 0);
+    unit->vertex_color_set = true;
+    T_ASSERT(WriteGame(filename));
+    unit->vertex_color = COLOR32_WHITE; unit->vertex_color_set = false;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(unit->vertex_color_set);
+    T_EQ(unit->vertex_color.r, 11); T_EQ(unit->vertex_color.g, 22);
+    T_EQ(unit->vertex_color.b, 33); T_EQ(unit->vertex_color.a, 0);
+    remove(filename);
+}
+
 TEST(wc3_save, construction_payment_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
     LPEDICT unit;

@@ -705,7 +705,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
                                const mdxModel_t *model)
 {
     BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
-    COLOR32 const color = entity->tint.a ? entity->tint : COLOR32_WHITE;
+    COLOR32 const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
     VECTOR4 const tint = {
         BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
         BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)

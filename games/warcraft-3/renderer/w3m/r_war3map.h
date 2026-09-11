@@ -3,6 +3,7 @@
 
 #include "renderer/r_local.h"
 #include "renderer/r_camera_height.h"
+#include "games/warcraft-3/common/terrain.h"
 #include "r_terrain_layers.h"
 
 #define BZ_WC3_NO_CLIFF_TEXTURE 15 // index; W3E's non-cliff corner sentinel; excluded from cliff texture selection

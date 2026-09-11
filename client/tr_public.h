@@ -156,7 +156,8 @@ typedef struct {
     LPCTEXTURE shadow;
     RECT shadow_rect;
 #endif
-    COLOR32 tint;  /* optional per-instance model RGBA; alpha 0 = unmodified/white */
+    COLOR32 tint;  /* optional per-instance model RGBA */
+    BOOL tint_valid; /* distinguishes explicit alpha 0 from an unset tint */
     COLOR32 indicator; /* optional transient entity ground-ring RGBA; alpha 0 = none */
 } renderEntity_t;
 

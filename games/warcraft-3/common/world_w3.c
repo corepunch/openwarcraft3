@@ -1,4 +1,5 @@
 #include "common/common.h"
+#include "games/warcraft-3/common/terrain.h"
 #include "common/ui_constants.h"
 #include <float.h>
 

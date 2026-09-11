@@ -286,6 +286,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_GROUND_SURFACE) re.flags |= RF_GROUND_SURFACE;
     re.radius = ent->current.radius;
     re.ground_offset = ent->current.ground_offset;
+    re.tint_valid = ent->tint_valid;
+    re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;

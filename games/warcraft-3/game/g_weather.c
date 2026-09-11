@@ -53,17 +53,29 @@ void G_WeatherInitMap(void) {
     }
 }
 
-/* Serialize the authoritative weather set into the per-frame game datagram so
- * reconnects and dropped packets converge without renderer commands. */
+/* Serialize authoritative presentation state into the per-frame game datagram so
+ * reconnects and dropped packets converge without widening entityState_t. */
+static BOOL G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
+    DWORD player;
+    if (!unit->inuse || !unit->vertex_color_set || !unit->s.model) return false;
+    if (!client_ent || !client_ent->client) return true;
+    player = client_ent->client->ps.number;
+    return unit->s.player == player || G_FowPlayerCanSeeEntity(player, unit);
+}
+
 DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
-    DWORD count = 0;
+    DWORD weather_count = 0, tint_count = 0;
+    DWORD const tint_wire_size = sizeof(USHORT) + sizeof(COLOR32);
     BYTE *out = data;
     USHORT wire_count;
+    BOOL emit_tints;
 
-    (void)ent;
     if (!data || size < sizeof(wire_count)) return 0;
-    FOR_LOOP(i, MAX_WEATHER_EFFECTS) if (level.weather_effects[i].inuse) count++;
-    wire_count = (USHORT)count;
+    FOR_LOOP(i, MAX_WEATHER_EFFECTS) if (level.weather_effects[i].inuse) weather_count++;
+    FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
+    emit_tints = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t) +
+        sizeof(USHORT) + tint_count * tint_wire_size <= size;
+    wire_count = (USHORT)weather_count | (emit_tints ? BZ_GAME_DATAGRAM_ENTITY_TINTS : 0);
     memcpy(out, &wire_count, sizeof(wire_count));
     out += sizeof(wire_count);
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) {
@@ -75,6 +87,19 @@ DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
         if ((DWORD)(out - data) + sizeof(state) > size) return 0;
         memcpy(out, &state, sizeof(state));
         out += sizeof(state);
+    }
+    if (emit_tints) {
+        USHORT wire_tint_count = (USHORT)tint_count;
+        memcpy(out, &wire_tint_count, sizeof(wire_tint_count));
+        out += sizeof(wire_tint_count);
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT unit = &g_edicts[i];
+            USHORT number;
+            if (!G_ClientReceivesVertexColor(ent, unit)) continue;
+            number = (USHORT)unit->s.number;
+            memcpy(out, &number, sizeof(number)); out += sizeof(number);
+            memcpy(out, &unit->vertex_color, sizeof(unit->vertex_color)); out += sizeof(unit->vertex_color);
+        }
     }
     return (DWORD)(out - data);
 }

@@ -25,6 +25,7 @@
 #include <math.h>
 #include "test.h"
 #include "../g_local.h"
+#include "games/warcraft-3/common/terrain.h"
 
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
