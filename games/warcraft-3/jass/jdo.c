@@ -1057,7 +1057,7 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
 static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
     FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
         LPPLAYER player = jass_eventplayer(params->unit);
-        jass_startcoroutine(j, &MAKE(JASSCONTEXT,
+        LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = params->trigger,
                                   .func = action->func,
                                   .unit = params->unit,
