@@ -1,4 +1,10 @@
 /* galaxy_sound.h — sound and soundtrack natives */
+
+#define MAX_GALAXY_SOUNDS 256  /* links; bounds SoundLink handles retained by live Galaxy scripts */
+typedef struct { char id[96]; LONG asset; } sc2GSound_t;
+static sc2GSound_t sc2_gsounds[MAX_GALAXY_SOUNDS];
+static LONG sc2_gsound_n = 1;
+
 static DWORD sc2_SoundLink(LPJASS j) {
     LPCSTR id = jass_checkstring(j, 1);
     LONG asset = jass_checkinteger(j, 2), h;

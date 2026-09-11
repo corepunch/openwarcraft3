@@ -56,63 +56,49 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
 }
 
 /* -------------------------------------------------------------------------
- * Trigger table — integer handles mapped to Galaxy function names.
- * Unit, point, camera handle tables — reset per map load via galaxy_reset().
+ * Callbacks into g_sc2.c — set during SC2_InitGalaxyHost()
  * ------------------------------------------------------------------------- */
-#define MAX_SC2_TRIGGERS  512
-#define MAX_GALAXY_UNITS  256
-#define MAX_GALAXY_POINTS 4096
-#define MAX_GALAXY_CAMS   64
+void (*sc2_galaxy_on_camera)(float target_x, float target_y,
+                             float yaw, float pitch,
+                             float dist, float fov, float height_offset, float duration);
+void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
+void (*sc2_galaxy_on_fade)(float alpha, float duration);
+float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
+void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
+void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
+                                   float x, float y, float angle);
 
-typedef struct { LONG id; LPCSTR func; BOOL mapinit; BOOL wrapper_conds[2]; } sc2trig_t;
-static sc2trig_t sc2_trigs[MAX_SC2_TRIGGERS];
-static DWORD sc2_trig_n;
-static LONG  sc2_trig_next_id = 1;
+BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
+    float *tx, float *ty, float *tz,
+    float *pitch, float *yaw, float *dist, float *fov, float *height_offset);
+BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
+const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
+void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
+void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
+BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
+BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
-void *sc2_gunits[MAX_GALAXY_UNITS];
-DWORD sc2_gunit_n;
-LONG  sc2_last_unit_handle;
+/* -------------------------------------------------------------------------
+ * Domain modules — each brings its own state, helpers, and native functions.
+ * ------------------------------------------------------------------------- */
+#include "galaxy_trigger.h"
+#include "galaxy_camera.h"
+#include "galaxy_cinematic.h"
+#include "galaxy_unit.h"
+#include "galaxy_point.h"
+#include "galaxy_player.h"
+#include "galaxy_sound.h"
+#include "galaxy_transmission.h"
+#include "galaxy_catalog.h"
+#include "galaxy_game.h"
+#include "galaxy_ui.h"
+#include "galaxy_techtree.h"
+#include "galaxy_actor.h"
+#include "galaxy_math.h"
 
-typedef struct { FLOAT x, y; } sc2GPoint_t;
-static sc2GPoint_t sc2_gpoints[MAX_GALAXY_POINTS];
-static LONG sc2_gpoint_n = 1;  /* 1-based; 0 = null handle */
-
-typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov, height; } sc2GCam_t;
-static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
-static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
-
-/* Cargo tracking — per-unit list of cargo unit handles. */
-#define MAX_CARGO_PER_UNIT 16
-/* Bit flag ORed into a unitgroup handle to mark it as a cargo-group reference.
- * The lower bits encode the transport unit handle (max 256, well below 0x40000000). */
-#define CARGO_GROUP_FLAG   ((LONG)0x40000000)
-static LONG sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
-static LONG sc2_gcargo_n[MAX_GALAXY_UNITS];
-static LONG sc2_last_cargo_handle;
-
-/* AbilityCommand handle table — stores ability name + command index. */
-#define MAX_GALAXY_ABILCMDS 1024
-typedef struct { char ability[64]; LONG cmd_idx; } sc2GAbilCmd_t;
-static sc2GAbilCmd_t sc2_gabilcmds[MAX_GALAXY_ABILCMDS];
-static LONG sc2_gabilcmd_n = 1; /* 1-based; 0 = null */
-
-/* Order handle table — stores (abilcmd_h, target_pt_h) per issued order. */
-#define MAX_GALAXY_ORDERS 1024
-typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
-static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
-static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
-
-#define MAX_UNIT_ORDERS 8 // orders; enough for generated cutscene queues; bounds per-unit storage
-#define SC2_CARGO_DROP_SPACING 1.1f // map units; separates the two-row cinematic unload formation
-typedef struct { char ability[64]; FLOAT x, y; BOOL started; } sc2GUnitOrder_t;
-static sc2GUnitOrder_t sc2_uorders[MAX_GALAXY_UNITS][MAX_UNIT_ORDERS];
-static LONG sc2_uorder_n[MAX_GALAXY_UNITS];
-
-#define MAX_GALAXY_SOUNDS 256 // links; bounds SoundLink handles retained by live Galaxy scripts
-typedef struct { char id[96]; LONG asset; } sc2GSound_t;
-static sc2GSound_t sc2_gsounds[MAX_GALAXY_SOUNDS];
-static LONG sc2_gsound_n = 1;
-
+/* -------------------------------------------------------------------------
+ * VM lifecycle — resets all domain state and drives the JASS VM.
+ * ------------------------------------------------------------------------- */
 /* Defined in jdo.c — not part of the public JASS API; owned by this subsystem. */
 void galaxy_loaded_reset(void);
 
@@ -142,55 +128,6 @@ void galaxy_reset(void) {
     galaxy_loaded_reset();
 }
 
-/* Fire a named Galaxy trigger function with the Galaxy convention (testConds=false, runActions=true).
- * Galaxy trigger functions have signature `bool f(bool testConds, bool runActions)`.
- * We compile a thin wrapper so jass_startcoroutinebyname (no args) correctly enters with args. */
-static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOOL as_coroutine) {
-    LPJASS root = jass_getroot(j);
-    char name[128];
-    /* Encode testConds in the wrapper name so each variant is compiled at most once. */
-    snprintf(name, sizeof(name), "__trig_%llx_%d",
-             (unsigned long long)(uintptr_t)funcname, testConds ? 1 : 0);
-
-    /* Find the trigger entry to check/set the compiled flag. */
-    sc2trig_t *trig = NULL;
-    for (DWORD i = 0; i < sc2_trig_n; i++) {
-        if (sc2_trigs[i].func == funcname) { trig = &sc2_trigs[i]; break; }
-    }
-    BOOL already = trig && trig->wrapper_conds[testConds ? 1 : 0];
-    if (!already) {
-        char code[512];
-        snprintf(code, sizeof(code), "void %s() { %s(%s, true); }",
-                 name, funcname, testConds ? "true" : "false");
-        char *buf = strdup(code);
-        /* Earlier unsupported calls are logged where they occur; they must not be attributed to this wrapper parse. */
-        jass_rterror_clear(root);
-        BOOL ok = jass_dobuffer_ex(root, buf, JASS_MODE_GALAXY);
-        free(buf);
-        if (!ok || jass_rterror_pending(root)) {
-            fprintf(stderr, "sc2_fire_trigger_func: wrapper compile error for %s: %s\n",
-                    funcname, jass_rterror_message(root));
-            jass_rterror_clear(root);
-            return;
-        }
-        if (trig) trig->wrapper_conds[testConds ? 1 : 0] = true;
-    }
-#ifdef SC2_DEBUG_CUTSCENE
-    fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
-#endif
-    if (as_coroutine) {
-        jass_startcoroutinebyname(root, name);
-    } else {
-        if (!jass_callcoroutinebyname(root, name))
-            jass_callbyname(root, name, false);
-        if (jass_rterror_pending(root)) {
-            fprintf(stderr, "galaxy trigger %s: runtime error: %s\n",
-                    funcname, jass_rterror_message(root));
-            jass_rterror_clear(root);
-        }
-    }
-}
-
 void galaxy_fire_mapinit(LPJASS j) {
     fprintf(stderr, "galaxy_fire_mapinit: %u triggers registered, firing MapInit\n", sc2_trig_n);
     for (DWORD i = 0; i < sc2_trig_n; i++) {
@@ -202,76 +139,6 @@ void galaxy_fire_mapinit(LPJASS j) {
     jass_runevents(j);
 }
 
-/* -------------------------------------------------------------------------
- * Callbacks into g_sc2.c — set during SC2_InitGalaxyHost()
- * ------------------------------------------------------------------------- */
-void (*sc2_galaxy_on_camera)(float target_x, float target_y,
-                             float yaw, float pitch,
-                             float dist, float fov, float height_offset, float duration);
-void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
-void (*sc2_galaxy_on_fade)(float alpha, float duration);
-float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
-void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
-void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
-                                   float x, float y, float angle);
-
-BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
-    float *tx, float *ty, float *tz,
-    float *pitch, float *yaw, float *dist, float *fov, float *height_offset);
-BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
-const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
-void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
-void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
-BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
-BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
-
-static void sc2_pop_unit_order(LONG unit_h) {
-    LONG *count = &sc2_uorder_n[unit_h - 1];
-    if (--*count > 0)
-        memmove(&sc2_uorders[unit_h - 1][0], &sc2_uorders[unit_h - 1][1], sizeof(sc2GUnitOrder_t) * *count);
-}
-
-/* Galaxy append orders begin only after the active movement reports completion. */
-static void sc2_run_unit_orders(void) {
-    for (LONG unit_h = 1; unit_h <= (LONG)sc2_gunit_n; unit_h++) {
-        LONG *count = &sc2_uorder_n[unit_h - 1];
-        void *ent = sc2_gunits[unit_h - 1];
-        while (*count > 0) {
-            sc2GUnitOrder_t *ord = &sc2_uorders[unit_h - 1][0];
-            if (!strcmp(ord->ability, "move")) {
-                if (!ord->started) {
-                    if (ent && sc2_galaxy_unit_move) sc2_galaxy_unit_move(ent, ord->x, ord->y);
-                    ord->started = true;
-                    break;
-                }
-                if (ent && sc2_galaxy_unit_is_moving && sc2_galaxy_unit_is_moving(ent)) break;
-                sc2_pop_unit_order(unit_h);
-                continue;
-            }
-            if (!strcmp(ord->ability, "SpecOpsDropshipTransport")) {
-                LONG cargo_n = sc2_gcargo_n[unit_h - 1];
-                for (LONG i = 0; i < cargo_n; i++) {
-                    LONG cargo_h = sc2_gcargo[unit_h - 1][i];
-                    void *cargo = (cargo_h > 0 && cargo_h <= (LONG)sc2_gunit_n) ? sc2_gunits[cargo_h - 1] : NULL;
-                    FLOAT x = ord->x + ((FLOAT)(i % 3) - 1.0f) * SC2_CARGO_DROP_SPACING;
-                    FLOAT y = ord->y + (0.75f + (FLOAT)(i / 3) * SC2_CARGO_DROP_SPACING);
-                    if (cargo && sc2_galaxy_unit_set_position)
-                        sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
-                }
-#ifdef SC2_DEBUG_CUTSCENE
-                fprintf(stderr, "UnitIssueOrder: unloaded %ld cargo units at (%.1f,%.1f)\n",
-                        (long)cargo_n, ord->x, ord->y);
-#endif
-                sc2_gcargo_n[unit_h - 1] = 0;
-            }
-            sc2_pop_unit_order(unit_h);
-        }
-    }
-}
-
-/* -------------------------------------------------------------------------
- * VM lifecycle wrappers — g_sc2.c calls these instead of jass_* directly.
- * ------------------------------------------------------------------------- */
 LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
                    DWORD  (*gettime)(void),
                    HANDLE (*memalloc)(long),
@@ -332,21 +199,6 @@ void galaxy_tick(LPJASS vm) {
         jass_rterror_clear(vm);
     }
 }
-
-#include "galaxy_math.h"
-#include "galaxy_trigger.h"
-#include "galaxy_camera.h"
-#include "galaxy_cinematic.h"
-#include "galaxy_unit.h"
-#include "galaxy_point.h"
-#include "galaxy_player.h"
-#include "galaxy_sound.h"
-#include "galaxy_transmission.h"
-#include "galaxy_catalog.h"
-#include "galaxy_game.h"
-#include "galaxy_ui.h"
-#include "galaxy_techtree.h"
-#include "galaxy_actor.h"
 
 /* -------------------------------------------------------------------------
  * Native table
