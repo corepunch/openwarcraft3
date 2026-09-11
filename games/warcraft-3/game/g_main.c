@@ -955,10 +955,12 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
     return evt;
 }
 
-GAMEEVENT *G_PublishEventWithPoint(LPEDICT edict, EVENTTYPE type, LPEDICT source, LONG value, LPCVECTOR2 point) {
-    GAMEEVENT *evt = G_PublishEventWithValue(edict, type, source, value);
-    if (evt && point) {
-        evt->point = *point;
+GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params) {
+    GAMEEVENT *evt;
+    if (!params) return NULL;
+    evt = G_PublishEventWithValue(params->edict, params->type, params->source, params->value);
+    if (evt && params->point) {
+        evt->point = *params->point;
         evt->has_point = true;
     }
     return evt;

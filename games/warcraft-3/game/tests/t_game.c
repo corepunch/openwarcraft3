@@ -3040,7 +3040,9 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     LPEVENT saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
-    GAMEEVENT *queued = G_PublishEventWithPoint(subject, EVENT_UNIT_IN_RANGE, source, (LONG)MAKEFOURCC('R','h','m','e'), &point);
+    GAMEEVENT *queued = G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = subject, .type = EVENT_UNIT_IN_RANGE, .source = source,
+        .value = (LONG)MAKEFOURCC('R','h','m','e'), .point = &point });
     queued->responseTo = saved_handler;
     T_ASSERT(WriteGame(filename));
     level.events.read = level.events.write; memset(level.events.queue, 0, sizeof(level.events.queue));
@@ -3526,8 +3528,9 @@ TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
         "  call TriggerAddAction(t, function OnSpell)\n"
         "endfunction\n"));
 
-    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, NULL,
-                            (LONG)MAKEFOURCC('A','E','b','l'), &point);
+    G_PublishEventWithPoint(&(gameEventPointParams_t){
+        .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = (LONG)MAKEFOURCC('A','E','b','l'),
+        .point = &point });
     G_RunEvents();
     jass_runevents(level.vm);
     T_ASSERT(WriteGame(filename));

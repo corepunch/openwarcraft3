@@ -463,10 +463,10 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	T_ASSERT(image->aiflags & AI_ILLUSION);
 	T_EQ((int)image->hero.level, (int)caster->hero.level);
 	T_ASSERT(image->hero.suspend_xp);
-	T_EQ((int)level.events.queue[0].type, (int)EVENT_PLAYER_UNIT_SUMMON);
-	T_ASSERT(level.events.queue[0].edict == caster);
-	T_ASSERT(level.events.queue[0].source == image);
-	T_EQ((int)level.events.queue[1].type, (int)EVENT_UNIT_SUMMON);
+	T_EQ((int)level.events.queue[2].type, (int)EVENT_PLAYER_UNIT_SUMMON);
+	T_ASSERT(level.events.queue[2].edict == caster);
+	T_ASSERT(level.events.queue[2].source == image);
+	T_EQ((int)level.events.queue[3].type, (int)EVENT_UNIT_SUMMON);
 
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);

@@ -12,6 +12,13 @@ typedef struct {
     LPEDICT target;
 } spellUnitTargetParams_t;
 
+typedef struct {
+    LPEDICT clent, caster;
+    DWORD code, level;
+    LPCVECTOR2 point;
+    FLOAT range;
+} spellPointValidateParams_t;
+
 /* ---- Unified Spell Pipeline ----
 
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
@@ -429,22 +436,22 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 }
 
 /* Shared validation for point-target spells. */
-static BOOL spell_validate_point(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
-    if (!caster || !point)
+static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
+    if (!params || !params->caster || !params->point)
         return false;
-    if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
-        G_ShowCommandErrorText(clent, "Silenced.");
-        return false;
-    }
-    if (!S_SpellCooldownReady(caster, code)) {
-        G_ShowCommandErrorText(clent, "Spell is not ready yet.");
+    if (S_UnitHasStatus(params->caster, MAKEFOURCC('B','N','s','i'))) {
+        G_ShowCommandErrorText(params->clent, "Silenced.");
         return false;
     }
-    if (!S_SpellCanPay(caster, code, level)) {
-        G_ShowCommandErrorText(clent, "Not enough mana.");
+    if (!S_SpellCooldownReady(params->caster, params->code)) {
+        G_ShowCommandErrorText(params->clent, "Spell is not ready yet.");
         return false;
     }
-    if (range > 0 && Vector2_distance(&caster->s.origin2, point) > range)
+    if (!S_SpellCanPay(params->caster, params->code, params->level)) {
+        G_ShowCommandErrorText(params->clent, "Not enough mana.");
+        return false;
+    }
+    if (params->range > 0 && Vector2_distance(&params->caster->s.origin2, params->point) > params->range)
         return false;
     return true;
 }
@@ -468,9 +475,13 @@ static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
 static void spell_publish_effect(LPEDICT caster, DWORD code, spellTarget_t target) {
     LPEDICT source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
     LPCVECTOR2 point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
+    gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
+                                         .source = source, .value = (LONG)code, .point = point);
 
-    G_PublishEventWithPoint(caster, EVENT_PLAYER_UNIT_SPELL_EFFECT, source, (LONG)code, point);
-    G_PublishEventWithPoint(caster, EVENT_UNIT_SPELL_EFFECT, source, (LONG)code, point);
+    params.type = EVENT_PLAYER_UNIT_SPELL_EFFECT;
+    G_PublishEventWithPoint(&params);
+    params.type = EVENT_UNIT_SPELL_EFFECT;
+    G_PublishEventWithPoint(&params);
 }
 
 /* ---- Per-target-type unified callbacks ---- */
@@ -603,10 +614,12 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
     spell_info_t const *spell = S_SpellInfoForCode(code);
+    spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
+                                          .clent = clent, .caster = caster, .code = code, .level = level,
+                                          .point = point, .range = range);
 
     if (!spell) return false;
-    if (!spell_validate_point(clent, caster, code, level, point, range))
-        return false;
+    if (!spell_validate_point(&val)) return false;
     spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
     if (spell->validate && !spell->validate(caster, st)) return false;
 
@@ -668,7 +681,10 @@ BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
         !spell->execute || (spell->flags & SPELL_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
-    if (!spell_validate_point(NULL, caster, code, level, point, range)) return false;
+    spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
+                                          .caster = caster, .code = code, .level = level,
+                                          .point = point, .range = range);
+    if (!spell_validate_point(&val)) return false;
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (spell->validate && !spell->validate(caster, target)) return false;
 
