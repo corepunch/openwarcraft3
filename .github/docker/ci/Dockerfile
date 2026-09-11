@@ -1,5 +1,6 @@
 FROM ubuntu:24.04
 
+# Rebuild this image on dependency changes so main can publish the shared CI environment.
 LABEL org.opencontainers.image.source="https://github.com/corepunch/open-realm"
 LABEL org.opencontainers.image.description="OpenRealm Linux build and test dependencies for GitHub Actions"
 
