@@ -1060,7 +1060,10 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
-    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    builder->data.UnitAbilities = &abilities;
+    builder->svflags |= SVF_MONSTER;
+    builder->collision = 16.0f;
 
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OK);
 
@@ -1068,7 +1071,7 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
     worker->collision = 16.0f;
-    T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OK);
+    T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_UNIT_BLOCKED);
 
     blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), snapped.x, snapped.y);
     blocker->svflags |= SVF_MONSTER;

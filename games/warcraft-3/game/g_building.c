@@ -648,10 +648,9 @@ static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *ou
 static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
         FLOAT x, y;
+        /* Only the constructing worker may occupy the footprint; other friendly workers are
+         * real blockers, otherwise a later cinematic build can strand its worker inside this building. */
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
-        /* Human workers may overlap a pending footprint while several cinematic
-         * build orders are being issued; combat units remain hard blockers. */
-        if (G_UnitHasHumanRepair(ent)) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
         y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
         VECTOR2 nearest = { x, y };
