@@ -4,12 +4,23 @@
 
 #include "g_local.h"
 
-static void G_SetCommandCooldown(LPEDICT ent, DWORD code, DWORD level, gameCommandButton_t *button) {
-    if (!button) return;
-    button->cooldown = S_SpellCooldownFraction(ent, code, level);
-    if (!S_SpellCooldownWindow(ent, code, &button->cooldown_start_time, &button->cooldown_end_time)) {
-        button->cooldown_start_time = 0;
-        button->cooldown_end_time = 0;
+typedef struct {
+    LPEDICT ent;
+    DWORD code;
+    DWORD level;
+    gameCommandButton_t *button;
+} commandCooldownParams_t;
+
+static void G_SetCommandCooldown(commandCooldownParams_t const *params) {
+    abilityCooldownWindow_t window;
+    if (!params || !params->button) return;
+    params->button->cooldown = S_SpellCooldownFraction(params->ent, params->code, params->level);
+    if (!S_SpellCooldownWindow(params->ent, params->code, &window)) {
+        params->button->cooldown_start_time = 0;
+        params->button->cooldown_end_time = 0;
+    } else {
+        params->button->cooldown_start_time = window.start_time;
+        params->button->cooldown_end_time = window.end_time;
     }
 }
 
@@ -302,7 +313,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
-    if (*count > idx) G_SetCommandCooldown(ent, rawcode, 0, &buttons[idx]);
+    if (*count > idx) G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
     if (!(ability->flags & ABILITY_SEPARATE_OFF) || *count >= max_buttons) return;
     if (G_BuildCommandButtonState(ent, code, false, 0, 1, &buttons[*count])) {
         size_t used;
@@ -443,7 +454,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             BYTE const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
-                G_SetCommandCooldown(ent, ha->code, ha->level, &buttons[idx]);
+                G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = ha->code, .level = ha->level, .button = &buttons[idx] });
             }
         }
     }
