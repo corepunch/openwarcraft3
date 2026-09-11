@@ -100,10 +100,14 @@ MATH_FUNC(I2R, (FLOAT), integer, number);
 MATH_FUNC(R2I, (LONG), number, integer);
 MATH_FUNC2(Pow, pow, number);
 MATH_FUNC2(Atan2, atan2, number);
-MATH_FUNC(OrderId, class_id, string, integer);
+DWORD OrderId(LPJASS j) {
+    return jass_pushinteger(j, (LONG)G_OrderId(jass_checkstring(j, 1)));
+}
+DWORD OrderId2String(LPJASS j) {
+    return jass_pushstring(j, G_OrderId2String((DWORD)jass_checkinteger(j, 1)));
+}
 MATH_FUNC(UnitId, class_id, string, integer);
 MATH_FUNC(AbilityId, class_id, string, integer);
-MATH_FUNC(OrderId2String, GetClassName, integer, string);
 MATH_FUNC(UnitId2String, GetClassName, integer, string);
 MATH_FUNC(AbilityId2String, GetClassName, integer, string);
 MATH_FUNC(S2I, atoi, string, integer);
@@ -674,6 +678,42 @@ DWORD GetOrderTargetUnit(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && (target->svflags & SVF_MONSTER) ?
         jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+
+DWORD GetSpellAbilityUnit(LPJASS j) {
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+}
+DWORD GetSpellAbilityId(LPJASS j) {
+    return jass_pushinteger(j, jass_getcontext(j)->eventValue);
+}
+DWORD GetSpellTargetUnit(LPJASS j) {
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && (target->svflags & SVF_MONSTER) ?
+        jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
+}
+DWORD GetSpellTargetDestructable(LPJASS j) {
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && G_IsDestructable(target) ?
+        jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
+}
+DWORD GetSpellTargetItem(LPJASS j) {
+    LPEDICT target = jass_getcontext(j)->source;
+    return target && G_IsItem(target) ?
+        jass_pushlighthandle(j, target, "item") : jass_pushnullhandle(j, "item");
+}
+DWORD GetSpellTargetX(LPJASS j) {
+    JASSCONTEXT const *ctx = jass_getcontext(j);
+    return jass_pushnumber(j, ctx->hasPoint ? ctx->point.x : 0.0f);
+}
+DWORD GetSpellTargetY(LPJASS j) {
+    JASSCONTEXT const *ctx = jass_getcontext(j);
+    return jass_pushnumber(j, ctx->hasPoint ? ctx->point.y : 0.0f);
+}
+DWORD GetSpellTargetLoc(LPJASS j) {
+    JASSCONTEXT const *ctx = jass_getcontext(j);
+    API_ALLOC(VECTOR2, location);
+    *location = ctx->hasPoint ? ctx->point : (VECTOR2){ 0.0f, 0.0f };
+    return 1;
 }
 DWORD GetEventPlayerState(LPJASS j) {
     return jass_pushnullhandle(j, "playerstate");

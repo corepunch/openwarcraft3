@@ -291,7 +291,7 @@ static void skill_remove(DWORD *skills, DWORD *count, DWORD index) {
     memmove(skills + index, skills + index + 1, (--*count - index) * sizeof(*skills));
 }
 
-static BOOL actor_has_skill(LPEDICT ent, DWORD code) {
+static BOOL actor_has_skill(LPCEDICT ent, DWORD code) {
     LPCSTR abilities;
     if (!ent || !code) return false;
     if (skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code) >= 0) return false;
@@ -308,7 +308,7 @@ static BOOL actor_has_skill(LPEDICT ent, DWORD code) {
     return false;
 }
 
-BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
+BOOL G_ActorHasSkill(LPCEDICT ent, LPCSTR id) {
     DWORD code = 0;
     if (!id || strlen(id) != 4) return false;
     memcpy(&code, id, sizeof(code));

@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 3 // format version; adds scalar trigger-event context payloads
+#define BZ_JASS_SNAPSHOT_VERSION 4 // format version; adds point trigger-event context payloads
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -977,7 +977,9 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
                                         LPTRIGGER trigger,
                                         LPEDICT unit,
                                         LPEDICT source,
-                                        LONG eventValue) {
+                                        LONG eventValue,
+                                        LPCVECTOR2 point,
+                                        BOOL hasPoint) {
     LPPLAYER player = jass_eventplayer(unit);
 
     if (trigger->disabled) {
@@ -992,6 +994,8 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
         tmp_state.context.unit = unit;
         tmp_state.context.source = source;
         tmp_state.context.eventValue = eventValue;
+        tmp_state.context.point = point ? *point : (VECTOR2){ 0.0f, 0.0f };
+        tmp_state.context.hasPoint = hasPoint;
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
@@ -1008,7 +1012,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j,
 }
 
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    return jass_evaluatetriggercontext(j, trigger, unit, NULL, 0);
+    return jass_evaluatetriggercontext(j, trigger, unit, NULL, 0, NULL, false);
 }
 
 /* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
@@ -1051,7 +1055,9 @@ static void jass_executetriggercontext(LPJASS j,
                                        LPTRIGGER trigger,
                                        LPEDICT unit,
                                        LPEDICT source,
-                                       LONG eventValue) {
+                                       LONG eventValue,
+                                       LPCVECTOR2 point,
+                                       BOOL hasPoint) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
         LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
@@ -1060,6 +1066,8 @@ static void jass_executetriggercontext(LPJASS j,
                                   .unit = unit,
                                   .source = source,
                                   .eventValue = eventValue,
+                                  .point = point ? *point : (VECTOR2){ 0.0f, 0.0f },
+                                  .hasPoint = hasPoint,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,
                                   .timer = currenttimer,
@@ -1075,7 +1083,16 @@ static void jass_executetriggercontext(LPJASS j,
 }
 
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    jass_executetriggercontext(j, trigger, unit, NULL, 0);
+    jass_executetriggercontext(j, trigger, unit, NULL, 0, NULL, false);
+}
+
+static BOOL jass_calltriggercontext(LPJASS j, LPTRIGGER trigger, LPEDICT unit,
+                                    LPEDICT source, LONG eventValue,
+                                    LPCVECTOR2 point, BOOL hasPoint) {
+    if (!jass_evaluatetriggercontext(j, trigger, unit, source, eventValue, point, hasPoint))
+        return false;
+    jass_executetriggercontext(j, trigger, unit, source, eventValue, point, hasPoint);
+    return true;
 }
 
 BOOL jass_calltriggerwithvalue(LPJASS j,
@@ -1083,12 +1100,13 @@ BOOL jass_calltriggerwithvalue(LPJASS j,
                                LPEDICT unit,
                                LPEDICT source,
                                LONG eventValue) {
-    if (jass_evaluatetriggercontext(j, trigger, unit, source, eventValue)) {
-        jass_executetriggercontext(j, trigger, unit, source, eventValue);
-        return true;
-    } else {
-        return false;
-    }
+    return jass_calltriggercontext(j, trigger, unit, source, eventValue, NULL, false);
+}
+
+BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) {
+    if (!event) return false;
+    return jass_calltriggercontext(j, trigger, event->edict, event->source, event->value,
+                                   event->has_point ? &event->point : NULL, event->has_point);
 }
 
 BOOL jass_calltrigger(LPJASS j,
@@ -2472,7 +2490,9 @@ static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT co
         { "player", context->playerState }, { "player", context->localPlayerState }, { "timer", context->timer },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
-        !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue))) return false;
+        !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
         if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
@@ -2491,7 +2511,10 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
     context->func = func ? find_function(j, func) : NULL;
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
-    if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue))) return false;
+    if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, &context->point, sizeof(context->point)) ||
+        !jass_snapshot_io(snapshot, &context->hasPoint, sizeof(context->hasPoint)) ||
+        context->hasPoint > 1) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
         DWORD present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;

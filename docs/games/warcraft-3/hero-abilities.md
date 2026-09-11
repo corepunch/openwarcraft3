@@ -74,7 +74,7 @@ Implemented Hero-progression natives:
 - `SelectHeroSkill` uses normal candidate/point/level/max-rank validation.
 - `GetUnitAbilityLevel` reports the current learned Hero rank and treats an ordinary ability listed in `abilList` as level 1.
 
-Direct runtime ability mutation (`UnitAddAbility`, `UnitRemoveAbility`, `IncUnitAbilityLevel`, `SetUnitAbilityLevel`) is still incomplete because OpenRealm does not yet have a general runtime ability collection separate from the four Hero skill slots. Do not implement those natives by silently treating `heroabilities[]` as an unlimited generic ability store.
+Runtime ordinary-ability membership from `UnitAddAbility` / `UnitRemoveAbility` is stored separately from the four Hero skill slots, and `G_UnitAbilityLevel()` now reflects those additions/removals as level 1 so command and spell ownership checks agree. Runtime rank mutation (`IncUnitAbilityLevel`, `DecUnitAbilityLevel`, `SetUnitAbilityLevel`) remains incomplete; do not silently treat `heroabilities[]` as an unlimited generic ability store.
 
 ## Known Boundaries
 

@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-BOOL jass_calltriggerwithvalue(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source, LONG eventValue);
+BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
 
 /* One authoritative terminal-result transition shared by JASS RemovePlayer
  * and developer cheats.  Keep campaign/result presentation downstream of the
@@ -94,24 +94,24 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             case EVENT_GAME_STATE_LIMIT:
                 if (evt->responseTo == e) {
-                    jass_calltriggerwithvalue(level.vm, e->trigger, NULL, NULL, evt->value);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_GAME_TIMER_EXPIRED:
                 break;
             case EVENT_GAME_ENTER_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_UNIT_IN_RANGE:
                 if (evt->responseTo == e) {
-                    jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
+                    jass_calltriggerevent(level.vm, e->trigger, evt);
                 }
                 break;
             case EVENT_GAME_TRACKABLE_HIT:
@@ -195,7 +195,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                             (unsigned)direct, (unsigned)owner_match);
                     }
                     if (direct || owner_match) {
-                        BOOL queued = jass_calltriggerwithvalue(level.vm, e->trigger, subject, evt->source, evt->value);
+                        BOOL queued = jass_calltriggerevent(level.vm, e->trigger, evt);
                         if (quest_build_event) {
                             fprintf(stderr,
                                     "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",

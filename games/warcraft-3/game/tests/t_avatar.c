@@ -157,4 +157,28 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
     T_FEQ(unit->health.max_value, 650, 0.001f);
     avatar_done(fix);
 }
+TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
+    AVFIX fix = avatar_setup(1);
+    LPEDICT unit = fix.unit;
+
+    memset(unit->heroabilities, 0, sizeof(unit->heroabilities));
+    T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);
+    T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
+    T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 1);
+
+    level.events.read = level.events.write = 0;
+    memset(level.events.queue, 0, sizeof(level.events.queue));
+    T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
+    T_EQ(level.events.write, 2);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
+    T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
+    T_EQ((DWORD)level.events.queue[0].value, BZ_AVATAR);
+    T_EQ((DWORD)level.events.queue[1].value, BZ_AVATAR);
+
+    T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
+    T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);
+    avatar_done(fix);
+}
+
 #endif

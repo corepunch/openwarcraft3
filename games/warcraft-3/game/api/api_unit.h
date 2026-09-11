@@ -863,9 +863,9 @@ DWORD IssueImmediateOrder(LPJASS j) {
     return jass_pushboolean(j, unit_issueimmediateorder(whichUnit, order));
 }
 DWORD IssueImmediateOrderById(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG order = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    return jass_pushboolean(j, unit_issueimmediateorder(whichUnit, G_OrderId2String(order)));
 }
 DWORD IssuePointOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -883,17 +883,16 @@ DWORD IssuePointOrderLoc(LPJASS j) {
     return jass_pushboolean(j, ret);
 }
 DWORD IssuePointOrderById(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG order = jass_checkinteger(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), &point));
 }
 DWORD IssuePointOrderByIdLoc(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
+    return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), whichLocation));
 }
 DWORD IssueTargetOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -902,10 +901,10 @@ DWORD IssueTargetOrder(LPJASS j) {
     return jass_pushboolean(j, unit_issuetargetorder(whichUnit, order, targetWidget));
 }
 DWORD IssueTargetOrderById(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
+    return jass_pushboolean(j, unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget));
 }
 DWORD IssueInstantTargetOrder(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
