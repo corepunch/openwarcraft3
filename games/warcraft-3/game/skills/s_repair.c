@@ -103,9 +103,10 @@ void S_CancelRepair(LPEDICT ent) {
 }
 
 static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
-#ifdef WC3_DEBUG_AUTOCAST
     LPEDICT building = ent ? ent->build : NULL;
-
+    BOOL resume_harvest = building && building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
+                          (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete"));
+#ifdef WC3_DEBUG_AUTOCAST
     if (G_AutocastDebugLevel() >= 1 && ent) {
         fprintf(stderr,
                 "WC3_AUTOREPAIR stop worker=%ld build=%ld reason=%s hp=%.1f/%.1f autocast=%d\n",
@@ -121,6 +122,12 @@ static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
 #endif
     if (ent) ent->goalentity = NULL;
     repair_release(ent);
+    if (resume_harvest) {
+        /* Retail returns Town Hall builders to work after the final Repair tick;
+         * standing here left the Human04 workers idle. */
+        unit_issueimmediateorder(ent, "autoharvestgold");
+        return;
+    }
     if (ent && ent->stand) ent->stand(ent);
 }
 
