@@ -1819,6 +1819,7 @@ void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
 void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required);
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
+BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);

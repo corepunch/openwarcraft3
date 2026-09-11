@@ -645,18 +645,60 @@ static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *ou
     return false;
 }
 
+static BOOL G_BuildUnitCanDisplace(LPEDICT builder, LPEDICT ent) {
+    return builder && ent && ent->s.player == builder->s.player && !G_UnitIsBuilding(ent->class_id) &&
+           ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f;
+}
+
 static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
         FLOAT x, y;
-        /* Only the constructing worker may occupy the footprint; other friendly workers are
-         * real blockers, otherwise a later cinematic build can strand its worker inside this building. */
+        /* Friendly mobile units can be displaced when construction starts; everything else is a hard blocker. */
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
         y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
         VECTOR2 nearest = { x, y };
-        if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision) return true;
+        if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision && !G_BuildUnitCanDisplace(builder, ent)) return true;
     }
     return false;
+}
+
+/* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
+BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
+    LPEDICT *units;
+    VECTOR2 *positions;
+    FLOAT *angles;
+    DWORD count = 0;
+
+    if (!builder || !building || !globals.num_edicts) return false;
+    units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
+    positions = gi.MemAlloc(sizeof(*positions) * globals.num_edicts);
+    angles = gi.MemAlloc(sizeof(*angles) * globals.num_edicts);
+    FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
+                  G_BuildUnitCanDisplace(builder, ent) && ent != builder &&
+                  CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
+        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angles[count])) {
+            gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units); return false;
+        }
+        units[count++] = ent;
+    }
+    FOR_LOOP(i, count) {
+        FOR_LOOP(j, i) {
+            if (Vector2_distance(&positions[i], &positions[j]) < units[i]->collision + units[j]->collision) {
+                gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units); return false;
+            }
+        }
+    }
+    FOR_LOOP(i, count) {
+        units[i]->s.origin2 = positions[i];
+        units[i]->s.origin.x = positions[i].x; units[i]->s.origin.y = positions[i].y;
+        units[i]->s.origin.z = CM_GetHeightAtPoint(positions[i].x, positions[i].y);
+        units[i]->s.angle = angles[i];
+        gi.LinkEntity(units[i]);
+        move_reset_progress(units[i]);
+    }
+    gi.MemFree(angles); gi.MemFree(positions); gi.MemFree(units);
+    return true;
 }
 
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested,

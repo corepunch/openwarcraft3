@@ -132,11 +132,13 @@ void build_build(LPEDICT ent) {
     buildPlacementResult_t placement;
     buildCommandState_t state;
     LPEDICT building;
+    DWORD building_id;
 
     if (!ent || !ent->goalentity || !ent->build_project) {
         if (ent) ent->stand(ent);
         return;
     }
+    building_id = ent->build_project;
     client = G_GetPlayerClientByNumber(ent->s.player);
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
     state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);
@@ -173,7 +175,7 @@ void build_build(LPEDICT ent) {
 
     building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
     if (!building) {
-        G_RefundBuilding(client, ent->build_project);
+        G_RefundBuilding(client, building_id);
         ent->build_project = 0;
         ent->stand(ent);
         return;
@@ -193,6 +195,14 @@ void build_build(LPEDICT ent) {
      * authored footprint before relocating the worker so the egress search
      * cannot choose a point that becomes blocked immediately afterward. */
     CM_BakeStaticObstacles();
+    if (!G_DisplaceBuildOccupants(ent, building)) {
+        G_FreeEdict(building);
+        CM_BakeStaticObstacles();
+        G_RefundBuilding(client, building_id);
+        ent->build_project = 0;
+        ent->stand(ent);
+        return;
+    }
     if (G_UnitHasHumanRepair(ent)) {
         G_StartHumanConstruction(ent, building);
         /* Cancellation refunds the exact base construction payment, not later

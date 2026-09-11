@@ -1070,8 +1070,9 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), snapped.x, snapped.y);
     worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
+    worker->movetype = MOVETYPE_STEP;
     worker->collision = 16.0f;
-    T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_UNIT_BLOCKED);
+    T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OK);
 
     blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), snapped.x, snapped.y);
     blocker->svflags |= SVF_MONSTER;
