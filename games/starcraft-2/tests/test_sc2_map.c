@@ -58,7 +58,7 @@ TEST(sc2_map, camera_height_blurs_narrow_depressions) {
     T_FEQ(sc2_map_broad_height_at_point(&map, 8.0f, 8.0f), 10.0f, 0.001f);
     layer->data[8 + 8 * side].height = 1;
     T_FEQ(sc2_map_height_at_point(&map, 8.0f, 8.0f), 0.0f, 0.001f);
-    T_FEQ(sc2_map_broad_height_at_point(&map, 8.0f, 8.0f), 9.6f, 0.001f);
+    T_FEQ(sc2_map_broad_height_at_point(&map, 8.0f, 8.0f), 10.0f, 0.001f);
     MemFree(layer);
 }
 

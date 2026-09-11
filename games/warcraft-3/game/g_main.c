@@ -507,9 +507,11 @@ VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset) {
     return (VECTOR3){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
 }
 
-/* Compose the camera look-at from its retained terrain reference; retail does not resample it during a setup transition. */
+/* Compose an exact server camera sample; the client replaces only its terrain base with the blurred render sample. */
 static VECTOR3 G_MakeCameraOrigin(LPGAMECLIENT client, FLOAT x, FLOAT y, FLOAT z_offset) {
-    return (VECTOR3){ x, y, client->camera.target_height + z_offset };
+    FLOAT const base = CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset();
+    client->camera.target_height = base;
+    return (VECTOR3){ x, y, base + z_offset };
 }
 
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {

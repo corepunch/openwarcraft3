@@ -2687,10 +2687,6 @@ FLOAT SC2_MapAirHeightAtPoint(FLOAT x, FLOAT y) {
     return sc2_map_broad_height_at_point(&sc2_map, x, y);
 }
 
-FLOAT SC2_MapCameraHeightAtPoint(FLOAT x, FLOAT y) {
-    return sc2_map_broad_height_at_point(&sc2_map, x, y);
-}
-
 BOX2 SC2_MapBounds(void) {
     return (BOX2){
         .min = sc2_map.origin,

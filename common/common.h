@@ -282,7 +282,6 @@ FLOAT CM_PathCellWorldSize(void);
 BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
-FLOAT CM_GetCameraHeightAtPoint(FLOAT sx, FLOAT sy);
 FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy);
 BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
 BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
@@ -309,7 +308,6 @@ static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
 
 BOOL CL_GameDefaultCamera(gameCamera_t *camera);
 BOOL CL_GameCameraUsesWorldUp(void);
-FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
 
 extern struct world_state world;

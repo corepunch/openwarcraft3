@@ -79,7 +79,7 @@ void G_CameraTraceSnapshotForClient(LPGAMECLIENT gc, LPCSTR label) {
     p = &gc->ps;
     s = &gc->camera.state;
     terrain = CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y);
-    sample_height = CM_GetCameraHeightAtPoint(p->vieworigin.x, p->vieworigin.y);
+    sample_height = terrain;
     if (gc->camera.end_time > G_Time() && G_Time() != gc->camera.start_time) {
         k = (G_Time() - gc->camera.start_time) /
             (FLOAT)(gc->camera.end_time - gc->camera.start_time);
@@ -382,7 +382,7 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, BOOL apply_position,
     gc->camera.old_state = gc->camera.state;
     if (apply_position && (setup->position.x != gc->camera.old_state.position.x ||
                            setup->position.y != gc->camera.old_state.position.y)) {
-        gc->camera.target_height = CM_GetCameraHeightAtPoint(setup->position.x, setup->position.y);
+        gc->camera.target_height = CM_GetHeightAtPoint(setup->position.x, setup->position.y);
     }
     gc->camera.state = *setup;
     if (!apply_position) {

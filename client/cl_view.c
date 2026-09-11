@@ -182,6 +182,12 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    if (re.CameraUsesTerrainHeight()) {
+        FLOAT const exact = re.GetHeightAtPoint(b->origin.x, b->origin.y);
+        FLOAT const blurred = re.GetCameraHeightAtPoint(origin.x, origin.y);
+        /* Use the blurred terrain at current XY; interpolating terrain Z made the camera drift behind pans. */
+        origin.z = blurred + b->origin.z - exact;
+    }
     QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
     QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
     QUATERNION quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);

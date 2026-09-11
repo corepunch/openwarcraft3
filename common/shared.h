@@ -555,6 +555,7 @@ _Static_assert(UI_PLAYERSTAT_ENV_VARIANT < MAX_STATS,
 /* Controller input is independent of whether the player edict has a visible model. */
 #define BZ_INPUT_MAX_MSEC 250 // milliseconds; bounds one controller movement sample after stalls
 #define BZ_INPUT_MOVE_MASK 15u // bits; four directional buttons accepted on the wire
+#define BZ_BROAD_HEIGHT_SAMPLES 4 // taps per axis; shared terrain blur kernel; used by camera and air-height sampling
 
 typedef enum { BZ_INPUT_FOCUS, BZ_INPUT_VIEW, BZ_INPUT_MOVE } INPUTACTION;
 enum {

@@ -35,6 +35,8 @@ void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
 FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y);
+BOOL R_CameraUsesTerrainHeight(void);
 VECTOR2 R_WorldSize(void);
 
 LPMODEL R_LoadModel(LPCSTR modelFilename);

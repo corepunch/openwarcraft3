@@ -1111,6 +1111,8 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetEntityAttachmentPosition = R_GetEntityAttachmentPosition,
         .DrawBoundingBox = R_DrawBoundingBox,
         .GetHeightAtPoint = R_GetHeightAtPoint,
+        .GetCameraHeightAtPoint = R_GetCameraHeightAtPoint,
+        .CameraUsesTerrainHeight = R_CameraUsesTerrainHeight,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_TraceLocation,
         .TraceCameraPlane = R_TraceCameraPlane,

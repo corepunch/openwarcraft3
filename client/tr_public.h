@@ -267,6 +267,8 @@ typedef struct {
 
     void (*DrawBoundingBox)(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
     FLOAT (*GetHeightAtPoint)(float x, float y);
+    FLOAT (*GetCameraHeightAtPoint)(float x, float y);
+    BOOL (*CameraUsesTerrainHeight)(void);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);

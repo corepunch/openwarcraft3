@@ -2,6 +2,7 @@
 #define R_SC2MAP_H
 
 #include "renderer/r_game.h"
+#include "renderer/r_camera_height.h"
 #include "games/starcraft-2/common/sc2_map.h"
 
 #define SC2_HARD_TILE_Z_BIAS 0.05f // world units; prevents terrain z-fighting without the old visible 0.15 lift
@@ -11,6 +12,7 @@ void      R_SC2RegisterMap(LPCSTR mapFileName);
 void      R_SC2DrawWorld(void);
 bool      R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 FLOAT     R_SC2GetHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT     R_SC2GetCameraHeightAtPoint(FLOAT x, FLOAT y);
 VECTOR2   R_SC2WorldSize(void);
 
 /* HRDT deforms a unit cube between endpoint offsets, with its top on the authored surface. */

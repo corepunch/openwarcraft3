@@ -152,6 +152,9 @@ FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return Wow_GetHeightAtPoint(x, y);
 }
 
+FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_GetHeightAtPoint(x, y); }
+BOOL R_CameraUsesTerrainHeight(void) { return false; }
+
 VECTOR2 R_WorldSize(void) {
     return (VECTOR2){ 0 };
 }

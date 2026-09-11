@@ -253,6 +253,9 @@ FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return R_SC2GetHeightAtPoint(x, y);
 }
 
+FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SC2GetCameraHeightAtPoint(x, y); }
+BOOL R_CameraUsesTerrainHeight(void) { return true; }
+
 VECTOR2 R_WorldSize(void) {
     return R_SC2WorldSize();
 }

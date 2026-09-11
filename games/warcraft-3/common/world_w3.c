@@ -44,7 +44,6 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     return true;
 }
 
-FLOAT CL_GameCameraHeightAtPoint(FLOAT x, FLOAT y) { return CM_GetHeightAtPoint(x, y); }
 BOOL CL_GameCameraUsesWorldUp(void) { return true; }
 FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
     FLOAT delta = fmodf(b - a, 360.0f);
@@ -266,29 +265,6 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
     FLOAT ab = LerpNumber(a, b, x - fx);
     FLOAT cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
-}
-
-FLOAT CM_GetCameraHeightAtPoint(FLOAT sx, FLOAT sy) {
-    FLOAT const radius = TILE_SIZE * 4; // world units; retail camera-height neighborhood radius
-    if (!world.map || !world.map->vertices) return 0.0f;
-    FLOAT const min_x = (sx - world.map->center.x - radius) / TILE_SIZE;
-    FLOAT const max_x = (sx - world.map->center.x + radius) / TILE_SIZE;
-    FLOAT const min_y = (sy - world.map->center.y - radius) / TILE_SIZE;
-    FLOAT const max_y = (sy - world.map->center.y + radius) / TILE_SIZE;
-    DWORD x0, x1, y0, y1, count = 0;
-    FLOAT sum = 0.0f;
-
-    x0 = (DWORD)MAX(0, (int)ceilf(min_x));
-    x1 = (DWORD)MIN((int)world.map->width - 1, (int)floorf(max_x));
-    y0 = (DWORD)MAX(0, (int)ceilf(min_y));
-    y1 = (DWORD)MIN((int)world.map->height - 1, (int)floorf(max_y));
-    for (DWORD y = y0; y <= y1; y++)
-        for (DWORD x = x0; x <= x1; x++) {
-            sum += CM_GetWar3MapVertexHeight(CM_GetWar3MapVertex(x, y));
-            count++;
-        }
-    /* Retail averages the camera-height neighborhood with the W3E layer correction at the sample boundary. */
-    return count ? sum / count - 2.0f : CM_GetHeightAtPoint(sx, sy);
 }
 
 FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy) {
