@@ -208,7 +208,12 @@ void M_MoveFrame(LPEDICT self) {
     } else if (next_frame >= anim->interval[1]) {
         SAFE_CALL(move->endfunc, self);
         if (!(self->aiflags & AI_HOLD_FRAME)) {
-            self->s.frame = anim->interval[0] ;
+            /* End callbacks may install a different move/animation. Restart
+             * whichever animation is active after the callback; resetting to
+             * the completed clip's first frame leaves the replacement model
+             * sampling an unrelated sequence for one simulation tick. */
+            LPCANIMATION active_anim = self->animation ? self->animation : anim;
+            self->s.frame = active_anim->interval[0];
         }
     } else {
         self->s.frame = next_frame;

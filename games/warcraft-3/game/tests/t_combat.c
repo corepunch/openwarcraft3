@@ -489,6 +489,17 @@ static void stub_endfunc(LPEDICT ent) {
 
 static umove_t _stub_move = { "stand", NULL, stub_endfunc, NULL };
 
+static animation_t _replacement_anim = {
+    .name = "stand alternate",
+    .interval = { 1000, 1300 }
+};
+static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
+static void stub_transition_endfunc(LPEDICT ent) {
+    _endfunc_called++;
+    ent->currentmove = &_replacement_move;
+    ent->animation = &_replacement_anim;
+}
+
 TEST(wc3_combat, mmoveframe_no_animation_is_noop) {
     LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->animation   = NULL;
@@ -540,6 +551,27 @@ TEST(wc3_combat, mmoveframe_at_end_calls_endfunc_and_wraps) {
     T_EQ(_endfunc_called, 1);
     /* Without AI_HOLD_FRAME the frame resets to interval[0]. */
     T_EQ((int)ent->s.frame, 0);
+}
+
+TEST(wc3_combat, mmoveframe_endfunc_transition_starts_replacement_animation) {
+    animation_t old_anim = {
+        .name = "morph alternate",
+        .interval = { 0, 300 },
+    };
+    umove_t old_move = { "morph alternate", NULL, stub_transition_endfunc, NULL };
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+
+    ent->animation = &old_anim;
+    ent->currentmove = &old_move;
+    ent->s.frame = 250;
+    _endfunc_called = 0;
+
+    M_MoveFrame(ent);
+
+    T_EQ(_endfunc_called, 1);
+    T_ASSERT(ent->animation == &_replacement_anim);
+    T_ASSERT(ent->currentmove == &_replacement_move);
+    T_EQ((int)ent->s.frame, 1000);
 }
 
 TEST(wc3_combat, mmoveframe_out_of_range_frame_resets) {
