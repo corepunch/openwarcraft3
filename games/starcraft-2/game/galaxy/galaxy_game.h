@@ -14,7 +14,12 @@ static DWORD sc2_StringWord(LPJASS j) {
     }
     return jass_pushnull(j);
 }
-static DWORD sc2_IntToText(LPJASS j)          { return jass_pushinteger(j, 0); }
+/* Galaxy text is represented as a VM string; an integer placeholder corrupted objective-name concatenation. */
+static DWORD sc2_IntToText(LPJASS j) {
+    char text[32];
+    snprintf(text, sizeof(text), "%ld", (long)jass_checkinteger(j, 1));
+    return jass_pushstring(j, text);
+}
 static DWORD sc2_Color(LPJASS j)              { (void)j; return jass_pushinteger(j, 0); }
 static DWORD sc2_ColorWithAlpha(LPJASS j)     { (void)j; return jass_pushinteger(j, 0); }
 static DWORD sc2_GameTimeOfDayPause(LPJASS j) { (void)j; return jass_pushnull(j); }

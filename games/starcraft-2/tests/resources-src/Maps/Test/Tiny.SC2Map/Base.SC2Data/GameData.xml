@@ -7,4 +7,5 @@
     <Catalog path="GameData/TerrainTexData.xml"/>
     <Catalog path="GameData/CliffData.xml"/>
     <Catalog path="GameData/Overrides/TinyManifest.xml"/>
+    <Catalog path="GameData/ConversationStateData.xml"/>
 </Includes>

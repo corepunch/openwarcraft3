@@ -540,6 +540,7 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_on_cinematic       = SC2_GalaxyCinematicMode;
     sc2_galaxy_on_fade            = SC2_GalaxyCinematicFade;
     sc2_galaxy_sound_length       = SC2_MapSoundLength;
+    sc2_galaxy_conversation_field = SC2_MapConversationField;
     sc2_galaxy_on_sound           = SC2_GalaxyPlaySound;
     sc2_galaxy_on_unit_create     = SC2_GalaxyCreateUnit;
     sc2_galaxy_get_camera_by_id   = SC2_GalaxyGetCameraById;
@@ -619,7 +620,7 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
     galaxy_set_script_dir(mapFilename);
     sc2_level.vm = galaxy_open(gi.ReadFile, gi.GetTime, gi.MemAlloc, gi.MemFree);
     if (sc2_level.vm)
-        galaxy_start(sc2_level.vm);  /* registers triggers via InitMap() */
+        galaxy_start(sc2_level.vm);  /* map globals, then trigger registration */
     return true;
 }
 

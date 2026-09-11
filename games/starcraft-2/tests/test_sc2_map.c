@@ -493,6 +493,11 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     setup_sc2_tests();
     use_sc2_fs_host();
     T_ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
+    T_STREQ(SC2_MapConversationField("StoryTips|Marine", "Name"), "ConversationState/StoryTips/Marine");
+    T_STREQ(SC2_MapConversationField("StoryTips|Marine", "ImagePath"), "Assets/Textures/MarineOverride.dds");
+    T_STREQ(SC2_MapConversationField("StoryTips|Marine", "Text:Description"), "Map description");
+    T_STREQ(SC2_MapConversationField("StoryTips|Marine", "Text:Loading Screen Restart"), "Restart description");
+    T_NULL(SC2_MapConversationField("StoryTips|Missing", "ImagePath"));
     map = SC2_MapCurrent();
 
     T_ASSERT(SC2_MapResolveUnit("Marine", &unit));

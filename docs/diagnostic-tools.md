@@ -215,3 +215,7 @@ not frame milliseconds or GPU execution time. Inclusive parent and child percent
 cannot establish the wall-time benefit of disabling shadows. Even under a simplified proportional CPU-only model,
 removing that entire share predicts only about 22.9 FPS, not 30. Prioritize MDX submission/bone work and the two
 client traversals, then reprofile; the report does not justify a promised FPS improvement.
+
+## Galaxy Native Coverage Audit
+
+`python3 tools/galaxy_audit.py <MapScript.galaxy> <NativeLib.galaxy> <LibertyLib.galaxy> <CampaignLib.galaxy>` inventories reachable missing bindings and obvious placeholder candidates without executing scripts. See [Galaxy native coverage](games/starcraft-2/galaxy-native-coverage.md) for exact MPQ extraction commands, audit limits, and the complete Markdown snapshot. Use [bounded runtime traces](games/starcraft-2/galaxy-scripting.md#reproducing-detailed-traces) to distinguish static coverage from executed callbacks.

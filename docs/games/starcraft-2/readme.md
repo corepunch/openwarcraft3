@@ -6,9 +6,9 @@ The code here owns a small game module and the StarCraft II M3 renderer hooks.
 
 ## Status
 
-Prototype asset-rendering target.
+Prototype map-rendering and Galaxy scripting target.
 
-`opensc2` builds, links, and provides a clean place for M3 work. It is not a playable StarCraft II implementation, and it does not yet have a StarCraft II UI or gameplay layer. The current value is technical: model format coverage, renderer integration, and a second RTS-shaped game module.
+`opensc2` builds, links, and provides a clean place for M3 work. It is not a complete playable StarCraft II implementation. It has a partial server-authored HUD and Galaxy host, including a verified TRaynor01 intro/post-intro script route. The current value is technical: model format coverage, renderer integration, and a second RTS-shaped game module.
 
 ## Working
 
@@ -24,16 +24,16 @@ Prototype asset-rendering target.
 
 - M3 support is actively shaped around the renderer path and is not full StarCraft II asset parity.
 - The game module is intentionally minimal and mostly acts as a host for map/model experiments.
-- UI currently falls back to the default build shape; there is no StarCraft II-specific UI library.
+- The SC2 HUD parses native layouts and sends server-authored frames; many dynamic gameplay bindings remain incomplete.
 - Map/world behavior is placeholder-level compared with the Warcraft III target.
 
 ## Not There Yet
 
 - Playable StarCraft II gameplay.
-- StarCraft II data table, trigger, ability, race, or campaign systems.
+- Complete StarCraft II catalog, trigger/event, ability, race, and campaign systems.
 - Full SC2 map format support.
 - Complete M3 material, animation, particle, attachment, and lighting fidelity.
-- StarCraft II menus, HUD, editor-like behavior, or multiplayer flow.
+- Complete StarCraft II menus/HUD, editor-like behavior, and multiplayer flow.
 
 ## Build And Run
 
@@ -72,6 +72,8 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [Parser Notes](parser-notes.md) — practical loading order and implementation guidance.
 - [HUD Layout Pipeline](hud-layout-pipeline.md) — `.SC2Layout` → `sc2BaseFrame_t` → `uiFrame_t` → `svc_layout` pipeline; UI texture resolution via Assets.txt.
 - [Galaxy Scripting](galaxy-scripting.md) — VM lifecycle, trigger wrappers, lookup indexes, isolated regressions, and remaining campaign gaps.
+- [Galaxy Presentation State](galaxy-presentation.md) — objective IDs/text, actor ABI/scopes, conversation metadata, and presentation boundaries.
+- [Galaxy Native Coverage](galaxy-native-coverage.md) — full missing/placeholder inventory, archive extraction, audit limits, and implementation priorities.
 - [UI Layout Format](ui-layout-format.md) — `.SC2Layout` XML syntax, DescIndex manifest, layout directory structure, frame class hierarchy, Galaxy Script overview, and community resources.
 - [References](references.md) — all public sources, tools, and GitHub repos used.
 - [Sounds](sounds.md)
@@ -106,6 +108,6 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 | `t3SyncPathingInfo` (pathing) | **not started** |
 | `t3Water` | **not started** |
 | `t3FluffDoodad` | **not started** |
-| Catalog-driven unit → model resolution | **not started** (currently uses path guessing) |
+| Catalog-driven unit → model resolution | Layered unit/actor/model lookup implemented; broader catalog conformance remains partial |
 | `.m3a` animation supplements | **not started** |
 | Team-color texture swapping | **not started** |

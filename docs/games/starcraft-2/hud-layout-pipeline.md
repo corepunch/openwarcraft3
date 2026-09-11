@@ -305,3 +305,5 @@ build/bin/opensc2 -data data/StarCraft2 +vid_mode 5 +map Maps/TerranTest.SC2Comp
 The cvar is `com_frame_limit`, not `com_framelimit`. This branch writes JPEG screenshots. Pink placeholders
 for missing fixture minimap/portrait assets are separate from console geometry; the campaign minimap loads.
 See [shadow and catalog diagnostics](map-model-unit-data.md#shadow-and-catalog-diagnostics).
+
+See [Galaxy presentation state](galaxy-presentation.md) for objective/help metadata ownership and the remaining path from script records to HUD output.

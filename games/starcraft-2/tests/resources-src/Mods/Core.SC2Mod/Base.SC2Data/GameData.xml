@@ -8,4 +8,5 @@
     <Catalog path="GameData/CliffData.xml"/>
     <Catalog path="GameData/TileData.xml"/>
     <Catalog path="GameData/Overrides/CoreManifest.xml"/>
+    <Catalog path="GameData/ConversationStateData.xml"/>
 </Includes>

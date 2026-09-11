@@ -14,7 +14,7 @@ LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
                    HANDLE (*memalloc)(long),
                    void   (*memfree)(HANDLE));
 
-/* galaxy_start — register map triggers by calling InitTriggers. */
+/* galaxy_start — initialize map globals, then register map triggers. Library initialization remains diagnosed. */
 void galaxy_start(LPJASS vm);
 
 /* galaxy_fire_mapinit — fire the MapInit event; call after galaxy_start(). */
@@ -50,6 +50,7 @@ extern void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
 extern void (*sc2_galaxy_on_fade)(float alpha, float duration);
 
 /* Sound catalog lookup: returns the selected asset duration in seconds. */
+extern LPCSTR (*sc2_galaxy_conversation_field)(LPCSTR key, LPCSTR field);
 extern float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
 extern void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
 

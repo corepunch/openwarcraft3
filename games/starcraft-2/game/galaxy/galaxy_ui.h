@@ -1,9 +1,71 @@
 /* galaxy_ui.h — UI, objective, ping, and help-panel natives */
-static DWORD sc2_ObjectiveCreate3(LPJASS j)   { return jass_pushinteger(j, 0); }
-static DWORD sc2_ObjectiveLastCreated(LPJASS j){ return jass_pushinteger(j, 0); }
-static DWORD sc2_ObjectiveSetName(LPJASS j)   { (void)j; return jass_pushnull(j); }
-static DWORD sc2_ObjectiveSetState(LPJASS j)  { (void)j; return jass_pushnull(j); }
-static DWORD sc2_ObjectiveGetState(LPJASS j)  { return jass_pushinteger(j, 0); }
+/* Objectives are server-owned script state; IDs remain stable until map shutdown. */
+#define BZ_SC2_OBJECTIVES 256 // objectives/map; bounds script-owned mission records; used as objective capacity
+
+typedef struct { LPSTR name, desc; LONG state; BOOL primary, visible; } SC2OBJECTIVE;
+typedef SC2OBJECTIVE *LPSC2OBJECTIVE;
+typedef const SC2OBJECTIVE *LPCSC2OBJECTIVE;
+static SC2OBJECTIVE sc2_objs[BZ_SC2_OBJECTIVES];
+static LONG sc2_obj_n, sc2_obj_last;
+
+static void sc2_objectives_reset(void) {
+    for (LONG i = 0; i < sc2_obj_n; i++) { free(sc2_objs[i].name); free(sc2_objs[i].desc); }
+    memset(sc2_objs, 0, sizeof(sc2_objs));
+    sc2_obj_n = sc2_obj_last = 0;
+}
+
+/* Invalid IDs have the authored Unknown state; mutators diagnose stale references. */
+static LPSC2OBJECTIVE sc2_objective(LPJASS j) {
+    LONG id = jass_checkinteger(j, 1);
+    return id > 0 && id <= sc2_obj_n && sc2_objs[id - 1].name ? &sc2_objs[id - 1] : NULL;
+}
+
+/* Legacy ObjectiveCreate implicitly shows the objective; Create3 adds explicit visibility before primary. */
+static DWORD sc2_objective_create(LPJASS j, BOOL legacy) {
+    LPCSTR name = jass_checkstring(j, 1), desc = jass_checkstring(j, 2);
+    if (sc2_obj_n == BZ_SC2_OBJECTIVES) jass_rterror(j, "ObjectiveCreate: objective capacity exhausted");
+    SC2OBJECTIVE obj = { .state = jass_checkinteger(j, 3), .visible = legacy || jass_checkboolean(j, 4),
+        .primary = jass_checkboolean(j, legacy ? 4 : 5) };
+    obj.name = strdup(name ? name : ""); obj.desc = strdup(desc ? desc : "");
+    sc2_objs[sc2_obj_n++] = obj;
+    sc2_obj_last = sc2_obj_n;
+#ifdef SC2_DEBUG_CUTSCENE
+    fprintf(stderr, "SC2 objective: id=%ld state=%ld primary=%d name=%s\n", (long)sc2_obj_last, (long)sc2_objs[sc2_obj_n - 1].state, sc2_objs[sc2_obj_n - 1].primary, name);
+#endif
+    return jass_pushinteger(j, sc2_obj_last);
+}
+
+static DWORD sc2_ObjectiveCreate(LPJASS j) { return sc2_objective_create(j, true); }
+static DWORD sc2_ObjectiveCreate3(LPJASS j) { return sc2_objective_create(j, false); }
+static DWORD sc2_ObjectiveLastCreated(LPJASS j) { return jass_pushinteger(j, sc2_obj_last); }
+static DWORD sc2_ObjectiveGetState(LPJASS j) { LPSC2OBJECTIVE obj = sc2_objective(j); return jass_pushinteger(j, obj ? obj->state : -1); }
+static DWORD sc2_ObjectiveGetPrimary(LPJASS j) { LPSC2OBJECTIVE obj = sc2_objective(j); return jass_pushboolean(j, obj && obj->primary); }
+static DWORD sc2_ObjectiveGetName(LPJASS j) { LPSC2OBJECTIVE obj = sc2_objective(j); return jass_pushstring(j, obj ? obj->name : ""); }
+static DWORD sc2_ObjectiveGetDescription(LPJASS j) { LPSC2OBJECTIVE obj = sc2_objective(j); return jass_pushstring(j, obj ? obj->desc : ""); }
+
+/* Copy text before the native call releases its argument stack. */
+static DWORD sc2_ObjectiveSetName(LPJASS j) {
+    LPSC2OBJECTIVE obj = sc2_objective(j);
+    LPCSTR name = jass_checkstring(j, 2);
+    if (!obj) jass_rterror(j, "ObjectiveSetName: invalid objective");
+    free(obj->name); obj->name = strdup(name ? name : "");
+    return 0;
+}
+
+static DWORD sc2_ObjectiveSetState(LPJASS j) {
+    LPSC2OBJECTIVE obj = sc2_objective(j);
+    if (!obj) jass_rterror(j, "ObjectiveSetState: invalid objective");
+    obj->state = jass_checkinteger(j, 2);
+    return 0;
+}
+
+static DWORD sc2_ObjectiveDestroy(LPJASS j) {
+    LPSC2OBJECTIVE obj = sc2_objective(j);
+    if (!obj) jass_rterror(j, "ObjectiveDestroy: invalid objective");
+    free(obj->name); free(obj->desc); memset(obj, 0, sizeof(*obj));
+    return 0;
+}
+
 static DWORD sc2_PingLastCreated(LPJASS j)    { return jass_pushinteger(j, 0); }
 static DWORD sc2_PingDestroy(LPJASS j)        { (void)j; return jass_pushnull(j); }
 static DWORD sc2_PingSetScale(LPJASS j)       { (void)j; return jass_pushnull(j); }
@@ -20,7 +82,6 @@ static DWORD sc2_DialogControlSetPropertyAsText(LPJASS j){ (void)j; return jass_
 static DWORD sc2_DialogControlSetVisible(LPJASS j)       { (void)j; return jass_pushnull(j); }
 static DWORD sc2_HelpPanelAddTutorial(LPJASS j)          { (void)j; return jass_pushnull(j); }
 static DWORD sc2_HelpPanelShowTechTreeRace(LPJASS j)     { (void)j; return jass_pushnull(j); }
-static DWORD sc2_ObjectiveGetPrimary(LPJASS j)           { (void)j; return jass_pushnullhandle(j, "objective"); }
 static DWORD sc2_PingCreate(LPJASS j)                    { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UIClearMessages(LPJASS j)               { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UIFlyerHelperClearOverride(LPJASS j)    { (void)j; return jass_pushnull(j); }

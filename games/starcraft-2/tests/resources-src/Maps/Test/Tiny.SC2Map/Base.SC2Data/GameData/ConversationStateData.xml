@@ -1,0 +1,4 @@
+<Catalog><CConversationState id="StoryTips"><Indices>
+<Id value="Marine"/><ImagePath value="Assets/Textures/MarineOverride.dds"/>
+<InfoText><Id value="Description"/><Text value="Map description"/></InfoText>
+</Indices></CConversationState></Catalog>

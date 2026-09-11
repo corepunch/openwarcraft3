@@ -17,6 +17,9 @@ KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_coroutine_frame, JASSCOROUTINEFRAME);
 KNOWN_AS(jass_program, JASSPROGRAM);
 KNOWN_AS(jass_ref, JASSREF);
+KNOWN_AS(jass_missing, JASSMISSING);
+
+struct jass_missing { LPJASSMISSING next; char name[]; };
 
 #define BZ_JASS_HASH_SIZE 4096 // buckets; keeps Galaxy lookup chains near one entry; used for root globals/functions
 
@@ -127,6 +130,7 @@ struct jass_s {
     LPJASSCOROUTINE current_coroutine;
     BOOL halt_events;
     /* Runtime error state — owned by root, written by jass_rterror(). */
+    LPJASSMISSING missing;
     BOOL rterror_pending;
     char rterror_message[512];
     jmp_buf sync_rterror_jmp;

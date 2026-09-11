@@ -1,7 +1,4 @@
-/* galaxy_host.c — SC2 Galaxy scripting host.
- * Provides all native functions referenced by TRaynor01 campaign scripts.
- * Unimplemented functions return zero/null via named sc2_* stubs.
- */
+/* SC2 Galaxy host. Missing bindings raise protected script errors; see galaxy-native-coverage.json for legacy stubs. */
 
 #include "galaxy_host.h"
 #include "games/warcraft-3/jass/jass_api.h"
@@ -63,6 +60,7 @@ void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                              float dist, float fov, float height_offset, float duration);
 void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
 void (*sc2_galaxy_on_fade)(float alpha, float duration);
+LPCSTR (*sc2_galaxy_conversation_field)(LPCSTR key, LPCSTR field);
 float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
 void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
 void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
@@ -108,6 +106,7 @@ void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 void galaxy_loaded_reset(void);
 
 void galaxy_reset(void) {
+    sc2_objectives_reset();
     for (DWORD i = 0; i < sc2_trig_n; i++) {
         free((void *)sc2_trigs[i].func);  /* free strdup'd names */
         sc2_trigs[i].func = NULL;
@@ -133,6 +132,9 @@ void galaxy_reset(void) {
     memset(sc2_gactors, 0, sizeof(sc2_gactors));
     sc2_gactor_n = 0;
     sc2_last_actor_handle = 0;
+    sc2_scope_n = sc2_scope_last = 0;
+    memset(sc2_scopes, 0, sizeof(sc2_scopes));
+    memset(sc2_unit_scope, 0, sizeof(sc2_unit_scope));
     galaxy_loaded_reset();
 }
 
@@ -179,22 +181,26 @@ LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
 }
 
 void galaxy_close(LPJASS vm) {
-    if (vm) jass_close(vm);
+    if (vm) {
+        for (DWORD i = 0; i < jass_missingcount(vm); i++)
+            fprintf(stderr, "galaxy: missing function: %s\n", jass_missingname(vm, i));
+        jass_close(vm);
+    }
     galaxy_reset();
 }
 
 void galaxy_start(LPJASS vm) {
-    /* Skip InitLibs() — heavy array-init loops are O(n^2) in JASS VM (50+ s).
-     * InitGlobals() sets map-script globals; InitTriggers() registers the
-     * MapInit event handler for the intro cutscene. */
-    /* InitGlobals has ~5600 lines of global inits with O(n) variable lookup per
-     * assignment — too slow without a hash table.  The cutscene only needs
-     * triggers registered by InitTriggers; skip InitGlobals for now. */
-    fprintf(stderr, "galaxy_start: calling InitTriggers\n");
-    jass_callbyname(vm, "InitTriggers", false);
-    if (jass_rterror_pending(vm)) {
-        fprintf(stderr, "galaxy_start: InitTriggers error: %s\n", jass_rterror_message(vm));
-        jass_rterror_clear(vm);
+    /* TODO: InitLibs reaches unimplemented dialog/purchase event producers. Keep this gap explicit until wired. */
+    fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (library event bindings incomplete)\n");
+    static LPCSTR const entry[] = { "InitGlobals", "InitTriggers" };
+    for (DWORD i = 0; i < sizeof(entry) / sizeof(*entry); i++) {
+        fprintf(stderr, "galaxy_start: calling %s\n", entry[i]);
+        jass_callbyname(vm, entry[i], false);
+        if (jass_rterror_pending(vm)) {
+            fprintf(stderr, "galaxy_start: %s error: %s\n", entry[i], jass_rterror_message(vm));
+            jass_rterror_clear(vm);
+            return;
+        }
     }
     fprintf(stderr, "galaxy_start: done, %u triggers registered\n", sc2_trig_n);
 }
@@ -234,6 +240,9 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "ActorFromScope",                      sc2_ActorFromScope },
     { "ActorRegionCreate",                   sc2_ActorRegionCreate },
     { "ActorRegionSend",                     sc2_ActorRegionSend },
+    { "ActorScopeFrom",                      sc2_ActorScopeFrom },
+    { "ActorScopeFromActor",                 sc2_ActorScopeFromActor },
+    { "ActorScopeKill",                      sc2_ActorScopeKill },
     { "ActorScopeFromUnit",                  sc2_ActorScopeFromUnit },
     { "ActorSend",                           sc2_ActorSend },
     { "AIDisableAllScouting",                sc2_AIDisableAllScouting },
@@ -285,6 +294,7 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "ConversationDataSaveStateValues",     sc2_ConversationDataSaveStateValues },
     { "ConversationDataStateFixedValue",     sc2_ConversationDataStateFixedValue },
     { "ConversationDataStateGetValue",       sc2_ConversationDataStateGetValue },
+    { "ConversationDataStateImagePath",     sc2_ConversationDataStateImagePath },
     { "ConversationDataStateIndex",          sc2_ConversationDataStateIndex },
     { "ConversationDataStateIndexCount",     sc2_ConversationDataStateIndexCount },
     { "ConversationDataStateName",           sc2_ConversationDataStateName },
@@ -335,6 +345,10 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "MinF",                                sc2_MinF },
     { "MinimapPing",                         sc2_MinimapPing },
     { "ModF",                                sc2_ModF },
+    { "ObjectiveCreate",                     sc2_ObjectiveCreate },
+    { "ObjectiveDestroy",                    sc2_ObjectiveDestroy },
+    { "ObjectiveGetName",                    sc2_ObjectiveGetName },
+    { "ObjectiveGetDescription",             sc2_ObjectiveGetDescription },
     { "ObjectiveCreate3",                    sc2_ObjectiveCreate3 },
     { "ObjectiveGetPrimary",                 sc2_ObjectiveGetPrimary },
     { "ObjectiveGetState",                   sc2_ObjectiveGetState },

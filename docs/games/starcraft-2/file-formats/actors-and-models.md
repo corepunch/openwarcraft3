@@ -250,3 +250,5 @@ scale min/max, optional and required `.m3a` files, texture declaration slots.
 - `.m3a` files add animation sequences and should be layered onto the base model after loading.
 - Texture declaration slots enable team-color swapping — needed once multiple player colors are rendered.
 - `Walk Animation Move Speed` calibrates walk animation against world movement speed; use it to drive the animation time parameter during unit movement.
+
+For the implemented Galaxy native ABI, scope lifecycle, and the distinction between retained script actors and rendered attachments, see [Galaxy presentation state](../galaxy-presentation.md#actor-abi-and-scope-lifecycle).

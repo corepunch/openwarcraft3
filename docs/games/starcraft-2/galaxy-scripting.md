@@ -4,9 +4,9 @@
 
 The SC2 game module owns Galaxy lifecycle through `games/starcraft-2/game/galaxy/galaxy_host.c`:
 
-1. `galaxy_open` creates the JASS VM and loads `data/TRaynor01-galaxy/MapScript.galaxy`.
+1. `SC2_LoadMap` passes its authoritative map directory to `galaxy_set_script_dir`; `galaxy_open` loads its `MapScript.galaxy` through VFS.
 2. Galaxy `include` directives load NativeLib, LibertyLib, and CampaignLib once per VM.
-3. `galaxy_start` calls `InitTriggers`; `InitGlobals` and `InitLibs` remain skipped.
+3. `galaxy_start` calls `InitGlobals` and then `InitTriggers`. `InitLibs` remains unsupported and emits a startup warning.
 4. `SC2_ClientBegin` calls `galaxy_fire_mapinit` after the local client enters the map.
 5. `SC2_RunFrame` calls `galaxy_tick` to resume yielded trigger coroutines.
 6. `SC2_Shutdown` calls `galaxy_close`.
@@ -52,10 +52,10 @@ make test-galaxy
 Run the TRaynor01 lifecycle with a bounded frame count:
 
 ```sh
-make run-sc2 ARGS="+map Maps/Campaign/TRaynor01.SC2Map +vid_hidden 1 +com_frame_limit 200"
+make run-sc2 ARGS="-com_fast_forward +vid_hidden 1 +com_frame_limit 1500"
 ```
 
-A successful lifecycle run registers 127 triggers and executes:
+With the inspected map and current partial library startup, the bounded simulation registers 127 triggers and executes:
 
 - `gt_Initialization_Func`
 - `gt_Init01Technology_Func` through `gt_Init07Help_Func`
@@ -63,12 +63,13 @@ A successful lifecycle run registers 127 triggers and executes:
 - intro setup, cinematic, cinematic end, and cleanup
 - `gt_StartGame_Func`
 
-It must exit from `com_frame_limit` without an infinite-loop assertion or memory fault.
+It must exit from `com_frame_limit` without an infinite-loop assertion or memory fault. A plain 200-frame run is only a startup
+probe: frame counts without fast-forward do not guarantee enough simulation time for dialogue waits.
 
 The intro does not end at camera `976`. Its eight-second interpolation overlaps `TRaynor01Raynor00028` (4.82 seconds), while the
 dropship flies from point `379` to point `1037`. It unloads Raynor and five Marines there, then departs toward point `1038`; cleanup
 starts gameplay. After the camera reaches its endpoint, `gt_OpeningLineQ_Func` plays `TRaynor01Raynor00030` (3.84 seconds) before
-the new-unit, hero-game, and story-mode tip triggers run. Confirm that ordering with:
+the new-unit, hero-game, and story-mode tip triggers run. For a real-time trace (callback names require the debug build below):
 
 ```sh
 make run-sc2 ARGS="+map Maps/Campaign/TRaynor01.SC2Map +set r_vsync 1 +vid_hidden 1 +com_frame_limit 1200" 2>&1 \
@@ -87,21 +88,71 @@ make run-sc2 ARGS="+map Maps/Campaign/TRaynor01.SC2Map +set r_vsync 1 +vid_hidde
 - `vm_coroutine_void_argument`: zero-result nested arguments cannot underflow the coroutine stack.
 - `vm_coroutine_executes_dynamic_trigger`: a wrapper compiled after coroutine creation yields in a wait-done child and finishes before its parent resumes, even after an earlier logged VM error.
 
-## Discovering Missing Natives
+## Protected Calls and Missing-Native Inventory
 
-The JASS VM crashes on unimplemented natives so that missing host bindings are surfaced immediately.
-To collect all missing natives in a single run instead of fixing them one-by-one, rebuild libjass with `-DBZ_LENIENT_NATIVES`:
+Unknown functions and declared but unbound natives use the same protected runtime-error boundary. They terminate the current
+synchronous call or coroutine (including waiting parents), leave other coroutines runnable, and report a warning through the host.
+They do **not** fabricate a return value and continue the broken callback. Global-initializer evaluation has a protected boundary too.
+String/integer/boolean/code native argument mismatches raise script errors instead of asserting the process. C memory errors and
+unrelated engine assertions are not exceptions caught by this mechanism.
+
+`jass_missingcount` / `jass_missingname` expose unique unresolved names for the VM lifetime. `jass_rterror_clear` clears only the
+latest error; it does not erase this inventory. `galaxy_close` prints each name as `galaxy: missing function: NAME`. A later run can
+reach additional gaps after the first failure in a callback is implemented. Do not enable the removed `BZ_LENIENT_NATIVES` path or
+replace missing bindings with success-returning stubs: either would allow invalid dependent script actions to run.
+
+The full [native coverage guide](galaxy-native-coverage.md) contains archive extraction commands, audit limitations, the complete
+Markdown inventory, and a proposed implementation order. Objective/actor contracts and conversation schemas live in
+[Galaxy presentation state](galaxy-presentation.md).
+
+## TRaynor01 Post-Intro Failure (September 2026)
+
+The original bounded trace showed two independent bugs:
+
+- `ObjectiveCreate` was unknown; `VM_EvalCall` only recorded an error and returned no value, allowing its caller to continue.
+- `libNtve_gf_AttachActorToUnit` then called `ActorCreate` with a live `actorscope` as argument one. The host incorrectly read
+  that argument as a string. The native signature in the mounted `TriggerLibs/natives.galaxy` is
+  `ActorCreate(actorscope, string actorName, string content1, string content2, string content3)`.
+
+The follow-on blockers were `ActorScopeKill` after the opening dialogue and `ConversationDataStateImagePath` while creating tips.
+[Galaxy presentation state](galaxy-presentation.md) records their native ABI, ownership, schema, lifetime, and remaining limitations.
+Tests also exposed two independent issues: `IntToText` returned an integer placeholder instead of text, and comparing two distinct
+opaque handles dereferenced a missing JASS type declaration in `var_eq`.
+
+Skipping `InitGlobals` left `gv_p1_USER` at zero instead of its authored value 1 and left objective counters unset. The current startup
+restores map globals before trigger registration. Attempting the complete authored `InitMap` stopped at
+`TriggerAddEventDialogControl` in `libNtve_InitLib`. The native event dispatcher must be completed before restoring `InitLibs`;
+logging a warning and adding another no-op binding would not implement that initialization contract.
+
+The authored startup is `InitMap` → `InitLibs` → `InitGlobals` → `InitTriggers`. Current startup only performs the last two.
+`InitGlobals` restoring the script's player number does not fix the separate client/lobby/native-owner mapping described in the
+[HUD pipeline](hud-layout-pipeline.md#selectioninfopanel-status).
+
+### History That Explained the Failure
+
+| History reference | Finding |
+|---|---|
+| `d843c82ed`, `jdo.c` unknown-function branch | Added pending error text to the preexisting return-without-unwind path; logging was not exception handling |
+| `93b476f3c`, `galaxy_game.h` | `IntToText` entered this domain split as an integer-zero placeholder |
+| `15f5c9b99`, `jdo.c` handle equality | Value-handle comparison accessed `a->type->name`; Galaxy's unregistered opaque types can have a null type |
+
+Use `git show <commit>` and `git log -p -S <symbol> -- <file>` to recover context; line numbers change as the fixes evolve.
+Do not infer that the most recent log message caused the next assertion: the captured stack identified `sc2_ActorCreate` directly.
+
+Verification:
 
 ```sh
-# 1. Add the flag temporarily to the top of games/warcraft-3/jass/jdo.c:
-#    #define BZ_LENIENT_NATIVES
-# 2. Rebuild and run:
-rm -f build/lib/libjass.dylib build/lib/libgame-sc2.dylib build/bin/opensc2
-make opensc2
-build/bin/opensc2 -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map 2>&1 \
-    | grep 'unimplemented native' | sed 's/.*unimplemented native: //' | sort -u
-# 3. Add each missing name as a galaxy_stub entry in galaxy_host.c, then remove the #define.
+make test-galaxy test-sc2 test-jass-build
+make run-sc2 ARGS="-com_fast_forward +set fs_homepath /tmp/ow3-sc2-diagnostic +vid_hidden 1 +com_frame_limit 1500"
 ```
+
+The 1,500-frame fixed-tick run exits normally after both primary objectives and the opening-line/Marine/unique-unit/story-mode tip
+callbacks. `SC2_DEBUG_CUTSCENE` traces confirm two active primary objective IDs and the callbacks through `gt_TipStoryModeQ_Func`.
+The suites cover protected nested/synchronous/coroutine calls, recovery and missing-name deduplication, initializer errors, type
+errors, objective state/text/lifetime, actor ABI/identity/scope cleanup, and catalog layering from fixture archives.
+
+SC2 unity builds now depend on the game headers: otherwise edits to `galaxy_*.h` did not rebuild `libgame-sc2`, leaving stale native
+bindings in a diagnostic run. Temporary investigative logs must be removed; optional traces remain behind `SC2_DEBUG_CUTSCENE`.
 
 ## Remaining Gaps
 
@@ -112,13 +163,13 @@ TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 
 
 Remaining native coverage gaps:
 
-- All natives called by the TRaynor01 intro cutscene are stubbed; the cutscene runs to completion without unimplemented-native errors.
+- The bounded intro and post-intro start-game sequence runs without a Galaxy runtime error; this does not establish complete mission gameplay.
 - `CampaignMode` is a no-op stub.
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;
 - multidimensional Galaxy arrays use nested sparse VM arrays; every authored index is preserved for reads and writes;
-- `ObjectiveCreate` is not currently resolved on the start-game path;
+- objectives retain IDs, name/description, state, primary and visibility, but their HUD presentation is not yet implemented;
 - Galaxy `continue` remains parse-safe fallthrough rather than true loop continuation.
 
 Do not replace missing map IDs or models with guessed defaults. Resolve them from the loaded SC2 map and catalog data.
@@ -135,3 +186,28 @@ spawning the dropship at point `379`, then moves toward camera `976` after the f
 `1037`, and `1038` all cluster around camera `1660`, confirming that the map lookup selects the intended opening area. Tests with
 the horizontal camera direction rotated by `90`, `180`, and `270` degrees all produced other incorrect map quadrants; do not mask
 the incomplete cinematic lifecycle with a yaw offset.
+
+## Reproducing Detailed Traces
+
+Enable the existing compile-time trace without leaving a source-level define behind. `-W` forces the owning source dependency to
+rebuild, because changing Make variables alone does not invalidate existing artifacts:
+
+```sh
+make -W games/starcraft-2/game/galaxy/galaxy_host.c SC2_DEBUG_CFLAGS=-DSC2_DEBUG_CUTSCENE opensc2
+build/bin/opensc2 -data data/StarCraft2 -com_fast_forward +set fs_homepath /tmp/ow3-sc2-diagnostic +map Maps/Campaign/TRaynor01.SC2Map +vid_hidden 1 +com_frame_limit 1500 > /tmp/sc2-galaxy.log 2>&1
+rg 'SC2 objective:|gt_(StartGame|OpeningLineQ|TipUnitNewUnitMarinesQ|TipThisisnotaherogameQ|TipStoryModeQ)_Func|runtime error:|missing function:' /tmp/sc2-galaxy.log
+make -W games/starcraft-2/game/galaxy/galaxy_host.c opensc2
+```
+
+The last command restores the ordinary build. `SC2_GAME_HEADERS` in `games/starcraft-2/game.mk` now ensures header edits also rebuild
+the game library. Compile-time flag changes still require an explicit rebuild.
+
+The September 11 verification passed 107 assertions in 78 Galaxy/JASS tests, 705 assertions in 58 SC2 tests, and the JASS header
+rebuild check. The bounded process exited with status 0, created two active primary objectives, and reached all five callback names
+in the filter above without a Galaxy runtime error. These are recorded observations, not a requirement that future suite counts
+stay fixed. Existing asset warnings, unresolved conversation ordinal patches, and other incomplete behavior were not eliminated.
+
+On macOS, the first sandboxed GUI run could not reach a usable GL context: SDL had no display and the drawable was 0×0. That did not
+reproduce the Galaxy crash. A run with display-service access reached the actual mission. Do not interpret a headless GL failure as
+script evidence. Fast-forward is for script/simulation validation; use wall-clock pacing for rendering, sound timing, input, or
+screenshots. Retain the engine's bounded-run flags in either case.

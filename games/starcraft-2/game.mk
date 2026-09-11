@@ -5,6 +5,7 @@ RENDERER_SC2_LIB := $(LIB_DIR)/librenderer-sc2$(LIB_EXT)
 GAME_SC2_LIB     := $(LIB_DIR)/libgame-sc2$(LIB_EXT)
 MENU_SC2_LIB       := $(LIB_DIR)/libmenu-sc2$(LIB_EXT)
 SC2_BINARY       := $(BIN_DIR)/opensc2$(EXE_EXT)
+SC2_GAME_HEADERS := $(shell find $(SC2_DIR)/game -name '*.h' | sort)
 SC2_COMMON_SRCS  := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
 
 SC2_DEBUG_CFLAGS ?=
@@ -33,7 +34,7 @@ $(BIN_DIR)/sc2map$(EXE_EXT): tools/sc2map.c $(SC2_DIR)/common/sc2_map.c $(SC2_DI
 
 $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer) $(SC2_COMMON_SRCS),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 
-$(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-ljass -lshared $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(SC2_GAME_HEADERS) $(GAME_BASE_DEPS) $(JASS_LIB) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-ljass -lshared $(LIBS) -lm -lz))
 
 $(eval $(call unity_lib_schema,$(MENU_SC2_LIB),$(UI_BASE_DEPS) client/menu.h $(call CSRC,$(SC2_DIR)/menu),menu-sc2,$(SC2_DIR)/menu,,$(SC2_IMPL_CFLAGS),,-lshared))
 

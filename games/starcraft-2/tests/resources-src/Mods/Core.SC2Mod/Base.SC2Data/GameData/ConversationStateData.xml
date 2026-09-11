@@ -1,0 +1,4 @@
+<Catalog><CConversationState id="StoryTips">
+<Indices Id="Marine" Name="ConversationState/StoryTips/Marine" ImagePath="Assets/Textures/Marine.dds">
+<InfoText Id="Description" Text="Marine description"/><InfoText Id="Loading Screen Restart" Text="Restart description"/>
+</Indices></CConversationState></Catalog>

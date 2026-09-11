@@ -26,7 +26,7 @@
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
-#define assert_type(var, type) assert(jass_checktype(var, type))
+#define assert_type(var, type) do { if (!jass_checktype(var, type)) jass_rterror(j, "invalid native argument: expected " #type); } while (0)
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 #define BZ_JASS_REQUIRE_STACK(j) if (j->num_stack >= MAX_JASS_STACK) jass_rterror(j, "stack overflow")
 
@@ -112,6 +112,7 @@ JASSTYPE jass_types[] = {
  * Forward declarations
  * ========================================================================= */
 
+static void jass_missingcall(LPJASS j, LPCSTR name, BOOL native);
 static LPJASSVAR jass_stackvalue(LPJASS j, int index);
 static LPJASSVAR jass_topvalue(LPJASS j);
 static JASSTYPEID jass_getvarbasetype(LPCJASSVAR var);
@@ -237,7 +238,8 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_handle:
             if (a->value == b->value) return true;
             if (a->type != b->type) return false;
-            return jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(DWORD));
+            /* Galaxy opaque types have no JASS declaration; unequal identities must not dereference a null type. */
+            return a->type && jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(DWORD));
     }
     return false;
 }
@@ -511,7 +513,7 @@ LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
     JASSCONTEXT context = *jass_getcontext(j);
 
     if (!func) {
-        fprintf(stderr, "Function not found %s\n", name);
+        jass_missingcall(j, name, false);
         return NULL;
     }
     context.func = func;
@@ -523,7 +525,7 @@ LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct
     LPCJASSFUNC func = find_function(jass_root(j), name);
     JASSCONTEXT context = *jass_getcontext(j);
     if (!func) {
-        fprintf(stderr, "Function not found %s\n", name);
+        jass_missingcall(j, name, false);
         return NULL;
     }
     context.func = func;
@@ -624,18 +626,33 @@ static void jass_setruntimeerror(LPJASS j, LPCSTR message) {
     jass_host.RuntimeError(root->rterror_message);
 }
 
-static void jass_unimplementednative(LPJASS j, LPCSTR name) {
+/* Missing calls unwind like native errors; returning no value used to let broken callers continue. */
+static void jass_missingcall(LPJASS j, LPCSTR name, BOOL native) {
     LPJASS root = jass_root(j);
+    LPJASSMISSING item = root->missing;
     char message[256];
-    snprintf(message, sizeof(message), "unimplemented native: %s", name ? name : "(nil)");
-#ifdef BZ_LENIENT_NATIVES
-    jass_host.RuntimeError(message);
-#else
-    jass_setruntimeerror(root, message);
-    if (root->current_coroutine && root->current_coroutine->rterror_jmp_set)
-        longjmp(root->current_coroutine->rterror_jmp, 1);
-    if (root->sync_rterror_jmp_set) longjmp(root->sync_rterror_jmp, 1);
-#endif
+    while (item && strcmp(item->name, name)) item = item->next;
+    if (!item) {
+        item = jass_alloc(sizeof(*item) + strlen(name) + 1);
+        strcpy(item->name, name);
+        item->next = root->missing;
+        root->missing = item;
+    }
+    snprintf(message, sizeof(message), "%s: %s", native ? "unimplemented native" : "unknown function", name);
+    if (root->current_coroutine || root->sync_rterror_jmp_set) jass_rterror(j, message);
+    else jass_setruntimeerror(j, message);
+}
+
+DWORD jass_missingcount(LPJASS j) {
+    DWORD count = 0;
+    for (LPJASSMISSING item = jass_root(j)->missing; item; item = item->next) count++;
+    return count;
+}
+
+LPCSTR jass_missingname(LPJASS j, DWORD index) {
+    LPJASSMISSING item = jass_root(j)->missing;
+    while (item && index--) item = item->next;
+    return item ? item->name : NULL;
 }
 
 void jass_rterror(LPJASS j, LPCSTR message) {
@@ -695,7 +712,7 @@ static BOOL jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN 
     }
     /* Native declarations without host bindings must not run as empty script functions. */
     if (func->native) {
-        jass_unimplementednative(j, func->name);
+        jass_missingcall(j, func->name, true);
         return true;
     }
     locals = jass_coroutine_buildlocals(j, func, token->args);
@@ -1476,7 +1493,7 @@ LPCSTR jass_checkstring(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     /* JASS null is polymorphic.  The VM stores it as a null handle, but Blizzard's
      * cinematic helpers pass null through string parameters; treat that value as
-     * the empty string while retaining the type assertion for non-null values. */
+     * the empty string while retaining argument validation for non-null values. */
     if (jass_getvarbasetype(var) == jasstype_handle && !var->value)
         return "";
     assert_type(var, jasstype_string);
@@ -1595,7 +1612,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
     } else if ((f = find_function(j, token->primary))) {
         /* An unresolved native used to execute as an empty JASS function, hiding missing engine behavior. */
         if (f->native && !f->nativefunc) {
-            jass_unimplementednative(j, f->name);
+            jass_missingcall(j, f->name, true);
             return 0;
         }
         DWORD args = 0;
@@ -1620,10 +1637,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         jass_call(j, args);
         return j->num_stack - stacksize;
     } else {
-        fprintf(stderr, "Can't find function %s\n", token->primary);
-        jass_root(j)->rterror_pending = true;
-        snprintf(jass_root(j)->rterror_message, sizeof(jass_root(j)->rterror_message),
-                 "unknown function: %s", token->primary ? token->primary : "(null)");
+        jass_missingcall(j, token->primary, false);
         return 0;
     }
 }
@@ -2005,6 +2019,18 @@ static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
     }
 }
 
+/* Global initializers can call natives before a script entry point establishes its call boundary. */
+static void jass_evalprogram(LPJASS j, LPCTOKEN program) {
+    LPJASS root = jass_root(j);
+    DWORD base = j->num_stack;
+    LPJASSVAR saved = j->stack_pointer;
+    if (root->current_coroutine || root->sync_rterror_jmp_set) { eval_TOKENS(j, program); return; }
+    root->sync_rterror_jmp_set = true;
+    if (!setjmp(root->sync_rterror_jmp)) eval_TOKENS(j, program);
+    else { jass_discard(j, j->num_stack - base); j->stack_pointer = saved; }
+    root->sync_rterror_jmp_set = false;
+}
+
 BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
@@ -2028,7 +2054,7 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     LPJASSPROGRAM owned = JASSALLOC(JASSPROGRAM);
     owned->tokens = program;
     ADD_TO_LIST(owned, jass_root(j)->programs);
-    eval_TOKENS(j, program);
+    jass_evalprogram(j, program);
     return !jass_rterror_pending(j);
 }
 
@@ -2596,6 +2622,7 @@ void jass_close(LPJASS j) {
     }
     FOR_LOOP(i, root->num_stack) jass_setnull(root->stack + i);
     SAFE_DELETE(root->globals, jass_deletedict);
+    DELETE_LIST(JASSMISSING, root->missing, jass_free);
     while (root->functions) {
         LPJASSFUNC func = root->functions, next = func->next;
         DELETE_LIST(JASSARG, func->args, jass_free);
@@ -2728,7 +2755,7 @@ DWORD jass_call(LPJASS j, DWORD args) {
 void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine) {
     LPCJASSFUNC func = find_function(j, name);
     if (!func) {
-        fprintf(stderr, "Function not found %s\n", name);
+        jass_missingcall(j, name, false);
         return;
     }
     if (spawn_coroutine) {

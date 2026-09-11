@@ -92,6 +92,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |
 | SC2 terrain/cliff rendering, normal welding, and material batches | [docs/games/starcraft-2/terrain-and-world-rendering.md](docs/games/starcraft-2/terrain-and-world-rendering.md) |
 | SC2 Galaxy VM lifecycle, trigger execution, lookup indexes, diagnostics, and gaps | [docs/games/starcraft-2/galaxy-scripting.md](docs/games/starcraft-2/galaxy-scripting.md) |
+| SC2 Galaxy objective/actor state, native ABI, scope cleanup, conversation catalog schema | [docs/games/starcraft-2/galaxy-presentation.md](docs/games/starcraft-2/galaxy-presentation.md) |
+| SC2 Galaxy native inventory, archive extraction, audit limitations, implementation priorities | [docs/games/starcraft-2/galaxy-native-coverage.md](docs/games/starcraft-2/galaxy-native-coverage.md) |
 | FS / VFS / MPQ loading stack, config/share dir resolution, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Config load order, cvar registry, `bind SHIFT+N` modifiers, `fs_basepath`/`fs_homepath`, `share/<game>/` + `~/.<game>/` layout | [docs/architecture/runtime.md](docs/architecture/runtime.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |

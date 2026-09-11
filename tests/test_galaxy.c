@@ -67,6 +67,8 @@ static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
 static float gal_sound_length(LPCSTR id, int asset) {
     return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
 }
+static DWORD gal_actor_destroyed, gal_actor_last;
+static void gal_actor_destroy(unsigned id) { gal_actor_destroyed++; gal_actor_last = id; }
 static BOOL gal_unit_moving;
 static LONG gal_move_count;
 static FLOAT gal_move_x;
@@ -859,6 +861,111 @@ TEST(galaxy, vm_null_equality) {
     gal_destroy(&s);
 }
 
+/* A failed callback must not execute dependent statements or prevent other callbacks from running. */
+TEST(galaxy, vm_unknown_calls_are_protected) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg); native void MissingNative();"
+        "int value = 0;"
+        "void nested() { value = UnknownExpression() + 1; value = 99; }"
+        "void failing() { nested(); value = 99; }"
+        "void declared() { MissingNative(); value = 99; }"
+        "void good() { value = value + 1; }"
+        "void verify() { if (value != 1) { TestFail(\"error escaped callback boundary\"); } }"));
+    jass_callbyname(s.j, "failing", false);
+    T_ASSERT(jass_rterror_pending(s.j));
+    T_EQ(jass_missingcount(s.j), 1);
+    T_STREQ(jass_missingname(s.j, 0), "UnknownExpression");
+    jass_rterror_clear(s.j);
+    jass_callbyname(s.j, "declared", true);
+    jass_callbyname(s.j, "failing", true);
+    jass_callbyname(s.j, "good", true);
+    jass_runevents(s.j);
+    T_ASSERT(jass_rterror_pending(s.j));
+    T_EQ(jass_missingcount(s.j), 2);
+    T_NULL(jass_missingname(s.j, 2));
+    jass_rterror_clear(s.j);
+    jass_callbyname(s.j, "verify", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_unknown_global_initializer_is_protected) {
+    gal_state_t s = gal_new();
+    T_ASSERT(!gal_parse(&s, "int value = MissingInitializer();"));
+    T_EQ(jass_missingcount(s.j), 1);
+    T_ASSERT(gal_run(&s, "void main() {}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_objective_lifecycle) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);"
+        "void main() {"
+        "int hq = ObjectiveCreate(\"Destroy HQ\", \"Primary mission\", 1, true);"
+        "int boards = ObjectiveCreate3(\"Holoboards\", \"Optional mission\", 1, true, false);"
+        "if (hq == 0 || boards == hq || ObjectiveLastCreated() != boards) { TestFail(\"objective identity\"); }"
+        "if (!ObjectiveGetPrimary(hq) || ObjectiveGetPrimary(boards)) { TestFail(\"objective primary\"); }"
+        "ObjectiveSetName(boards, \"Holoboards (\" + IntToText(1) + \"/6)\"); ObjectiveSetState(hq, 2);"
+        "if (ObjectiveGetState(hq) != 2 || ObjectiveGetState(boards) != 1) { TestFail(\"objective state\"); }"
+        "if (ObjectiveGetName(boards) != \"Holoboards (1/6)\") { TestFail(\"objective name\"); }"
+        "if (ObjectiveGetDescription(hq) != \"Primary mission\") { TestFail(\"objective description\"); }"
+        "ObjectiveDestroy(hq); if (ObjectiveGetState(hq) != -1) { TestFail(\"destroyed objective\"); }"
+        "}"));
+    galaxy_reset();
+    T_ASSERT(gal_run(&s, "void main() { if (ObjectiveLastCreated() != 0) { TestFail(\"objective reset\"); } }"));
+    gal_destroy(&s);
+}
+
+/* The native signature must accept a non-null scope in argument one, as NativeLib's attachment helper does. */
+TEST(galaxy, vm_actor_scope_first) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    gal_actor_destroyed = gal_actor_last = 0;
+    sc2_galaxy_on_actor_destroy = gal_actor_destroy;
+    sc2_galaxy_on_unit_create = gal_unit_create;
+    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);"
+        "native actorscope ActorScopeFromUnit(unit u);"
+        "native actor ActorCreate(actorscope scope, string name, string c1, string c2, string c3);"
+        "native actor ActorFrom(string name);"
+        "native actorscope ActorScopeFrom(string name); native void ActorScopeKill(actorscope scope);"
+        "void main() {"
+        "UnitCreate(1, \"Raynor\", 0, 1, Point(0.0, 0.0), 0.0);"
+        "actorscope scope = ActorScopeFromUnit(UnitLastCreated());"
+        "if (scope == null) { TestFail(\"live actor scope missing\"); }"
+        "actor site = ActorCreate(scope, \"SiteHosted\", \"Origin\", \"\", \"\");"
+        "if (site == null || ActorFrom(\"::LastCreated\") != site) { TestFail(\"site identity\"); }"
+        "actor icon = ActorCreate(scope, \"TalkIcon\", \"\", \"\", \"\");"
+        "if (icon == site || ActorFrom(\"::LastCreated\") != icon) { TestFail(\"icon identity\"); }"
+        "ActorScopeKill(ActorScopeFrom(\"::LastCreated\"));"
+        "if (ActorFrom(\"::LastCreated\") != null) { TestFail(\"destroyed actor identity\"); }"
+        "ActorScopeKill(ActorScopeFrom(\"::LastCreated\"));"
+        "}"));
+    T_EQ(gal_actor_destroyed, 1); T_EQ(gal_actor_last, 2);
+    sc2_galaxy_on_actor_destroy = NULL;
+    sc2_galaxy_on_unit_create = NULL;
+    galaxy_reset();
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_bad_native_argument_is_protected) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s, "native void TestFail(string msg); void main() { TestFail(42); } void good() {}"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(jass_rterror_pending(s.j));
+    T_STREQ(jass_rterror_message(s.j), "invalid native argument: expected jasstype_string");
+    jass_rterror_clear(s.j);
+    jass_callbyname(s.j, "good", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
 TEST(galaxy, vm_string_word) {
     gal_state_t s = gal_new();
     jass_sethost(&MAKE(JASSHOST,
@@ -976,12 +1083,14 @@ TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
         "native void TriggerExecute(trigger value, bool testConds, bool waitDone);\n"
         "int gv_called = 0;\n"
         "bool child(bool testConds, bool runActions) { gv_called = 1; Wait(0.0, 0); gv_called = 2; return true; }\n"
+        "void failing() { MissingFunction(); }\n"
         "void main() {\n"
         "    trigger value = TriggerCreate(\"child\");\n"
-        "    MissingFunction();\n"
         "    TriggerExecute(value, true, true);\n"
         "    if (gv_called != 2) { TestFail(\"wait-done trigger resumed parent before child\"); }\n"
         "}"));
+    jass_callbyname(s.j, "failing", false);
+    T_ASSERT(jass_rterror_pending(s.j));
     jass_callbyname(s.j, "main", true);
     jass_runevents(s.j);
     jass_runevents(s.j);

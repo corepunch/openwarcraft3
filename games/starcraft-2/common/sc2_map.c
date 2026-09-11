@@ -102,7 +102,23 @@ typedef struct {
     char path[256];
 } sc2CatalogSound_t;
 
+typedef struct sc2_convtext {
+    struct sc2_convtext *next;
+    char id[64], text[256];
+} SC2CONVTEXT;
+typedef SC2CONVTEXT *LPSC2CONVTEXT;
+typedef const SC2CONVTEXT *LPCSC2CONVTEXT;
+
+typedef struct sc2_conversation {
+    struct sc2_conversation *next;
+    LPSC2CONVTEXT text;
+    char id[128], name[256], image[256];
+} SC2CONVERSATION;
+typedef SC2CONVERSATION *LPSC2CONVERSATION;
+typedef const SC2CONVERSATION *LPCSC2CONVERSATION;
+
 typedef struct {
+    LPSC2CONVERSATION conv;
     DWORD models_count;
     DWORD actors_count;
     DWORD units_count;
@@ -171,7 +187,20 @@ static LPCSTR const sc2_catalog_known_files[] = {
     "GameData\\CliffData.xml",
     "GameData\\TileData.xml",
     "GameData\\SoundData.xml",
+    "GameData\\ConversationStateData.xml",
     NULL,
+};
+
+static sc2XmlField_t const sc2_conv_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "Id", id),
+    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "Name", name),
+    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "ImagePath", image),
+
+};
+
+static sc2XmlField_t const sc2_conv_text_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(SC2CONVTEXT, "Id", id),
+    SC2_STRUCT_XML_STRING_FIELD(SC2CONVTEXT, "Text", text),
 };
 
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
@@ -206,8 +235,21 @@ static BOOL sc2_file_exists(LPCSTR path) {
     return data && size > 0;
 }
 
+/* Conversation strings share the catalog lifetime, including replacement on the next map load. */
+static void sc2_free_catalog(sc2Catalog_t *catalog) {
+    while (catalog->conv) {
+        LPSC2CONVERSATION next = catalog->conv->next;
+        while (catalog->conv->text) {
+            LPSC2CONVTEXT text = catalog->conv->text;
+            catalog->conv->text = text->next; sc2_free(text);
+        }
+        sc2_free(catalog->conv); catalog->conv = next;
+    }
+    sc2_free(catalog);
+}
+
 static void sc2_map_clear(void) {
-    SAFE_DELETE(sc2_persistent_catalog, sc2_free);
+    SAFE_DELETE(sc2_persistent_catalog, sc2_free_catalog);
     SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
     SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
@@ -1879,6 +1921,61 @@ static void sc2_parse_tile_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     }
 }
 
+/* Indices use both compact attributes and child value tags; dependency layers merge by group|index. */
+static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        char group[64];
+        if (node->type != XML_ELEMENT_NODE || strcmp((LPCSTR)node->name, "CConversationState")) continue;
+        if (!sc2_xml_attr(node, "id", group, sizeof(group))) continue;
+        for (xmlNodePtr idx = node->children; idx; idx = idx->next) {
+            SC2CONVERSATION row = {0};
+            char key[128], val[256];
+            if (idx->type != XML_ELEMENT_NODE || strcmp((LPCSTR)idx->name, "Indices")) continue;
+            FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_fields)) {
+                LPCSTR field = sc2_conv_fields[i].name;
+                if (sc2_xml_attr(idx, field, val, sizeof(val)))
+                    sc2_parse_xml_field(&row, sc2_conv_fields, SC2_ARRAY_LEN(sc2_conv_fields), field, val);
+            }
+            for (xmlNodePtr child = idx->children; child; child = child->next) {
+                if (child->type != XML_ELEMENT_NODE) continue;
+                sc2_parse_xml_child_field(&row, sc2_conv_fields, SC2_ARRAY_LEN(sc2_conv_fields), child, "value");
+            }
+            if (!row.id[0]) { fprintf(stderr, "SC2 conversation: missing index ID in %s\n", group); continue; }
+            snprintf(key, sizeof(key), "%s|%s", group, row.id);
+            LPSC2CONVERSATION out = catalog->conv;
+            while (out && strcmp(out->id, key)) out = out->next;
+            if (!out) {
+                out = sc2_alloc(sizeof(*out));
+                memset(out, 0, sizeof(*out)); out->next = catalog->conv; catalog->conv = out;
+                strlcpy(out->id, key, sizeof(out->id));
+            }
+            for (DWORD i = 1; i < SC2_ARRAY_LEN(sc2_conv_fields); i++) {
+                LPCSTR text = (LPCSTR)&row + sc2_conv_fields[i].offset;
+                if (*text) strlcpy((LPSTR)out + sc2_conv_fields[i].offset, text, sc2_conv_fields[i].size);
+            }
+            /* InfoText is a repeated keyed production; preserve every authored text ID, including empty values. */
+            for (xmlNodePtr child = idx->children; child; child = child->next) {
+                SC2CONVTEXT info = {0};
+                if (child->type != XML_ELEMENT_NODE || strcmp((LPCSTR)child->name, "InfoText")) continue;
+                FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_text_fields)) {
+                    LPCSTR field = sc2_conv_text_fields[i].name;
+                    if (sc2_xml_attr(child, field, val, sizeof(val)))
+                        sc2_parse_xml_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), field, val);
+                }
+                for (xmlNodePtr sub = child->children; sub; sub = sub->next)
+                    sc2_parse_xml_child_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), sub, "value");
+                if (!info.id[0]) { fprintf(stderr, "SC2 conversation: missing InfoText ID in %s\n", key); continue; }
+                LPSC2CONVTEXT text = out->text;
+                while (text && strcmp(text->id, info.id)) text = text->next;
+                if (!text) { text = sc2_alloc(sizeof(*text)); info.next = out->text; out->text = text; }
+                else info.next = text->next;
+                *text = info;
+            }
+        }
+    }
+}
+
 static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     sc2_parse_unit_catalog_doc(catalog, doc);
     sc2_parse_model_catalog_doc(catalog, doc);
@@ -1888,6 +1985,7 @@ static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     sc2_parse_cliff_catalog_doc(catalog, doc);
     sc2_parse_tile_catalog_doc(catalog, doc);
     sc2_parse_sound_catalog_doc(catalog, doc);
+    sc2_parse_conversation_doc(catalog, doc);
 }
 
 static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
@@ -2217,7 +2315,7 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_map.catalog.models = catalog->models_count;
     sc2_map.catalog.footprints = catalog->footprints_count;
     sc2_map.catalog.unresolved_models = sc2_count_unresolved_models();
-    SAFE_DELETE(sc2_persistent_catalog, sc2_free);
+    SAFE_DELETE(sc2_persistent_catalog, sc2_free_catalog);
     sc2_persistent_catalog = catalog;
 }
 
@@ -2762,4 +2860,18 @@ BOOL SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
 
     *camera = value;
     return true;
+}
+
+/* Galaxy state IDs are catalog group and index joined by '|', not guessed localization paths. */
+LPCSTR SC2_MapConversationField(LPCSTR key, LPCSTR field) {
+    LPSC2CONVERSATION row = sc2_persistent_catalog ? sc2_persistent_catalog->conv : NULL;
+    while (row && strcmp(row->id, key)) row = row->next;
+    if (row && !strncmp(field, "Text:", 5)) {
+        for (LPSC2CONVTEXT text = row->text; text; text = text->next)
+            if (!strcmp(text->id, field + 5)) return text->text;
+    }
+    if (row) for (DWORD i = 1; i < SC2_ARRAY_LEN(sc2_conv_fields); i++)
+        if (!strcmp(field, sc2_conv_fields[i].name)) return (LPCSTR)row + sc2_conv_fields[i].offset;
+    fprintf(stderr, "SC2 conversation: unresolved %s field %s\n", key, field);
+    return NULL;
 }

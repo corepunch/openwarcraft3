@@ -75,6 +75,9 @@ void   jass_rterror(LPJASS j, LPCSTR message);
 BOOL   jass_rterror_pending(LPJASS j);
 LPCSTR jass_rterror_message(LPJASS j);
 void   jass_rterror_clear(LPJASS j);
+/* Unique missing calls persist until VM close, independently of the latest error. */
+DWORD  jass_missingcount(LPJASS j);
+LPCSTR jass_missingname(LPJASS j, DWORD index);
 
 /* Stack / value API */
 LONG   jass_checkinteger(LPJASS j, int index);

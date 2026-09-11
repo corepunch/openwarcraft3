@@ -76,6 +76,9 @@ nav:
       - Map, Model, And Unit Data: games/starcraft-2/map-model-unit-data.md
       - Parser Notes: games/starcraft-2/parser-notes.md
       - HUD Layout Pipeline: games/starcraft-2/hud-layout-pipeline.md
+      - Galaxy Scripting: games/starcraft-2/galaxy-scripting.md
+      - Galaxy Presentation State: games/starcraft-2/galaxy-presentation.md
+      - Galaxy Native Coverage: games/starcraft-2/galaxy-native-coverage.md
       - References: games/starcraft-2/references.md
       - Sounds: games/starcraft-2/sounds.md
       - File Format Details:
