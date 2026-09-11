@@ -224,6 +224,7 @@ void M_MoveFrame(LPEDICT self) {
  * Called each game frame by G_RunEntity; drives the animation clock and
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(LPEDICT self) {
+    unit_raven_update_height(self);
     if (!self->currentmove)
         return;
     if (self->paused || self->stunned)

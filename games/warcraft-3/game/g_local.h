@@ -354,6 +354,12 @@ struct gregion_s {
     DWORD num_rects;
 };
 
+typedef enum {
+    RAVEN_RISE_NONE,
+    RAVEN_RISE_AFTER_MORPH,
+    RAVEN_RISE_ACTIVE,
+} ravenRiseState_t;
+
 struct gcamerasetup_s {
     FLOAT target_distance;
     FLOAT far_z;
@@ -966,7 +972,9 @@ struct edict_s {
     } polymorph;
     struct {
         FLOAT fly_height; /* authored Raven Form height applied after the forward morph clip */
-        BOOL rise_pending;
+        FLOAT rise_start;
+        FLOAT rise_duration;
+        ravenRiseState_t rise_state;
     } raven;
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
@@ -1691,6 +1699,7 @@ void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
 void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 void unit_stand(LPEDICT);
+void unit_raven_update_height(LPEDICT);
 void unit_entercombat(LPEDICT, LPEDICT);
 void unit_leavecombat(LPEDICT);
 BOOL unit_affectingcombat(LPEDICT);

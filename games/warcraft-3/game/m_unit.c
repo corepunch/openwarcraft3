@@ -153,15 +153,36 @@ static void unit_raven_morph_forward_end(LPEDICT unit) {
     /* nmdm's authored required tag is alternateex; restoring alternate would
      * select Medivh's base stand sequence after the crow morph completes. */
     G_AddUnitAnimationProperties(unit, "alternateex", true);
-    if (unit->raven.rise_pending) {
-        /* Hold the target form at the support surface through Morph, then
-         * apply its authored moveHeight when the clip has finished. */
-        unit->unitinfo.FlyHeight = unit->raven.fly_height;
-        unit->raven.rise_pending = false;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
+    /* Start the separate takeoff adjustment after Morph, matching Warsmash's
+     * altitude timer while keeping the form change on the support surface. */
+    if (unit->raven.rise_state == RAVEN_RISE_AFTER_MORPH) {
+        if (unit->raven.rise_duration > 0.0f) {
+            unit->raven.rise_start = (FLOAT)G_Time();
+            unit->raven.rise_state = RAVEN_RISE_ACTIVE;
+        } else {
+            unit->unitinfo.FlyHeight = unit->raven.fly_height;
+            unit->raven.rise_state = RAVEN_RISE_NONE;
+            M_CheckGround(unit);
+            gi.LinkEntity(unit);
+        }
     }
     unit_stand(unit);
+}
+
+/* Advance Raven Form's authored takeoff height independently from animation. */
+void unit_raven_update_height(LPEDICT unit) {
+    FLOAT fraction;
+
+    if (!unit || unit->raven.rise_state != RAVEN_RISE_ACTIVE) return;
+    fraction = ((FLOAT)G_Time() - unit->raven.rise_start) / (unit->raven.rise_duration * 1000.0f);
+    if (fraction >= 1.0f) {
+        unit->unitinfo.FlyHeight = unit->raven.fly_height;
+        unit->raven.rise_state = RAVEN_RISE_NONE;
+    } else {
+        unit->unitinfo.FlyHeight = unit->raven.fly_height * MAX(0.0f, fraction);
+    }
+    M_CheckGround(unit);
+    gi.LinkEntity(unit);
 }
 
 static void unit_raven_morph_reverse_end(LPEDICT unit) {
@@ -862,10 +883,11 @@ static BOOL unit_raven_form_order(LPEDICT unit, BOOL raven_form) {
     G_ClearUnitOrderQueue(unit);
     if (!G_TransformUnitType(unit, target_type)) return false;
 
-    unit->raven.rise_pending = false;
+    unit->raven.rise_state = RAVEN_RISE_NONE;
     if (raven_form) {
         unit->raven.fly_height = unit->unitinfo.FlyHeight;
-        unit->raven.rise_pending = true;
+        unit->raven.rise_duration = form.ability->level[0].data[2].number;
+        unit->raven.rise_state = RAVEN_RISE_AFTER_MORPH;
         unit->unitinfo.FlyHeight = 0.0f;
         M_CheckGround(unit);
         gi.LinkEntity(unit);
