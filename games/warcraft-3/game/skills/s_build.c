@@ -229,6 +229,7 @@ void build_build(LPEDICT ent) {
 
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     LPEDICT builder;
+    LPGAMECLIENT owner;
     VECTOR2 snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
@@ -236,9 +237,10 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
 
     if (!clent || !clent->client || !location || !clent->build_project) return false;
     builder = G_GetMainSelectedUnit(clent->client);
-    if (!builder) return false;
+    owner = builder ? G_GetPlayerClientByNumber(builder->s.player) : NULL;
+    if (!owner || owner->ps.number != builder->s.player) return false;
 
-    state = G_GetBuildCommandState(clent->client, builder, clent->build_project, reason, sizeof(reason));
+    state = G_GetBuildCommandState(owner, builder, clent->build_project, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
         G_BuildError(clent, reason[0] ? reason : "Unable to build that structure.");
         return false;
@@ -270,13 +272,15 @@ BOOL G_CancelBuildPlacement(LPEDICT clent) {
 void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     entityState_t cursor;
     LPEDICT worker;
+    LPGAMECLIENT owner;
     buildCommandState_t state;
     char reason[128];
 
     if (!ent || !ent->client) return;
     worker = G_GetMainSelectedUnit(ent->client);
-    if (!worker || !G_WorkerCanBuild(worker, building_id)) return;
-    state = G_GetBuildCommandState(ent->client, worker, building_id, reason, sizeof(reason));
+    owner = worker ? G_GetPlayerClientByNumber(worker->s.player) : NULL;
+    if (!owner || owner->ps.number != worker->s.player || !G_WorkerCanBuild(worker, building_id)) return;
+    state = G_GetBuildCommandState(owner, worker, building_id, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
         G_BuildError(ent, reason[0] ? reason : "Unable to build that structure.");
         return;
@@ -298,8 +302,9 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
 
 void ui_builds(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
+    LPGAMECLIENT owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
     LPCSTR builds = ent ? G_UnitProfile(ent->class_id)->builds : NULL;
-    if (!ent || !builds)
+    if (!ent || !owner || owner->ps.number != ent->s.player || !builds)
         return;
     PARSE_LIST(builds, build, parse_segment) {
         DWORD building_id = 0;
@@ -310,7 +315,7 @@ void ui_builds(LPGAMECLIENT client) {
 
         if (strlen(build) != 4) continue;
         memcpy(&building_id, build, sizeof(building_id));
-        state = G_GetBuildCommandState(client, ent, building_id, reason, sizeof(reason));
+        state = G_GetBuildCommandState(owner, ent, building_id, reason, sizeof(reason));
         if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
         if (!G_BuildCommandButton(ent, build, false, 0, &button)) continue;
         if (state == BUILD_COMMAND_DISABLED) {

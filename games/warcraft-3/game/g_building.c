@@ -332,18 +332,33 @@ BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id) {
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
-static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
+static LONG G_RequirementAmount(LPCSTR amounts, DWORD index) {
     char amount[32];
     LONG value = 1;
 
-    if (!profile || !profile->requiresAmount ||
-        !G_CsvToken(profile->requiresAmount, index, amount, sizeof(amount))) return 1;
+    if (!amounts || !G_CsvToken(amounts, index, amount, sizeof(amount))) return 1;
     if (sscanf(amount, "%d", &value) != 1) {
         fprintf(stderr, "G_RequirementAmount: invalid Requiresamount token '%s' at index %u\n",
                 amount, (unsigned)index);
         return 1;
     }
     return MAX(1, value);
+}
+
+/* Count the owner's completed real heroes for tiered WC3 requirements. Dead
+ * heroes still occupy a hero tier; queued training entities and illusions do not. */
+static DWORD G_PlayerHeroCount(LPGAMECLIENT client) {
+    DWORD count = 0;
+
+    if (!client) return 0;
+    FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && ent->s.player == client->ps.number &&
+                         !ent->training && G_UnitIsHero(ent) && !(ent->aiflags & AI_ILLUSION)) count++;
+    return count;
+}
+
+static BOOL G_UnitTypeIsHero(DWORD type_id) {
+    UnitBalance_t const *balance = G_UnitBalance(type_id);
+    return balance && (balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0);
 }
 
 static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
@@ -372,13 +387,8 @@ static LPCSTR G_UpgradeLevelField(DWORD upgrade_id, LPCSTR base, LONG level_valu
 }
 
 static LONG G_UpgradeRequirementAmount(DWORD upgrade_id, LONG level_value, DWORD index) {
-    char amount[32];
     LPCSTR amounts = G_UpgradeLevelField(upgrade_id, "Requiresamount", level_value);
-    LONG value = 1;
-
-    if (!amounts || !G_CsvToken(amounts, index, amount, sizeof(amount))) return 1;
-    if (sscanf(amount, "%d", &value) != 1) return 1;
-    return MAX(1, value);
+    return G_RequirementAmount(amounts, index);
 }
 
 static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id, LONG level_value,
@@ -413,12 +423,11 @@ static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id
     return true;
 }
 
-static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
-    UnitProfile_t const *profile = G_UnitProfile(type_id);
+static BOOL G_RequirementsListSatisfied(LPGAMECLIENT client, DWORD type_id, LPCSTR requirements,
+                                        LPCSTR amounts, LPSTR reason, DWORD reason_size) {
     char requirement[64];
 
-    if (!profile->requires || !*profile->requires) return true;
-    for (DWORD i = 0; G_CsvToken(profile->requires, i, requirement, sizeof(requirement)); i++) {
+    for (DWORD i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
         DWORD rawcode;
         LONG required;
         if (strlen(requirement) != 4) {
@@ -427,7 +436,7 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR re
             continue;
         }
         memcpy(&rawcode, requirement, sizeof(rawcode));
-        required = G_RequirementAmount(profile, i);
+        required = G_RequirementAmount(amounts, i);
         if (G_PlayerRequirementCount(client, rawcode) < required) {
             if (reason && reason_size) {
                 LPCSTR name = G_UnitProfile(rawcode)->name;
@@ -442,7 +451,25 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR re
             return false;
         }
     }
+
     return true;
+}
+
+static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
+    UnitProfile_t const *profile = G_UnitProfile(type_id);
+    DWORD hero_count, tier_count, tier;
+
+    if (!G_RequirementsListSatisfied(client, type_id, profile->requires, profile->requiresAmount,
+                                     reason, reason_size)) return false;
+    if (!G_UnitTypeIsHero(type_id) || !profile->requiresCount) return true;
+    hero_count = G_PlayerHeroCount(client);
+    tier_count = MIN(sizeof(profile->requiresLevel) / sizeof(profile->requiresLevel[0]),
+                     (DWORD)MAX(0, atoi(profile->requiresCount)));
+    if (!hero_count || hero_count > tier_count) return true;
+    tier = hero_count;
+    if (!profile->requiresLevel[tier - 1] || !*profile->requiresLevel[tier - 1]) return true;
+    return G_RequirementsListSatisfied(client, type_id, profile->requiresLevel[tier - 1], NULL,
+                                       reason, reason_size);
 }
 
 static BOOL G_ProductionResourcesAvailable(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {

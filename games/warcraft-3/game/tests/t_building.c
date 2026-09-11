@@ -679,6 +679,56 @@ TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
 }
 
+TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
+    static const char balance_slk[] =
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"STR\"\n"
+        "C;Y2;X1;K\"H001\"\n"
+        "C;Y2;X2;K1\n"
+        "E\n";
+    static const char profile_slk[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"Requirescount\"\n"
+        "C;Y1;X3;K\"Requires1\"\n"
+        "C;Y1;X4;K\"Requires2\"\n"
+        "C;Y2;X1;K\"H001\"\n"
+        "C;Y2;X2;K\"3\"\n"
+        "C;Y2;X3;K\"hkee\"\n"
+        "C;Y2;X4;K\"hcas\"\n"
+        "E\n";
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer, hero1, hero2, keep, castle;
+    UnitProfile_t producer_profile = { .trains = "H001" };
+    slkTestData_t *balance_rows = parse_slk_string(balance_slk);
+    slkTestData_t *profile_rows = parse_slk_string(profile_slk);
+    slkTestData_t *old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    slkTestData_t *old_profile = G_SetProfileRows(profile_rows);
+    DWORD const hero = MAKEFOURCC('H','0','0','1');
+    char reason[128];
+
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    producer->data.UnitProfile = &producer_profile;
+    producer->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    hero1 = alloc_test_unit(hero, 0, 0); hero1->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_STREQ(reason, "Requires hkee");
+
+    keep = alloc_test_unit(MAKEFOURCC('h','k','e','e'), 0, 0); keep->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    hero2 = alloc_test_unit(hero, 0, 0); hero2->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_STREQ(reason, "Requires hcas");
+
+    castle = alloc_test_unit(MAKEFOURCC('h','c','a','s'), 0, 0); castle->s.player = client->ps.number;
+    T_EQ(G_GetTrainCommandState(client, producer, hero, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    G_SetProfileRows(old_profile); G_SetSLKRows("UnitBalance", old_balance);
+    free_slk_rows(profile_rows); free_slk_rows(balance_rows);
+}
+
 TEST(wc3_building, train_command_state_reports_food_shortage) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
@@ -740,6 +790,25 @@ TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
 
     T_EQ(G_GetPlayerTechCountValue(client, trainee), 1);
     T_EQ(G_GetTrainCommandState(client, producer, trainee, NULL, 0), BUILD_COMMAND_HIDDEN);
+}
+
+TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) {
+    LPGAMECLIENT owner = &game.clients[0];
+    LPGAMECLIENT viewer = &game.clients[1];
+    LPEDICT producer;
+
+    setup_test_world();
+    owner->connected = viewer->connected = true;
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    producer->s.player = owner->ps.number;
+    producer->selected |= 1 << viewer->ps.number;
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_CONTROL, true);
+    owner->commands_dirty = viewer->commands_dirty = false;
+
+    G_InvalidateCommands(owner);
+    T_ASSERT(owner->commands_dirty);
+    T_ASSERT(viewer->commands_dirty);
 }
 
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {

@@ -105,6 +105,7 @@ typedef struct {
     BYTE x;
     BYTE y;
     BYTE research;
+    DWORD level; /* authored research level used for owner-specific tooltip costs */
     BYTE active;
     BYTE disabled;
     DWORD number; /* optional command-button numeric overlay; 0 hides it */

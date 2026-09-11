@@ -17,7 +17,8 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
     return class_id;
 }
 
-void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
+static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LONG level,
+                                   LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
     UpgradeData_t const *upgrade = class_id ? G_UpgradeData(class_id) : NULL;
@@ -26,7 +27,7 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, L
     DWORD food_cost = balance ? (DWORD)MAX(0, balance->foodUsed) : 0;
 
     if (upgrade && upgrade->id == class_id && ui_current_client) {
-        LONG const level_value = G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
+        LONG const level_value = level > 0 ? level : G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
         gold_cost = (DWORD)G_UpgradeGoldCost(class_id, level_value);
         lumber_cost = (DWORD)G_UpgradeLumberCost(class_id, level_value);
         food_cost = 0;
@@ -68,6 +69,15 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, L
     if (ubertip && *ubertip) {
         snprintf(out + strlen(out), out_size - strlen(out), "|n%s", ubertip);
     }
+}
+
+void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
+    UI_FormatTooltipLevel(code, tip, ubertip, manacost, 0, out, out_size);
+}
+
+static void UI_FormatCommandTooltip(gameCommandButton_t const *button, LPSTR out, DWORD out_size) {
+    UI_FormatTooltipLevel(button->command, button->tooltip, button->ubertip, button->manacost,
+                          button->research ? (LONG)button->level : 0, out, out_size);
 }
 
 static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
@@ -128,7 +138,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.value = button->cooldown;
     frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
-    UI_FormatTooltip(button->command, button->tooltip, button->ubertip, button->manacost, tooltip, sizeof(tooltip));
+    UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
     frame.onclick = button->disabled ? NULL : onclick;
