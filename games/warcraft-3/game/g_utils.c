@@ -16,6 +16,9 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    /* Direct JASS RemoveUnit must release construction workers before the building edict is cleared. */
+    if (ent->construction.active) G_StopConstruction(ent);
+    if (ent->buildwork.ability) S_CancelRepair(ent);
     /* Removed units cannot remain in JASS groups: save files require every group member to resolve to a live edict. */
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = level.groups[i];
