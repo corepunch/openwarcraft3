@@ -1185,6 +1185,28 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
     T_FEQ(building->health.value, 100.0f, 0.001f);
 }
 
+TEST(wc3_building, removing_construction_releases_repair_worker) {
+    LPEDICT builder;
+    LPEDICT building;
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    /* Keep this lifecycle test independent of the optional Repair SLK fixture. */
+    builder->build = building;
+    builder->buildwork.ability = MAKEFOURCC('A','r','e','p');
+    builder->buildwork.primary = true;
+    building->construction.primary_builder = builder;
+    T_ASSERT(builder->build == building);
+
+    G_FreeEdict(building);
+    T_NULL(builder->build);
+    T_EQ(builder->buildwork.ability, 0);
+}
+
 TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {
     T_ASSERT(FindAbilityForCommand(STR_CmdCancelBuild) == FindAbilityForCommand(STR_CmdCancel));
 }
