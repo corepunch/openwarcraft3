@@ -106,6 +106,48 @@ bounded log showed the Circle receiving team 15, reaching the renderer as
 `sv_cheats 1` and selects the first live controllable Hero for headless/GDB
 diagnostics.
 
+## GDB command injection
+
+Attach GDB to the running client after the campaign intro and call the game
+command dispatcher directly. Find the process from another shell:
+
+```sh
+pid=$(pgrep -n -x openwarcraft3)
+```
+
+The dispatcher expects an argument vector whose first element is the command
+name. Allocate that vector in GDB rather than using a compound literal:
+
+```sh
+gdb -q -batch -p "$pid" \
+  -ex 'set pagination off' \
+  -ex 'set $ent = G_GetPlayerEntityByNumber(0)' \
+  -ex 'set $a = (char**) malloc(16)' \
+  -ex 'set *((char**)$a) = (char*)"select"' \
+  -ex 'set *((char**)$a + 1) = (char*)"309"' \
+  -ex 'call G_ClientCommand($ent, 2, $a)' \
+  -ex 'call free($a)' \
+  -ex 'set $b = (char**) malloc(24)' \
+  -ex 'set *((char**)$b) = (char*)"smartpoint"' \
+  -ex 'set *((char**)$b + 1) = (char*)"-5056"' \
+  -ex 'set *((char**)$b + 2) = (char*)"-1344"' \
+  -ex 'call G_ClientCommand($ent, 3, $b)' \
+  -ex 'call free($b)' \
+  -ex 'set $c = (char**) malloc(16)' \
+  -ex 'set *((char**)$c) = (char*)"camera"' \
+  -ex 'set *((char**)$c + 1) = (char*)"selected"' \
+  -ex 'call G_ClientCommand($ent, 2, $c)' \
+  -ex 'call free($c)' \
+  -ex 'detach' -ex 'quit'
+```
+
+Here `309` is the Prologue01 Hero and `(-5056,-1344)` is the nearest Circle
+of Power in the test map. The current command implementation uses `select 309`;
+`hero select` is the supported higher-level command for selecting the first
+live controllable Hero. GDB pauses
+the client while attached, so detach promptly after each call and allow the
+game several seconds to process movement and trigger events.
+
 ## Optional FFmpeg support
 
 The default build does not link FFmpeg. To enable Warcraft III pre-rendered
