@@ -628,10 +628,14 @@ static void jass_unimplementednative(LPJASS j, LPCSTR name) {
     LPJASS root = jass_root(j);
     char message[256];
     snprintf(message, sizeof(message), "unimplemented native: %s", name ? name : "(nil)");
+#ifdef BZ_LENIENT_NATIVES
+    jass_host.RuntimeError(message);
+#else
     jass_setruntimeerror(root, message);
     if (root->current_coroutine && root->current_coroutine->rterror_jmp_set)
         longjmp(root->current_coroutine->rterror_jmp, 1);
     if (root->sync_rterror_jmp_set) longjmp(root->sync_rterror_jmp, 1);
+#endif
 }
 
 void jass_rterror(LPJASS j, LPCSTR message) {
