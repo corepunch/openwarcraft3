@@ -3,6 +3,7 @@
 #define HUMAN_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
 #define BZ_AVATAR MAKEFOURCC('A', 'H', 'a', 'v') // rawcode; Human Mountain King Avatar ability
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v') // rawcode; timed Avatar buff that owns immunity and bonuses
+#define BZ_POLYMORPH MAKEFOURCC('A', 'p', 'l', 'y') // rawcode; stock Polymorph ability code
 
 void human_ability_think(LPEDICT thinker);
 
@@ -140,17 +141,134 @@ static void invisibility_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     st.entity->s.renderfx |= RF_HIDDEN;
 }
 
+BOOL S_UnitPolymorphed(LPCEDICT unit) {
+    return unit && unit->polymorph.active;
+}
+
+static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
+    LPCSTR movetp;
+    DWORD data_slot = 2; /* Ply2: ground morph unit */
+
+    if (!target || !target->data.UnitData) return 0;
+    movetp = target->data.UnitData->moveTypeName;
+    if (movetp) {
+        if (!strcmp(movetp, "fly")) data_slot = 3;       /* Ply3 */
+        else if (!strcmp(movetp, "amph")) data_slot = 4; /* Ply4 */
+        else if (!strcmp(movetp, "float")) data_slot = 5; /* Ply5 */
+    }
+    /* AbilityData stores Ply1..Ply5 in DataA..DataE.  The typed FOURCC view
+     * deliberately keeps the first rawcode from Warcraft's unit-list string;
+     * stock Aply uses one morph unit for each movement class. */
+    return S_SpellDataId(BZ_POLYMORPH, level, data_slot);
+}
+
 static BOOL polymorph_validate(LPEDICT caster, spellTarget_t st) {
-    return st.entity && !G_UnitIsHero(st.entity) && S_SpellIsEnemy(caster, st.entity);
+    DWORD level, max_creep_level, form_type;
+    UnitBalance_t const *balance;
+
+    if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || G_UnitIsHero(st.entity) ||
+        st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
+        st.entity->targtype == TARG_MECHANICAL) return false;
+    level = S_SpellLevel(caster, BZ_POLYMORPH);
+    max_creep_level = (DWORD)MAX(0.0f, S_SpellData(BZ_POLYMORPH, level, 1)); /* Ply1 */
+    balance = st.entity->data.UnitBalance;
+    if (st.entity->s.player == PLAYER_NEUTRAL_AGGRESSIVE && max_creep_level && balance &&
+        balance->level > (LONG)max_creep_level) return false;
+    form_type = polymorph_form_type(st.entity, level);
+    return form_type && G_UnitUI(form_type)->modelFile;
+}
+
+void S_PolymorphRemove(LPEDICT unit) {
+    LPGAMECLIENT client;
+
+    if (!unit || !unit->polymorph.active) return;
+    unit->s.model = unit->polymorph.original_model;
+    unit->s.scale = unit->polymorph.original_scale;
+    unit->unitinfo.MoveSpeed = unit->polymorph.original_move_speed;
+    memset(&unit->polymorph, 0, sizeof(unit->polymorph));
+    unit->animation = NULL;
+    if (!M_IsDead(unit)) {
+        G_ClearUnitOrderQueue(unit);
+        unit_leavecombat(unit);
+        unit->goalentity = NULL;
+        unit->secondarygoal = NULL;
+        unit_stand(unit);
+    }
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    if (client) G_InvalidateCommands(client);
+    G_InvalidateUnitInfoPanel(unit);
+    G_InvalidateUnitPortrait(unit);
+}
+
+static void polymorph_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level, form_type, buff_code = 0;
+    LPCSTR buff;
+    UnitUI_t const *ui;
+    UnitBalance_t const *balance;
+    PATHSTR model_filename;
+    int model;
+    FLOAT duration;
+
+    if (!st.entity) return;
+    level = S_SpellLevel(caster, spell->code);
+    form_type = polymorph_form_type(st.entity, level);
+    buff = human_buff(spell, level);
+    if (!form_type || !buff) return;
+    memcpy(&buff_code, buff, MIN((size_t)4, strlen(buff)));
+    ui = G_UnitUI(form_type);
+    balance = G_UnitBalance(form_type);
+    if (!ui->modelFile) return;
+    G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
+    model = G_RegisterModel(model_filename);
+    if (!model) return;
+
+    duration = S_SpellDuration(spell->code, level, false);
+    unit_addtimedstatus(st.entity, buff, level, duration);
+    if (!G_UnitStatusLevel(st.entity, buff_code)) return;
+
+    if (!st.entity->polymorph.active) {
+        st.entity->polymorph.original_model = st.entity->s.model;
+        st.entity->polymorph.original_scale = st.entity->s.scale;
+        st.entity->polymorph.original_move_speed = st.entity->unitinfo.MoveSpeed;
+    }
+    st.entity->polymorph.active = true;
+    st.entity->polymorph.ability = spell->code;
+    st.entity->polymorph.buff = buff_code;
+    st.entity->polymorph.form_type = form_type;
+    st.entity->s.model = model;
+    st.entity->s.scale = ui->modelScale > 0.0f ? ui->modelScale : 1.0f;
+    if (balance->speed > 0.0f) st.entity->unitinfo.MoveSpeed = balance->speed;
+
+    /* Polymorph interrupts actions that require the original unit's attacks or
+     * command abilities.  The transformed unit remains the same edict/JASS
+     * handle and may receive fresh movement orders while the buff is active. */
+    G_ClearUnitOrderQueue(st.entity);
+    S_SpellCancelChannel(st.entity);
+    unit_leavecombat(st.entity);
+    st.entity->goalentity = NULL;
+    st.entity->secondarygoal = NULL;
+    st.entity->animation = NULL;
+    unit_stand(st.entity);
+    {
+        LPGAMECLIENT client = G_GetPlayerClientByNumber(st.entity->s.player);
+        if (client) G_InvalidateCommands(client);
+    }
+    G_InvalidateUnitInfoPanel(st.entity);
+    G_InvalidateUnitPortrait(st.entity);
+    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
 static void dispel_magic_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
-            if (target->abilstatus[i].level && target->abilstatus[i].timestamp)
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
+                DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
+                S_HumanStatusExpired(target, code, status_level);
                 memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+            }
+        }
         if (target->owner) S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 2));
     }
 }
@@ -201,7 +319,10 @@ static void spell_steal_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (st.entity->abilstatus[i].level && st.entity->abilstatus[i].timestamp) {
-            stolen = st.entity->abilstatus[i]; memset(st.entity->abilstatus + i, 0, sizeof(st.entity->abilstatus[i])); break;
+            stolen = st.entity->abilstatus[i];
+            S_HumanStatusExpired(st.entity, stolen.code, stolen.level);
+            memset(st.entity->abilstatus + i, 0, sizeof(st.entity->abilstatus[i]));
+            break;
         }
     }
     if (!stolen.level) return;
@@ -276,7 +397,7 @@ HUMAN_SPELL(slow, ('A','s','l','o'), SPELL_TARGET_UNIT, SPELL_AUTOCAST, slow_val
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
 HUMAN_SPELL(invisibility, ('A','i','v','s'), SPELL_TARGET_UNIT, 0, invisibility_validate, invisibility_execute);
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
-HUMAN_SPELL(polymorph, ('A','p','l','y'), SPELL_TARGET_UNIT, 0, polymorph_validate, human_status_execute);
+HUMAN_SPELL(polymorph, ('A','p','l','y'), SPELL_TARGET_UNIT, 0, polymorph_validate, polymorph_execute);
 /* Name=Avatar */
 static spell_info_t spell_avatar = {
     .code = BZ_AVATAR, .name = "Avatar", .target_type = SPELL_TARGET_NONE,
@@ -311,7 +432,7 @@ void S_InitHumanAbilities(void) {
 
 BOOL S_HumanCanAttack(LPCEDICT unit) {
     return unit && !human_has_status(unit, MAKEFOURCC('B','m','l','t')) &&
-           !human_has_status(unit, MAKEFOURCC('B','c','l','f')) && !human_has_status(unit, MAKEFOURCC('B','p','l','y'));
+           !human_has_status(unit, MAKEFOURCC('B','c','l','f')) && !S_UnitPolymorphed(unit);
 }
 
 FLOAT S_HumanMoveFactor(LPCEDICT unit) {
@@ -320,7 +441,7 @@ FLOAT S_HumanMoveFactor(LPCEDICT unit) {
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','s','l','o'), level, 1);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
     if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
-    if (human_has_status(unit, MAKEFOURCC('B','m','l','t')) || human_has_status(unit, MAKEFOURCC('B','p','l','y'))) return 0.0f;
+    if (human_has_status(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
     return factor;
 }
 
@@ -382,4 +503,5 @@ void S_HumanStatusExpired(LPEDICT unit, DWORD code, DWORD level) {
     if (!unit) return;
     if (code == MAKEFOURCC('B','i','n','v')) unit->s.renderfx &= ~RF_HIDDEN;
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
+    if (unit->polymorph.active && code == unit->polymorph.buff) S_PolymorphRemove(unit);
 }

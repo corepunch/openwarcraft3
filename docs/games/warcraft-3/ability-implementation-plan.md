@@ -232,7 +232,8 @@ Inner Fire, Slow, and Spell Steal use the generic one-enabled-ability autocast s
 
 | Runtime owner | Abilities | Authored inputs consumed |
 | --- | --- | --- |
-| unit-target spell | Aerial Shackles, Control Magic, Cloud, Inner Fire, Heal, Slow, Invisibility, Polymorph | `Rng`, `Dur`/`HeroDur`, `BuffID`, `DataA-C` |
+| unit-target spell | Aerial Shackles, Control Magic, Cloud, Inner Fire, Heal, Slow, Invisibility | `Rng`, `Dur`/`HeroDur`, `BuffID`, `DataA-C` |
+| timed morph | Polymorph (`Aply`) | `Ply1`/`DataA`, `Ply2`-`Ply5`/`DataB-E`, `Rng`, `Dur`, `BuffID`, target mask |
 | point spell/thinker | Flare, Dispel Magic | `Area`, `Dur`, `DataB` |
 | toggle/status | Defend, Magic Defense | `DataA-F`, `Dur`, `HeroDur` |
 | timed transformation | Avatar | `BHav`, `DataA-C`, `Dur` |
@@ -244,6 +245,8 @@ locks, Defend piercing reduction/reflection,
 Feedback mana burn, and attack splash. Invisibility clears on attacks, spell commits,
 and status expiry. `human_ability_think` owns Flare reveal updates and Aerial Shackles
 damage ticks and is appended to the save callback roster.
+
+Polymorph keeps the original edict/class/stat identity and stores only reversible model, scale, and movement-speed presentation state. The configured `Ply2`-`Ply5` form supplies the temporary model/movement speed, `Ply1` gates Neutral Hostile creep level, and the configured timed buff owns expiry/dispel restoration. See [Polymorph](polymorph.md).
 
 Avatar stores its applied armor, maximum-health, and attack-damage deltas on the
 edict. `BHav` owns the lifetime; expiration, death, and ability removal subtract the

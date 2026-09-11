@@ -60,6 +60,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Orc Burrow cargo, Load/Stand Down, occupant state, Burrow attack gating/scaling | [docs/games/warcraft-3/orc-burrows.md](docs/games/warcraft-3/orc-burrows.md) |
 | WC3 gold/lumber gain transactions and world-space `+N` presentation | [docs/games/warcraft-3/resource-gain-text.md](docs/games/warcraft-3/resource-gain-text.md) |
 | WC3 Human Call to Arms, Peasant/Militia pairing, timed in-place transform, Back to Work | [docs/games/warcraft-3/call-to-arms-and-militia.md](docs/games/warcraft-3/call-to-arms-and-militia.md) |
+| WC3 Polymorph (`Aply`), Ply1-Ply5 data, reversible morph presentation, dispel/JASS/save behavior | [docs/games/warcraft-3/polymorph.md](docs/games/warcraft-3/polymorph.md) |
 | WC3 selected-unit timed-status countdown bar, Bmil/BTLF eligibility, HUD data flow | [docs/games/warcraft-3/timed-status-presentation.md](docs/games/warcraft-3/timed-status-presentation.md) |
 | WC3 `SetUnitVertexColor`, per-frame tint transport, explicit alpha-zero semantics | [docs/games/warcraft-3/unit-vertex-color.md](docs/games/warcraft-3/unit-vertex-color.md) |
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |

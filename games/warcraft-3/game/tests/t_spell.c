@@ -1060,4 +1060,58 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     free_slk_rows(rows);
 }
 
+
+TEST(wc3_spell, polymorph_validates_creep_limit_summons_and_restores_runtime_state) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\nC;Y1;X9;K\"DataA1\"\n"
+        "C;Y1;X10;K\"DataB1\"\nC;Y1;X11;K\"DataC1\"\nC;Y1;X12;K\"DataD1\"\n"
+        "C;Y1;X13;K\"DataE1\"\nC;Y1;X14;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Aply\"\nC;Y2;X2;K\"Aply\"\nC;Y2;X3;K\"air,ground,enemy\"\n"
+        "C;Y2;X4;K\"220\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"500\"\n"
+        "C;Y2;X7;K\"60\"\nC;Y2;X8;K\"60\"\nC;Y2;X9;K\"5\"\n"
+        "C;Y2;X10;K\"opeo\"\nC;Y2;X11;K\"opeo\"\nC;Y2;X12;K\"opeo\"\n"
+        "C;Y2;X13;K\"opeo\"\nC;Y2;X14;K\"Bply\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Aply" };
+    UnitData_t ground = { .moveTypeName = "foot" };
+    UnitBalance_t creep = { .level = 5 };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    ability_t const *ability = FindAbilityByClassname("Aply");
+    LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 500, 500, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+
+    T_NOT_NULL(rows); T_NOT_NULL(ability); T_NOT_NULL(ability ? ability->spell : NULL);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster->data.UnitAbilities = &abilities; caster->s.player = 0;
+    target->data.UnitData = &ground; target->data.UnitBalance = &creep;
+    target->s.player = PLAYER_NEUTRAL_AGGRESSIVE; target->svflags |= SVF_MONSTER;
+    memset(level.alliances, 0, sizeof(level.alliances));
+
+    T_ASSERT(ability->spell->validate(caster, st));
+    creep.level = 6; T_ASSERT(!ability->spell->validate(caster, st));
+    creep.level = 5; target->summon_ability = MAKEFOURCC('A','O','s','f');
+    T_ASSERT(!ability->spell->validate(caster, st));
+    target->summon_ability = 0; target->aiflags |= AI_ILLUSION;
+    T_ASSERT(!ability->spell->validate(caster, st));
+
+    target->aiflags &= ~AI_ILLUSION;
+    target->polymorph = MAKE(struct edictPolymorph_s,
+        .ability = MAKEFOURCC('A','p','l','y'), .buff = MAKEFOURCC('B','p','l','y'),
+        .form_type = MAKEFOURCC('o','p','e','o'), .original_model = 17,
+        .original_scale = 1.25f, .original_move_speed = 234.0f, .active = true);
+    target->s.model = 99; target->s.scale = 0.75f; target->unitinfo.MoveSpeed = 120.0f;
+    T_ASSERT(S_UnitPolymorphed(target));
+    S_PolymorphRemove(target);
+    T_ASSERT(!S_UnitPolymorphed(target));
+    T_EQ(target->s.model, 17); T_FEQ(target->s.scale, 1.25f, 0.001f);
+    T_FEQ(target->unitinfo.MoveSpeed, 234.0f, 0.001f);
+    T_EQ(target->class_id, MAKEFOURCC('h','f','o','o'));
+    T_EQ(G_OrderId("polymorph"), 852074); T_STREQ(G_OrderId2String(852074), "polymorph");
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

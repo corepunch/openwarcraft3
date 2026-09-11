@@ -418,6 +418,7 @@ void spell_run_frame(LPEDICT ent) {
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
     if (!caster)
         return false;
+    if (S_UnitPolymorphed(caster)) return false;
     if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(clent, "Silenced.");
         return false;
@@ -439,6 +440,7 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point)
         return false;
+    if (S_UnitPolymorphed(params->caster)) return false;
     if (S_UnitHasStatus(params->caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(params->clent, "Silenced.");
         return false;
@@ -655,7 +657,7 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     spell_info_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
-    if (!caster || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellInfoForCode(code);
     if (!spell || spell->target_type != SPELL_TARGET_NONE || !spell->execute) return false;
     level = S_SpellLevel(caster, code);
@@ -674,7 +676,7 @@ BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
     spell_info_t const *spell;
     spellTarget_t target;
 
-    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellInfoForCode(code);
     if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
                    spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
@@ -701,7 +703,7 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     spell_info_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
-    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellInfoForCode(code);
     if (!spell || spell->target_type != SPELL_TARGET_UNIT || !spell->execute) return false;
     level = S_SpellLevel(caster, code);
@@ -722,7 +724,7 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     spell_info_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
-    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code)) return false;
+    if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
     spell = S_SpellInfoForCode(code);
     if (!spell || (spell->target_type != SPELL_TARGET_UNIT &&
                    spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||

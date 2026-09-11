@@ -2827,6 +2827,13 @@ SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar.level, 2)
 SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar.damage, 31)
 SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar.armor, 7.0f)
 SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar.health, 600.0f)
+SAVE_INT_FIELD_TEST(field_polymorph_ability_round_trip, polymorph.ability, MAKEFOURCC('A', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_buff_round_trip, polymorph.buff, MAKEFOURCC('B', 'p', 'l', 'y'))
+SAVE_INT_FIELD_TEST(field_polymorph_form_type_round_trip, polymorph.form_type, MAKEFOURCC('o', 'p', 'e', 'o'))
+SAVE_INT_FIELD_TEST(field_polymorph_original_model_round_trip, polymorph.original_model, 37)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_scale_round_trip, polymorph.original_scale, 1.35f)
+SAVE_FLOAT_FIELD_TEST(field_polymorph_original_move_speed_round_trip, polymorph.original_move_speed, 270.0f)
+SAVE_INT_FIELD_TEST(field_polymorph_active_round_trip, polymorph.active, 1)
 SAVE_FLOAT_FIELD_TEST(field_temporary_health_bonus_round_trip, temporary_health_bonus, 600.0f)
 
 TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {

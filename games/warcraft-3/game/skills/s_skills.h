@@ -129,6 +129,8 @@ int S_ManaShieldDamage(LPEDICT target, int damage);
 void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration);
 LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration);
 BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code);
+BOOL S_UnitPolymorphed(LPCEDICT unit);
+void S_PolymorphRemove(LPEDICT unit);
 int S_BlackArrowDamage(LPEDICT attacker, int damage);
 void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
