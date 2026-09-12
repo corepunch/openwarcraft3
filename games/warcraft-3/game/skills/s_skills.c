@@ -14,19 +14,6 @@ typedef struct {
     ability_t *ability;
 } abilityitem_t;
 
-/* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
-FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
-    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
-    index = MAX(1, MIN(index, 9));
-    return row->data[index - 1].number;
-}
-
-DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index) {
-    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
-    index = MAX(1, MIN(index, 9));
-    return row->data[index - 1].id;
-}
-
 static abilityitem_t abilitylist[] = {
     { STR_CmdStop, &a_stop },  // Stop — engine command
     { STR_CmdMove, &a_move },  // Move — engine command
@@ -38,6 +25,9 @@ static abilityitem_t abilitylist[] = {
     { STR_CmdCancel, &a_cancel },  // Cancel — engine command
     { STR_CmdCancelBuild, &a_cancel },  // Cancel Build — engine command
     { STR_CmdSelectSkill, &a_selectskill },  // Select Skill — engine command
+
+    { "Amrf", &a_raven_form },  /* Medivh Crow Form */
+    { "Arav", &a_raven_form },  /* Storm Crow Form */
 
     /* BEGIN GENERATED ABILITY STRINGS */
 
@@ -437,7 +427,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Aesn", &a_button },  /* Sentinel */
     // TODO: { "Adtn", &a_button },  /* Detonate */
     // TODO: { "Abrf", &a_morph },  /* Bear Form */
-    // TODO: { "Arav", &a_raven_form },  /* Storm Crow Form */
+
     // TODO: { "Aadm", &a_auto_dispel_magic },  /* Abolish Magic */
     // TODO: { "Amim", &a_magic_immunity },  /* Spell Immunity */
     // TODO: { "Ault", &a_night_vision },  /* Ultravision */
@@ -529,6 +519,41 @@ static abilityitem_t abilitylist[] = {
 
     /* END GENERATED TODO ABILITIES */
 };
+
+/* Build a compact unique callback list once, rather than scan the whole registry per unit tick. */
+static ability_t const *ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD num_updates;
+
+/* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
+FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
+    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
+    index = MAX(1, MIN(index, 9));
+    return row->data[index - 1].number;
+}
+
+DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index) {
+    abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
+    index = MAX(1, MIN(index, 9));
+    return row->data[index - 1].id;
+}
+
+/* Order names belong to their ability, including orders for preplaced alternate forms. */
+ability_t const *FindAbilityByOrder(LPCSTR order) {
+    if (!order) return NULL;
+    FOR_LOOP(i, game.num_abilities) {
+        ability_t const *ability = abilitylist[i].ability;
+        if (!ability->orders || !ability->order) continue;
+        for (LPCSTR const *name = ability->orders; *name; name++)
+            if (!strcmp(*name, order)) return ability;
+    }
+    return NULL;
+}
+
+/* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
+void S_RunAbilityUpdates(LPEDICT ent) {
+    FOR_LOOP(i, num_updates)
+        ability_updates[i]->update(ent);
+}
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {
     FOR_LOOP(i, game.num_abilities) {
@@ -708,10 +733,16 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     S_InitHumanAbilities();
+    num_updates = 0;
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
         if (abil->ability->init) {
             abil->ability->init(abil->classname, abil->ability);
+        }
+        if (abil->ability->update) {
+            DWORD n;
+            for (n = 0; n < num_updates && ability_updates[n] != abil->ability; n++) {}
+            if (n == num_updates) ability_updates[num_updates++] = abil->ability;
         }
     }
 }

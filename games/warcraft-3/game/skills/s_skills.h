@@ -5,6 +5,7 @@
 
 extern ability_t a_harvest;
 extern ability_t a_move;
+extern ability_t a_raven_form;
 extern ability_t a_attack;
 extern ability_t a_build;
 extern ability_t a_train;

@@ -20,7 +20,7 @@
  *   Flow direction — the flow vector at a cell points toward the goal.
  *   Static point test — CM_PointIsPathableForRadius rejects wall cells and
  *                       accepts open ground (the static half of move-time
- *                       collision; see unit_trymove in g_ai.c).
+ *                       collision; see unit_trymove in skills/s_move.c).
  */
 
 #include <math.h>
@@ -62,7 +62,7 @@ BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 
 /* Static-map point test from routing.c — the static half of move-time
- * collision (unit_trymove in g_ai.c). */
+ * collision (unit_trymove in skills/s_move.c). */
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 
 /* From g_monster.c */
@@ -1033,18 +1033,16 @@ TEST(wc3_pathfinding, flow_consistent_across_goal_switches) {
  * Proximity shortcut
  *
  * unit_changeangle uses direct vector math when the unit is within
- * NAVI_THRESHOLD of its goal, skipping the heatmap.  Verify the unit
+ * a clear direct corridor to its goal, skipping the heatmap.  Verify the unit
  * gets a valid angle pointing toward the goal regardless.
  * --------------------------------------------------------------------- */
-
-#define PF_NAVI_THRESHOLD 128.0f  /* must match g_ai.c */
 
 TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    /* Place unit close to goal (within NAVI_THRESHOLD). */
+    /* Place the unit beside its goal in the open corridor. */
     LPEDICT unit = make_unit_at(0.0f, 0.0f);
     LPEDICT wp   = make_waypoint(5.0f, 5.0f);
     unit->collision = 0.0f;
@@ -1053,9 +1051,7 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     unit_stand(unit);
     order_move(unit, wp);
 
-    /* Distance must be within threshold for the shortcut to apply. */
-    FLOAT dist = M_DistanceToGoal(unit);
-    T_ASSERT(dist < NAVI_THRESHOLD);
+    T_FEQ(M_DistanceToGoal(unit), sqrtf(50.0f), 0.001f);
 
     /* Units now turn gradually (at their turn rate) toward the target facing
      * rather than snapping instantly, so step a few ticks to let the facing

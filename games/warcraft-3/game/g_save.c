@@ -362,6 +362,14 @@ static field_t const polymorph_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const raven_fields[] = {
+    TF(struct edictRaven_s, fly_height, F_FLOAT),
+    TF(struct edictRaven_s, rise_start, F_FLOAT),
+    TF(struct edictRaven_s, rise_duration, F_FLOAT),
+    TF(struct edictRaven_s, rise_state, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const movement_fields[] = {
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, patrol_a, F_EDICT, 0, FIELD_NONE),
@@ -442,6 +450,7 @@ field_t edict_fields[] = {
     F(edict_s, abilities, F_STRUCT, 1, abilities_fields),
     F(edict_s, avatar, F_STRUCT, 1, avatar_fields),
     F(edict_s, polymorph, F_STRUCT, 1, polymorph_fields),
+    F(edict_s, raven, F_STRUCT, 1, raven_fields),
     F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
     F(edict_s, temporary_health_bonus, F_FLOAT),
     F(edict_s, mana_regen_bonus, F_FLOAT),

@@ -10,7 +10,7 @@ Harvest movement uses the Warsmash-style collision split directly:
 - Resource-building routes use the worker collision radius for static pathing. A newly constructed Farm therefore invalidates/rebuilds the static route and the bounded mover-owned A* accelerator can detour around it without reintroducing worker-vs-worker blocking.
 - Return Resources targets the innermost collision-safe ring around the Town Hall/Lumber Mill footprint, choosing the worker's current side. Reaching that exact rasterized endpoint is a valid deposit handoff when the path grid leaves it just outside the continuous footprint+step threshold.
 
-`games/warcraft-3/game/g_ai.c` owns the static-only steering/movement policy through `MOVE_AVOID_STATIC_ONLY`, `unit_changeangle_interaction_ignore_units`, and the near-side point helper. `skills/s_goldmine.c` owns Mine/Gold-return behavior; `skills/s_harvest_lumber.c` owns tree and lumber-return behavior. Target choice, Mine capacity, resource accounting, and replacement-tree selection remain outside the router.
+`games/warcraft-3/game/skills/s_move.c` owns the static-only steering/movement policy through `MOVE_AVOID_STATIC_ONLY`, `unit_changeangle_interaction_ignore_units`, and the near-side point helper. `skills/s_goldmine.c` owns Mine/Gold-return behavior; `skills/s_harvest_lumber.c` owns tree and lumber-return behavior. Target choice, Mine capacity, resource accounting, and replacement-tree selection remain outside the router.
 
 The queue/pass-right implementation described below is historical investigation context. Its helper/tests remain useful for understanding the earlier Human02 crowding work, but Harvest/Return no longer select `MOVE_AVOID_RESOURCE_WORKER`.
 

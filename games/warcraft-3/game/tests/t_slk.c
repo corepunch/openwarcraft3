@@ -953,4 +953,23 @@ TEST(wc3_slk, prod_no_magic_line) {
     T_STREQ(find_slk_value(rows, "foo", "spd"), "270");
 }
 
+/* ROC uses row-major Data11..Data34 names; rawcode and numeric consumers must see the same columns as TFT. */
+TEST(wc3_slk, roc_ability_data_preserves_object_ids_and_numbers) {
+    slkTestData_t *rows = parse_slk_string(
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"Data11\"\nC;X3;K\"Data13\"\n"
+        "C;X4;K\"Data21\"\nC;X5;K\"Data34\"\nC;X6;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Amrf\"\nC;X2;K\"nmed\"\nC;X3;K1.5\n"
+        "C;X4;K\"edot\"\nC;X5;K\"edtm\"\nC;X6;K\"nmdm\"\nE\n");
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    AbilityData_t const *row = G_AbilityData(MAKEFOURCC('A','m','r','f'));
+    T_EQ(row->level[0].data[0].id, MAKEFOURCC('n','m','e','d'));
+    T_FEQ(row->level[0].data[2].number, 1.5f, 0.001f);
+    T_EQ(row->level[1].data[0].id, MAKEFOURCC('e','d','o','t'));
+    T_EQ(row->level[2].data[3].id, MAKEFOURCC('e','d','t','m'));
+    T_EQ(row->level[0].unitID, MAKEFOURCC('n','m','d','m'));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 #endif /* BZ_TESTS */

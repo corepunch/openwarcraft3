@@ -367,3 +367,15 @@ See also:
 - [Unit animation properties](unit-animation-properties.md)
 - [Ability and item effects](ability-and-item-effects.md)
 - [Warcraft III data model](../../wc3-data-model.md)
+
+## Ability-owned orders and persistent behavior
+
+Keep an ability's order strings, validation, animation moves, completion functions, and timed effects in its
+`skills/s_*.c` owner. For immediate orders outside the spell pipeline, register `ability_t.orders` and `.order`;
+for effects that outlive an active order, use `.update`. `s_skills.c` owns generic dispatch and deduplicates shared
+update handlers at initialization. Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
+See [Raven Form](unit-animation-properties.md) for the order/update contract and persistence tests.
+
+`skills/s_move.c` owns reusable locomotion (steering, steps, collision policy, route goals, and support height).
+Attack, Follow, Harvest, and Build call that ability's movement operations while owning their own goals and arrival
+conditions. `g_ai.c` owns acquisition/behavior transitions, and `g_monster.c` owns initialization and generic animation dispatch.

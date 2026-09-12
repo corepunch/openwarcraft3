@@ -436,9 +436,9 @@ static slkField_t const abil_schema[] = {
 #define AB_ID_LEVELS(NAME, SLOT) \
     AB_ID(NAME "1", 0, SLOT), AB_ID(NAME "2", 1, SLOT), \
     AB_ID(NAME "3", 2, SLOT), AB_ID(NAME "4", 3, SLOT)
-#define AB_D_ROW(NAME, LEVEL) \
-    AB_D(NAME "1", LEVEL, 0), AB_D(NAME "2", LEVEL, 1), \
-    AB_D(NAME "3", LEVEL, 2), AB_D(NAME "4", LEVEL, 3)
+#define BZ_AB_ROW(NAME, LEVEL, FIELD) \
+    FIELD(NAME "1", LEVEL, 0), FIELD(NAME "2", LEVEL, 1), \
+    FIELD(NAME "3", LEVEL, 2), FIELD(NAME "4", LEVEL, 3)
 static slkField_t const ability_schema[] = {
     { "",            offsetof(AbilityData_t, id),          STB_SLK_FOURCC },
     { "code",        offsetof(AbilityData_t, code),        STB_SLK_FOURCC },
@@ -464,13 +464,19 @@ static slkField_t const ability_schema[] = {
     AB_F_LEVELS("Cost", cost, STB_SLK_FLOAT),
     AB_F_LEVELS("Area", area, STB_SLK_FLOAT),
     AB_F_LEVELS("Rng", range, STB_SLK_FLOAT),
-    AB_D_ROW("Data1", 0), AB_D_ROW("Data2", 1), AB_D_ROW("Data3", 2),
+    BZ_AB_ROW("Data1", 0, AB_D),
+    BZ_AB_ROW("Data2", 1, AB_D),
+    BZ_AB_ROW("Data3", 2, AB_D),
     AB_D_LEVELS("DataA", 0), AB_D_LEVELS("DataB", 1), AB_D_LEVELS("DataC", 2),
     AB_D_LEVELS("DataD", 3), AB_D_LEVELS("DataE", 4), AB_D_LEVELS("DataF", 5),
     AB_D_LEVELS("DataG", 6), AB_D_LEVELS("DataH", 7), AB_D_LEVELS("DataI", 8),
     /* Some Warcraft abilities store raw object IDs in the generic Data slots.
      * Keep a parallel FOURCC view so gameplay can consume those fields without
      * changing the existing numeric Data parser used by other abilities/tooltips. */
+    /* ROC Data11..Data34 need the same object-ID view as TFT DataA1..DataD3; numeric-only parsing lost morph endpoints. */
+    BZ_AB_ROW("Data1", 0, AB_ID),
+    BZ_AB_ROW("Data2", 1, AB_ID),
+    BZ_AB_ROW("Data3", 2, AB_ID),
     AB_ID_LEVELS("DataA", 0), AB_ID_LEVELS("DataB", 1), AB_ID_LEVELS("DataC", 2),
     AB_ID_LEVELS("DataD", 3), AB_ID_LEVELS("DataE", 4), AB_ID_LEVELS("DataF", 5),
     AB_ID_LEVELS("DataG", 6), AB_ID_LEVELS("DataH", 7), AB_ID_LEVELS("DataI", 8),
@@ -492,7 +498,7 @@ static slkField_t const ability_schema[] = {
 #undef AB_F
 #undef AB_ID_LEVELS
 #undef AB_D_LEVELS
-#undef AB_D_ROW
+#undef BZ_AB_ROW
 #undef AB_F_LEVELS
 
 static slkField_t const ability_buff_schema[] = {
