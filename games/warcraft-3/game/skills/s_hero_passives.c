@@ -192,9 +192,13 @@ static regenerationAuraInfo_t regen_aura_info(LPEDICT unit, DWORD base_code, BOO
         if (row->data[1].number != 0.0f && use_maximum)
             amount *= base_code == ID_REGEN_MANA ? unit->mana.max_value : unit->health.max_value;
         if (amount > result.amount) {
+            LPCSTR buff_id = row->buffID;
+            if ((!buff_id || !*buff_id || !strcmp(buff_id, "-") || !strcmp(buff_id, "_")) &&
+                ability.alias != base_code)
+                buff_id = G_AbilityLevel(base_code, ability.level)->buffID;
             result.amount = amount;
             result.alias = ability.alias;
-            result.buff = aura_buff_code(row->buffID);
+            result.buff = aura_buff_code(buff_id);
         }
     }
     return result;
@@ -222,6 +226,7 @@ static void sync_regen_aura_overlay(LPEDICT unit, DWORD base_code, regenerationA
     }
     DWORD desired_model = art && *art ? G_RegisterModel(art) : 0;
     LPEDICT keep = NULL;
+
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT effect = g_edicts + i;
