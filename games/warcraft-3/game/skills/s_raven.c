@@ -173,7 +173,7 @@ static void raven_command(LPEDICT ent) {
         unit_issueimmediateorder(unit, raven_orders[raven_is_on(unit) ? 1 : 0]);
 }
 
-intptr_t CAbilityRavenForm(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityRavenForm) {
     switch (msg) {
     case A_COMMAND: raven_command(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return raven_is_on(ent);

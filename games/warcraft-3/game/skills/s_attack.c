@@ -329,7 +329,6 @@ static void throw_missile(LPEDICT ent) {
 //    gi.multicast(&ent->s.origin, MULTICAST_PHS);
 }
 
-
 static void ai_melee(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
@@ -557,11 +556,9 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     return any;
 }
 
-void attack_command(LPEDICT ent) {
-    UI_AddCancelButton(ent);
-    ent->client->menu.on_entity_selected = attack_menu_selecttarget;
-    ent->client->menu.on_location_selected = attackmove_selectlocation;
-    ent->client->menu.supports_order_queue = true;
+BZ_COMMAND_PROC(AbilityAttack) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = attack_menu_selecttarget;
+    clent->client->menu.on_location_selected = attackmove_selectlocation;
+    clent->client->menu.supports_order_queue = true;
 }
-
-BZ_COMMAND_PROC(AbilityAttack, attack_command)

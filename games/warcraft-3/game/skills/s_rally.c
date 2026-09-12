@@ -211,7 +211,7 @@ static BOOL rally_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     return any;
 }
 
-static void rally_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityRally) {
     LPEDICT producer;
 
     if (!clent || !clent->client) return;
@@ -221,5 +221,3 @@ static void rally_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = rally_selecttarget;
     clent->client->menu.on_location_selected = rally_selectlocation;
 }
-
-BZ_COMMAND_PROC(AbilityRally, rally_command)

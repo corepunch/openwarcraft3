@@ -1357,10 +1357,8 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     return issued;
 }
 
-void move_command(LPEDICT ent) {
-    UI_AddCancelButton(ent);
-    ent->client->menu.on_location_selected = move_selectlocation;
-    ent->client->menu.supports_order_queue = true;
+BZ_COMMAND_PROC(AbilityMove) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_location_selected = move_selectlocation;
+    clent->client->menu.supports_order_queue = true;
 }
-
-BZ_COMMAND_PROC(AbilityMove, move_command)

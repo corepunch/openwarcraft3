@@ -819,7 +819,7 @@ static void repair_command(LPEDICT clent) {
 }
 
 #define BZ_REPAIR_PROC(NAME) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         switch (msg) { \
         case A_COMMAND: repair_command(call && call->client ? call->client : ent); return true; \
         case A_AUTOCAST_ON: return repair_autocast_is_on(ent); \

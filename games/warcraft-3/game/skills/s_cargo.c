@@ -219,12 +219,10 @@ static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
     return S_CargoTryLoad(caster, target);
 }
 
-static void load_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityCargoLoad) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = load_selecttarget;
 }
-
-BZ_COMMAND_PROC(AbilityCargoLoad, load_command)
 
 /* ---- Battle Stations (Abtl): call nearby allowed units into cargo -------- */
 
@@ -358,7 +356,7 @@ static DWORD battlestations_collect(LPEDICT transport, LPEDICT *out, DWORD max_c
     return count;
 }
 
-static void battlestations_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityBattlestations) {
     LPEDICT transport = G_GetMainSelectedUnit(clent->client);
     LPEDICT candidates[MAX_CARGO];
     DWORD capacity, free_slots, count;
@@ -371,8 +369,6 @@ static void battlestations_command(LPEDICT clent) {
     FOR_LOOP(i, count) S_CargoOrderBoard(candidates[i], transport);
     Get_Commands_f(clent);
 }
-
-BZ_COMMAND_PROC(AbilityBattlestations, battlestations_command)
 
 /* ---- Drop (Adro): drop cargo at a point --------------------------------- */
 
@@ -389,10 +385,10 @@ static void drop_command(LPEDICT clent) {
     clent->client->menu.on_location_selected = drop_selectlocation;
 }
 
-BZ_COMMAND_PROC(AbilityCargoDrop, drop_command)
+BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
 
 /* ---- Drop Instant (Adri): instant drop ---------------------------------- */
-BZ_COMMAND_PROC(AbilityCargoDropInstant, drop_command)
+BZ_COMMAND_PROC(AbilityCargoDropInstant) { drop_command(clent); }
 
 /* ---- Stand Down (Astd): stop combat, then unload all Burrow occupants --- */
 void S_CargoStandDown(LPEDICT caster) {
@@ -408,11 +404,9 @@ void S_CargoStandDown(LPEDICT caster) {
     cargo_drop_all(caster);
 }
 
-static void stand_down_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityStandDown) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     if (!caster || !S_CargoIsBurrow(caster)) return;
     S_CargoStandDown(caster);
     Get_Commands_f(clent);
 }
-
-BZ_COMMAND_PROC(AbilityStandDown, stand_down_command)

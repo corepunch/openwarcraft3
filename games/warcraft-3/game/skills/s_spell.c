@@ -47,18 +47,18 @@ static intptr_t spell_message(LPEDICT ent, abilityMsg_t msg, abilityitem_t const
     return S_AbilityMessage(ent, msg, &call);
 }
 
-intptr_t CAbilityNoop(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityNoop) {
     (void)ent; (void)msg; (void)call;
     return false;
 }
 
-intptr_t CAbilityPassive(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityPassive) {
     return CAbilityNoop(ent, msg, call);
 }
 
 /* CAbilitySimpleSpell owns the shared command path and accepts validation
  * unless a concrete TFT procedure supplies stricter target rules. */
-intptr_t CAbilitySimpleSpell(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     (void)ent;
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {

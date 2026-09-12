@@ -17,10 +17,8 @@ void order_stop(LPEDICT ent) {
     ent->stand(ent);
 }
 
-static void stop_command(LPEDICT ent) {
-    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
+BZ_COMMAND_PROC(AbilityStop) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, e) {
         unit_issueimmediateorder(e, "stop");
     }
 }
-
-BZ_COMMAND_PROC(AbilityStop, stop_command)

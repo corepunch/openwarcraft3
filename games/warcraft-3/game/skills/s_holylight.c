@@ -10,19 +10,19 @@ void holylight_done(LPEDICT self) {
 
 /* Holy Light has unique target validation: friendlies are healed, undead
  * enemies take half-damage.  All other messages inherit CAbilitySimpleSpell. */
-intptr_t CAbilityHolyBolt(LPEDICT caster, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityHolyBolt) {
     switch (msg) {
     case A_VALIDATE: {
         spellTarget_t const *st = call ? call->target : NULL;
         LPEDICT target = st ? st->entity : NULL;
 
-        if (!st || target == caster) return false;
+        if (!st || target == ent) return false;
         if (!S_SpellIsAliveTarget(target)) return false;
-        if (S_SpellIsEnemy(caster, target)) {
+        if (S_SpellIsEnemy(ent, target)) {
             LPCSTR race = target->data.UnitData->race;
             return race && !strcmp(race, STR_UNDEAD);
         }
-        return S_SpellIsFriend(caster, target);
+        return S_SpellIsFriend(ent, target);
     }
     case A_EXECUTE: {
         abilityitem_t const *spell = call ? call->item : NULL;
@@ -32,17 +32,17 @@ intptr_t CAbilityHolyBolt(LPEDICT caster, abilityMsg_t msg, abilityCall_t const 
         FLOAT amount;
 
         if (!spell || !st) return false;
-        level = S_SpellLevel(caster, spell->code);
+        level = S_SpellLevel(ent, spell->code);
         amount = S_SpellData(spell->code, level, 1);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
-        unit_setmove(caster, &move_heal);
-        if (S_SpellIsFriend(caster, target))
+        unit_setmove(ent, &move_heal);
+        if (S_SpellIsFriend(ent, target))
             S_SpellHeal(target, amount);
         else
-            S_SpellDamage(target, caster, (int)(amount * 0.5f));
+            S_SpellDamage(target, ent, (int)(amount * 0.5f));
         return true;
     }
     default:
-        return CAbilitySimpleSpell(caster, msg, call);
+        return CAbilitySimpleSpell(ent, msg, call);
     }
 }

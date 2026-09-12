@@ -7,13 +7,11 @@
 
 /* TODO: Shop Purchase Item (Apit) must read the sold-item list, charge the
  * player, and create the item through the authoritative lifecycle. */
-static void shop_stub_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityPurchaseItem) {
     UI_AddCancelButton(clent);
 }
 
-BZ_COMMAND_PROC(AbilityPurchaseItem, shop_stub_command)
-
 /* Inventory is also the move identity for pickup and drop orders. */
-intptr_t CAbilityInventory(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityInventory) {
     return CAbilityPassive(ent, msg, call);
 }

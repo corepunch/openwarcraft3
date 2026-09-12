@@ -340,17 +340,15 @@ void ui_builds(LPGAMECLIENT client) {
     UI_WriteTooltipFrame();
 }
 
-void build_command(LPEDICT edict) {
+BZ_COMMAND_PROC(AbilityBuild) {
     LPGAMECLIENT client;
 
-    if (!edict || !edict->client) return;
-    client = edict->client;
+    if (!clent || !clent->client) return;
+    client = clent->client;
     client->menu.cmdbutton = build_menu_selectlocation;
-    client->menu.refresh = build_command;
+    client->menu.refresh = AbilityBuild_Command;
 
     /* The menu callbacks are gameplay state.  The command-bar payload is
      * presentation and cannot be serialized before ClientBegin. */
-    if (client->connected) UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
+    if (client->connected) UI_WRITE_LAYER(clent, ui_builds, LAYER_COMMANDBAR);
 }
-
-BZ_COMMAND_PROC(AbilityBuild, build_command)

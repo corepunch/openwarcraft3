@@ -388,7 +388,27 @@ static void militia_cmd(LPEDICT clent) {
     if (!issued) G_ShowCommandErrorText(clent, "No suitable Town Hall could be found.");
 }
 
-static void call_to_arms_cmd(LPEDICT clent) {
+void S_CancelMilitiaPairing(LPEDICT unit) {
+    if (!unit || !unit->militia.ability) return;
+    militia_clear_pairing(unit);
+    if (!unit->militia.active) {
+        unit->militia.ability = 0;
+        unit->militia.normal_type = 0;
+        unit->militia.militia_type = 0;
+        unit->militia.previous_resource = 0;
+    }
+}
+
+void S_MilitiaExpire(LPEDICT unit) {
+    if (!unit || !unit->militia.active || M_IsDead(unit)) return;
+    if (!militia_transform_back(unit, false)) return;
+    /* Natural expiration is not Back to Work. Preserve a combat/move behavior
+     * when one exists; only retire an in-flight militia pairing walk. */
+    if (unit->currentmove == &militia_move_walk) unit_stand(unit);
+    else if (unit->currentmove) unit_setanimation(unit, unit->currentmove->animation);
+}
+
+BZ_COMMAND_PROC(AbilityMilitiaConvert) {
     LPGAMECLIENT client;
     BOOL off;
     BOOL issued = false;
@@ -416,29 +436,7 @@ static void call_to_arms_cmd(LPEDICT clent) {
         off ? "No Militia could be found." : "No Peasants could be found.");
 }
 
-void S_CancelMilitiaPairing(LPEDICT unit) {
-    if (!unit || !unit->militia.ability) return;
-    militia_clear_pairing(unit);
-    if (!unit->militia.active) {
-        unit->militia.ability = 0;
-        unit->militia.normal_type = 0;
-        unit->militia.militia_type = 0;
-        unit->militia.previous_resource = 0;
-    }
-}
-
-void S_MilitiaExpire(LPEDICT unit) {
-    if (!unit || !unit->militia.active || M_IsDead(unit)) return;
-    if (!militia_transform_back(unit, false)) return;
-    /* Natural expiration is not Back to Work. Preserve a combat/move behavior
-     * when one exists; only retire an in-flight militia pairing walk. */
-    if (unit->currentmove == &militia_move_walk) unit_stand(unit);
-    else if (unit->currentmove) unit_setanimation(unit, unit->currentmove->animation);
-}
-
-BZ_COMMAND_PROC(AbilityMilitiaConvert, call_to_arms_cmd)
-
-intptr_t CAbilityMilitia(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityMilitia) {
     switch (msg) {
     case A_COMMAND: militia_cmd(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return militia_toggle_on(ent);

@@ -20,16 +20,6 @@ static void campaign_area_damage_execute(LPEDICT caster, spellTarget_t st, abili
         S_SpellDamage(target, caster, damage);
 }
 
-static void campaign_stomp_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
-    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && target->targtype == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
-        S_SpellDamage(target, caster, damage);
-        if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
-    }
-}
-
 static void campaign_summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     DWORD unit = S_SpellUnitId(spell->code, level); FLOAT duration = S_SpellDuration(spell->code, level, false);
@@ -45,63 +35,63 @@ static void campaign_toggle_execute(LPEDICT caster, spellTarget_t st, abilityite
     unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
 }
 
-static void campaign_dispel_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityAttributeModSkill) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySpawnTentacle) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityAvatarCampaign) {
+    DWORD level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level);
+    if (form) G_TransformUnitType(caster, form);
+}
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
+    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && target->targtype == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        S_SpellDamage(target, caster, damage);
+        if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
+    }
+}
+BZ_SIMPLE_SPELL_PROC(AbilityFeralSpiritCampaign) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritBeast) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCampaign) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
     DWORD level = S_SpellLevel(caster, spell->code), count = 0; FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, count < (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) if (target->abilstatus[i].level && target->abilstatus[i].timestamp) memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
         count++;
     }
 }
-
-static void campaign_battle_roar_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilitySubmergeMyrmidon) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityEnsnare) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityParasiteCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityCycloneCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySummoningRitual) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
     DWORD level = S_SpellLevel(caster, spell->code); LPCSTR buff = campaign_buff(spell, level);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
         if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
 }
-
-static void campaign_storm_bolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     DWORD level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     S_SpellDamage(st.entity, caster, (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)));
     if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
-
-static void campaign_morph_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level);
-    if (form) G_TransformUnitType(caster, form);
-}
-
-BZ_SIMPLE_SPELL_PROC(AbilityAttributeModSkill, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySpawnTentacle, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityAvatarCampaign, campaign_morph_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign, campaign_area_damage_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign, campaign_stomp_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityFeralSpiritCampaign, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySpiritBeast, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCampaign, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic, campaign_dispel_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeMyrmidon, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityEnsnare, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityParasiteCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityCycloneCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySummoningRitual, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar, campaign_battle_roar_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign, campaign_storm_bolt_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign, campaign_area_damage_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign, campaign_status_execute)
-BZ_SIMPLE_SPELL_PROC(AbilitySerpentWard, campaign_summon_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne, campaign_area_damage_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityEnduranceAuraCampaign, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCairne, campaign_toggle_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityVoodooSpirits, campaign_summon_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilitySerpentWard) { campaign_summon_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCairne) { campaign_area_damage_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityEnduranceAuraCampaign) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCairne) { campaign_toggle_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityVoodooSpirits) { campaign_summon_execute(caster, st, spell); }

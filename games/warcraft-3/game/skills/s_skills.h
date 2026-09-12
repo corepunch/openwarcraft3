@@ -3,18 +3,19 @@
 
 #include "../g_local.h"
 
-#define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT, abilityMsg_t, abilityCall_t const *)
-#define BZ_SIMPLE_SPELL_PROC(NAME, EXECUTE) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+#define BZ_SIMPLE_SPELL_PROC(NAME) \
+    static void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell); \
+    BZ_ABILITY_PROC(C##NAME) { \
         if (msg == A_EXECUTE) { \
             spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
-            EXECUTE(ent, target, call ? call->item : NULL); \
+            NAME##_Execute(ent, target, call ? call->item : NULL); \
             return true; \
         } \
         return CAbilitySimpleSpell(ent, msg, call); \
-    }
+    } \
+    void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell)
 #define BZ_VALIDATED_SPELL_PROC(NAME, VALIDATE, EXECUTE) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
@@ -22,24 +23,28 @@
         default: return CAbilitySimpleSpell(ent, msg, call); \
         } \
     }
-#define BZ_COMMAND_PROC(NAME, COMMAND) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+#define BZ_COMMAND_PROC(NAME) \
+    static void NAME##_Command(LPEDICT clent); \
+    BZ_ABILITY_PROC(C##NAME) { \
         if (msg != A_COMMAND) return false; \
-        COMMAND(call && call->client ? call->client : ent); \
+        NAME##_Command(call && call->client ? call->client : ent); \
         return true; \
-    }
-#define BZ_ITEM_PROC(NAME, ITEM_USE) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    } \
+    void NAME##_Command(LPEDICT clent)
+#define BZ_ITEM_PROC(NAME) \
+    static BOOL NAME##_ItemUse(LPEDICT clent); \
+    BZ_ABILITY_PROC(C##NAME) { \
         (void)call; \
-        return msg == A_ITEM_USE && ITEM_USE(ent); \
-    }
+        return msg == A_ITEM_USE && NAME##_ItemUse(ent); \
+    } \
+    BOOL NAME##_ItemUse(LPEDICT clent)
 
 /* Concrete AbilityData implementations. */
 
+extern LPCSTR const raven_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
 BZ_ABILITY_PROC(CAbilityMove);
 BZ_ABILITY_PROC(CAbilityRavenForm);
-extern LPCSTR const raven_orders[];
 BZ_ABILITY_PROC(CAbilityAttack);
 BZ_ABILITY_PROC(CAbilityBuild);
 BZ_ABILITY_PROC(CAbilityTrain);
@@ -48,13 +53,10 @@ BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
 BZ_ABILITY_PROC(CAbilityStop);
 BZ_ABILITY_PROC(CAbilityHoldPosition);
-BOOL S_HoldPosition(LPEDICT unit);
 BZ_ABILITY_PROC(CAbilityPatrol);
 BZ_ABILITY_PROC(CAbilityRally);
 BZ_ABILITY_PROC(CAbilityMilitiaConvert);
 BZ_ABILITY_PROC(CAbilityMilitia);
-BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
-FLOAT S_MilitiaPairSearchRadius(DWORD ability);
 BZ_ABILITY_PROC(CAbilitySelectSkill);
 BZ_ABILITY_PROC(CAbilityAuraDevotion);
 BZ_ABILITY_PROC(CAbilityHolyBolt);
@@ -131,32 +133,9 @@ BZ_ABILITY_PROC(CAbilityWindWalk);
 BZ_ABILITY_PROC(CAbilityEntanglingRoots);
 BZ_ABILITY_PROC(CAbilityDarkRitual);
 BZ_ABILITY_PROC(CAbilityFrostArmor);
-BZ_ABILITY_PROC(CAbilityFrostArmorAuto);
 BZ_ABILITY_PROC(CAbilityDivineShield);
 BZ_ABILITY_PROC(CAbilityCriticalStrike);
 BZ_ABILITY_PROC(CAbilityEvasion);
-FLOAT S_BrillianceManaRegen(LPEDICT unit);
-FLOAT S_UnholyHealthRegen(LPEDICT unit);
-FLOAT S_UnholyMoveBonus(LPEDICT unit);
-FLOAT S_VampiricLifeSteal(LPEDICT unit);
-FLOAT S_TrueshotAttackBonus(LPEDICT unit);
-int S_SearingArrowDamage(LPEDICT attacker, int damage);
-FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage);
-BOOL S_EvasionRoll(LPEDICT target);
-int S_CriticalStrikeDamage(LPEDICT attacker, int damage);
-FLOAT S_SpikedArmorBonus(LPCEDICT unit);
-FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage);
-int S_ManaShieldDamage(LPEDICT target, int damage);
-void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration);
-LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration);
-BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code);
-BOOL S_UnitPolymorphed(LPCEDICT unit);
-void S_PolymorphRemove(LPEDICT unit);
-int S_BlackArrowDamage(LPEDICT attacker, int damage);
-void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
-void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
-void S_ReincarnationOnDeath(LPEDICT unit);
-
 BZ_ABILITY_PROC(CAbilityMassTeleport);
 BZ_ABILITY_PROC(CAbilityStampede);
 BZ_ABILITY_PROC(CAbilityWhirlwind);
@@ -238,7 +217,32 @@ BZ_ABILITY_PROC(CAbilityPolymorph);
 BZ_ABILITY_PROC(CAbilityAvatar);
 BZ_ABILITY_PROC(CAbilityDoom);
 BZ_ABILITY_PROC(CAbilityDrunkenHaze);
+
 void human_ability_think(LPEDICT thinker);
+BOOL S_HoldPosition(LPEDICT unit);
+BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
+FLOAT S_MilitiaPairSearchRadius(DWORD ability);
+FLOAT S_BrillianceManaRegen(LPEDICT unit);
+FLOAT S_UnholyHealthRegen(LPEDICT unit);
+FLOAT S_UnholyMoveBonus(LPEDICT unit);
+FLOAT S_VampiricLifeSteal(LPEDICT unit);
+FLOAT S_TrueshotAttackBonus(LPEDICT unit);
+int S_SearingArrowDamage(LPEDICT attacker, int damage);
+FLOAT S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, FLOAT damage);
+BOOL S_EvasionRoll(LPEDICT target);
+int S_CriticalStrikeDamage(LPEDICT attacker, int damage);
+FLOAT S_SpikedArmorBonus(LPCEDICT unit);
+FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage);
+int S_ManaShieldDamage(LPEDICT target, int damage);
+void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration);
+LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration);
+BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code);
+BOOL S_UnitPolymorphed(LPCEDICT unit);
+void S_PolymorphRemove(LPEDICT unit);
+int S_BlackArrowDamage(LPEDICT attacker, int damage);
+void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
+void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
+void S_ReincarnationOnDeath(LPEDICT unit);
 BOOL S_HumanCanAttack(LPCEDICT unit);
 FLOAT S_HumanMoveFactor(LPCEDICT unit);
 FLOAT S_HumanArmorBonus(LPCEDICT unit);

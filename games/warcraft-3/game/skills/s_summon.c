@@ -33,8 +33,38 @@ void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
     FOR_LOOP(i, count) summon_unit(caster, unit_id, i, count, duration);
 }
 
+LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
+    LPEDICT summon;
+    if (!caster || !unit_id || !loc) return NULL;
+    summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
+    if (!summon) return NULL;
+    summon->owner = caster; G_ActivateUnitFood(summon);
+    if (summon->stand) summon->stand(summon);
+    if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+    G_PublishSummonEvents(caster, summon);
+    return summon;
+}
+
+static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD unit_id = S_SpellUnitId(spell->code, level);
+    DWORD count = (DWORD)S_SpellData(spell->code, level, 2);
+    FLOAT duration = S_SpellDuration(spell->code, level, false);
+
+    if (!caster || !unit_id) return;
+    S_SummonUnits(caster, unit_id, count, duration);
+}
+
+/* Name=Summon Water Elemental
+ * Ubertip="Summons a Water Elemental to fight for the caster."
+ */
+BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) { summon_execute(caster, st, spell); }
+
+/* Name=Feral Spirit
+ * Ubertip="Summons Spirit Wolf companions."
+ */
 /* Replace only the caster's prior Feral Spirit summons before spawning the new cast. */
-static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     DWORD level, unit_id, count;
     FLOAT duration, distance;
     VECTOR2 loc;
@@ -66,52 +96,20 @@ static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
     }
 }
 
-LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
-    LPEDICT summon;
-    if (!caster || !unit_id || !loc) return NULL;
-    summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
-    if (!summon) return NULL;
-    summon->owner = caster; G_ActivateUnitFood(summon);
-    if (summon->stand) summon->stand(summon);
-    if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
-    G_PublishSummonEvents(caster, summon);
-    return summon;
-}
-
-static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD unit_id = S_SpellUnitId(spell->code, level);
-    DWORD count = (DWORD)S_SpellData(spell->code, level, 2);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
-
-    if (!caster || !unit_id) return;
-    S_SummonUnits(caster, unit_id, count, duration);
-}
-
-/* Name=Summon Water Elemental
- * Ubertip="Summons a Water Elemental to fight for the caster."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental, summon_execute)
-
-/* Name=Feral Spirit
- * Ubertip="Summons Spirit Wolf companions."
- */
-BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf, feral_spirit_execute)
-
 /* Name=Force of Nature
  * Ubertip="Summons treants from a target area to fight for the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityForceOfNature, summon_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityForceOfNature) { summon_execute(caster, st, spell); }
 
 /* Name=Summon Bear
  * Ubertip="Summons Misha, a powerful bear, to attack your enemies."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySummonGrizzly, summon_execute)
+BZ_SIMPLE_SPELL_PROC(AbilitySummonGrizzly) { summon_execute(caster, st, spell); }
 /* Name=Summon Quilbeast
  * Ubertip="Summons an angry quilbeast to fling spines at your enemies."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySummonQuillbeast, summon_execute)
+BZ_SIMPLE_SPELL_PROC(AbilitySummonQuillbeast) { summon_execute(caster, st, spell); }
 /* Name=Summon Hawk
  * Ubertip="Summons a hawk to fight for the caster."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySummonWarEagle, summon_execute)
+BZ_SIMPLE_SPELL_PROC(AbilitySummonWarEagle) { summon_execute(caster, st, spell); }

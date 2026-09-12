@@ -60,5 +60,5 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
     thinker->think = flame_strike_tick;
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityFlameStrikeNeutral, flame_strike_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityFlameStrike, flame_strike_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityFlameStrikeNeutral) { flame_strike_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityFlameStrike) { flame_strike_execute(caster, st, spell); }

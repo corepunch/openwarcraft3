@@ -61,9 +61,7 @@ static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     return any;
 }
 
-static void patrol_command(LPEDICT ent) {
-    UI_AddCancelButton(ent);
-    ent->client->menu.on_location_selected = patrol_selectlocation;
+BZ_COMMAND_PROC(AbilityPatrol) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_location_selected = patrol_selectlocation;
 }
-
-BZ_COMMAND_PROC(AbilityPatrol, patrol_command)

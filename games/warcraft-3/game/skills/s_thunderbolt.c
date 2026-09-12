@@ -56,7 +56,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 }
 
 #define BZ_BOLT_PROC(NAME, SPEED) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_INIT: if (call && call->classname) SPEED = ConfigNumber(call->classname, "Missilespeed"); return true; \

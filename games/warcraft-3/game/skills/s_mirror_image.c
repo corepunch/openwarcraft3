@@ -40,11 +40,11 @@ static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT d
     G_PublishSummonEvents(caster, image);
 }
 
-static void mirror_image_execute(LPEDICT caster, spellTarget_t target, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityMirrorImage) {
     DWORD level;
     DWORD count;
     FLOAT duration;
-    (void)target;
+    (void)st;
 
     if (!caster || !spell) return;
     level = S_SpellLevel(caster, spell->code);
@@ -55,5 +55,3 @@ static void mirror_image_execute(LPEDICT caster, spellTarget_t target, abilityit
     FOR_LOOP(i, count)
         mirror_image_spawn(caster, i, count, duration);
 }
-
-BZ_SIMPLE_SPELL_PROC(AbilityMirrorImage, mirror_image_execute)
