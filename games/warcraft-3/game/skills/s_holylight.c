@@ -36,7 +36,6 @@ static void holylight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_holylight = {
-    .code = MAKEFOURCC('A', 'H', 'h', 'b'),
     .name = "Holy Light",
     .target_type = SPELL_TARGET_UNIT,
     .validate = holylight_validate,

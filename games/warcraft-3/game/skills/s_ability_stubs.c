@@ -20,7 +20,6 @@ static void immolation_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
 }
 
 static spell_info_t spell_immolation = {
-    .code = MAKEFOURCC('A', 'E', 'i', 'm'),
     .name = "Immolation",
     .target_type = SPELL_TARGET_NONE,
     .flags = SPELL_TOGGLE,
@@ -52,7 +51,6 @@ static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_cold_arrows = {
-    .code = MAKEFOURCC('A', 'H', 'c', 'a'),
     .name = "Cold Arrows",
     .target_type = SPELL_TARGET_NONE,
     .flags = SPELL_TOGGLE | SPELL_AUTOCAST,
@@ -84,7 +82,6 @@ static void war_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_war_stomp = {
-    .code = MAKEFOURCC('A', 'O', 'w', 's'),
     .name = "War Stomp",
     .target_type = SPELL_TARGET_NONE,
     .execute = war_stomp_execute,
@@ -110,7 +107,6 @@ static void wind_walk_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_wind_walk = {
-    .code = MAKEFOURCC('A', 'O', 'w', 'k'),
     .name = "Wind Walk",
     .target_type = SPELL_TARGET_NONE,
     .execute = wind_walk_execute,
@@ -133,7 +129,6 @@ static void mana_burn_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_mana_burn = {
-    .code = MAKEFOURCC('A', 'E', 'm', 'b'),
     .name = "Mana Burn",
     .target_type = SPELL_TARGET_UNIT,
     .execute = mana_burn_execute,
@@ -158,7 +153,6 @@ static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_dark_ritual = {
-    .code = MAKEFOURCC('A', 'U', 'd', 'r'),
     .name = "Dark Ritual",
     .target_type = SPELL_TARGET_UNIT,
     .execute = dark_ritual_execute,
@@ -189,14 +183,12 @@ static void frost_armor_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_frost_armor = {
-    .code = MAKEFOURCC('A', 'U', 'f', 'a'),
     .name = "Frost Armor",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
 };
 
 static spell_info_t spell_frost_armor_variant = {
-    .code = MAKEFOURCC('A', 'U', 'f', 'u'),
     .name = "Frost Armor Variant",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
@@ -229,7 +221,6 @@ static void divine_shield_execute(LPEDICT caster, spellTarget_t st, spell_info_t
 }
 
 static spell_info_t spell_divine_shield = {
-    .code = MAKEFOURCC('A', 'H', 'd', 's'),
     .name = "Divine Shield",
     .target_type = SPELL_TARGET_NONE,
     .execute = divine_shield_execute,
@@ -265,7 +256,6 @@ static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, spell_inf
 }
 
 static spell_info_t spell_entangling_roots = {
-    .code = MAKEFOURCC('A', 'E', 'e', 'r'),
     .name = "Entangling Roots",
     .target_type = SPELL_TARGET_UNIT,
     .execute = entangling_roots_execute,

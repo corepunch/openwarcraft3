@@ -1,7 +1,6 @@
 #include "s_skills.h"
 
 #define ID_CHARM MAKEFOURCC('A', 'N', 'c', 'h')
-#define ID_EAT_TREE MAKEFOURCC('A', 'e', 'a', 't')
 #define ID_MOON_WELL MAKEFOURCC('A', 'm', 'b', 't')
 
 /* ---- Charm (ANch): transfer target ownership to caster -------------------- */
@@ -28,7 +27,6 @@ static void charm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *
 }
 
 static spell_info_t spell_charm = {
-    .code = ID_CHARM,
     .name = "Charm",
     .target_type = SPELL_TARGET_UNIT,
     .validate = charm_validate,
@@ -53,7 +51,6 @@ static void eat_tree_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
 }
 
 static spell_info_t spell_eat_tree = {
-    .code = ID_EAT_TREE,
     .name = "Eat Tree",
     .target_type = SPELL_TARGET_UNIT,
     .validate = eat_tree_validate,
@@ -92,7 +89,6 @@ static void moon_well_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_moon_well = {
-    .code = ID_MOON_WELL,
     .name = "Moon Well",
     .target_type = SPELL_TARGET_UNIT,
     .validate = moon_well_validate,

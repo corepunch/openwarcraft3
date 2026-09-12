@@ -556,7 +556,7 @@ typedef struct spell_target_s {
 #define ABILITY_SEPARATE_OFF (1u << 16) /* render an explicit Unart/Untip off button beside the on button */
 
 typedef struct spell_info_s {
-    DWORD code;                    /* ability FourCC (must match abilitylist entry) */
+    DWORD code;                    /* canonical FourCC assigned by InitAbilities from abilitylist */
     LPCSTR name;                   /* debug / log identifier */
     spellTargetType_t target_type;
     DWORD flags;

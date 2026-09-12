@@ -49,6 +49,32 @@ static LPEDICT make_hero(DWORD class_id, FLOAT hp, FLOAT mana, FLOAT x, FLOAT y)
 	return ent;
 }
 
+TEST(wc3_spell, registry_initializes_spell_codes_and_preserves_aliases) {
+	DWORD saved = CAbilityAttributeModSkill.spell->code, code;
+	CAbilityAttributeModSkill.spell->code = 0;
+	InitAbilities();
+	code = CAbilityAttributeModSkill.spell->code;
+	CAbilityAttributeModSkill.spell->code = saved;
+	T_EQ(code, MAKEFOURCC('A','a','m','k'));
+	T_EQ(CAbilityHeal.spell->code, MAKEFOURCC('A','h','e','a'));
+	T_EQ(CAbilityDoom.spell->code, MAKEFOURCC('A','N','d','o'));
+	T_EQ(CAbilityThunderBolt.spell->code, MAKEFOURCC('A','H','t','b'));
+	T_EQ(CAbilityAvatar.spell->code, MAKEFOURCC('A','H','a','v'));
+	T_EQ(CAbilityCharm.spell->code, MAKEFOURCC('A','N','c','h'));
+	T_EQ(CAbilityFeedbackCampaign.spell->code, MAKEFOURCC('A','f','b','b'));
+	T_ASSERT(FindAbilityByClassname("AIco") == &CAbilityCharm);
+	T_ASSERT(FindAbilityByClassname("Afbk") == &CAbilityFeedback);
+	T_NULL(CAbilityFeedback.spell);
+	T_ASSERT(CAbilityFeedback.flags & ABILITY_PASSIVE);
+	FOR_LOOP(i, game.num_abilities) {
+		ability_t const *abil = GetAbilityByIndex(i);
+		if (abil->spell) {
+			T_NE(abil->spell->code, 0);
+			T_ASSERT(FindAbilityByClassname(GetClassName(abil->spell->code)) == abil);
+		}
+	}
+}
+
 TEST(wc3_spell, relationship_uses_passive_alliance_not_other_flags) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);

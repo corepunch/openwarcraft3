@@ -1,6 +1,5 @@
 #include "s_skills.h"
 
-#define ID_THUNDER_BOLT MAKEFOURCC('A', 'H', 't', 'b')
 #define ID_FIRE_BOLT MAKEFOURCC('A', 'N', 'f', 'b')
 #define ID_STUN_BUFF "Bstu"
 
@@ -67,14 +66,12 @@ static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
 }
 
 static spell_info_t spell_thunderbolt = {
-    .code = ID_THUNDER_BOLT,
     .name = "Thunder Bolt",
     .target_type = SPELL_TARGET_UNIT,
     .execute = thunderbolt_execute,
 };
 
 static spell_info_t spell_firebolt = {
-    .code = ID_FIRE_BOLT,
     .name = "Fire Bolt",
     .target_type = SPELL_TARGET_UNIT,
     .execute = thunderbolt_execute,

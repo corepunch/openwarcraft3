@@ -4,8 +4,6 @@
  * and transfers it to the caster over time.  SPELL_CHANNEL flag locks the caster
  * in place; movement or stun cancels the drain. */
 
-#define ID_SIPHON_MANA MAKEFOURCC('A', 'N', 'd', 'r')
-
 void siphon_mana_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     LPEDICT target = ent->goalentity;
@@ -59,7 +57,6 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_siphon_mana = {
-    .code = ID_SIPHON_MANA,
     .name = "Siphon Mana",
     .target_type = SPELL_TARGET_UNIT,
     .flags = SPELL_CHANNEL,
@@ -67,7 +64,6 @@ static spell_info_t spell_siphon_mana = {
 };
 
 static spell_info_t spell_siphon_mana_human = {
-    .code = MAKEFOURCC('A', 'H', 'd', 'r'),
     .name = "Siphon Mana",
     .target_type = SPELL_TARGET_UNIT,
     .flags = SPELL_CHANNEL,

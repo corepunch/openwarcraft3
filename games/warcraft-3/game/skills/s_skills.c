@@ -12,6 +12,7 @@ int G_AutocastDebugLevel(void) {
 typedef struct {
     LPCSTR classname;
     ability_t *ability;
+    BOOL alias; /* lookup only; the canonical row supplies spell->code */
 } abilityitem_t;
 
 static abilityitem_t abilitylist[] = {
@@ -156,7 +157,7 @@ static abilityitem_t abilitylist[] = {
     { "AIhe", &CAbilityItemHeal },  /* Item Healing */
     { "AIma", &CAbilityItemManaRestore },  /* Item Mana Regain */
     { "AIda", &CAbilityItemDefenseAoe },  /* Item Temporary Area Armor Bonus */
-    { "AIco", &CAbilityCharm },  /* Item Command */
+    { "AIco", &CAbilityCharm, .alias = true },  /* Item Command */
     { "AIfs", &CAbilityFigurineSkeleton },  /* Item Skeleton Summon */
     { "AImi", &CAbilityMaxLifeMod },  /* Item Permanent Life Gain */
     { "AIab", &CAbilityAttributeBonus },  /* Item Hero Stat Bonus */
@@ -1404,6 +1405,8 @@ void InitAbilities(void) {
     num_updates = 0;
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
+        if (abil->ability->spell && !abil->alias)
+            abil->ability->spell->code = FS_SLKKey(abil->classname);
         if (abil->ability->init) {
             abil->ability->init(abil->classname, abil->ability);
         }

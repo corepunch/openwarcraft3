@@ -108,8 +108,19 @@ Ability globals use TFT `CAbility*` class names. Look up the FourCC in
 `CAbilityWarStomp`, `CAbilityFrostArmor`. Do not invent names or derive them
 from rawcode abbreviations. The `SPELL`, `HUMAN_SPELL`, and `CAMPAIGN_SPELL`
 macros prepend `C` to a PascalCase argument — `SPELL(AbilityDoom, ...)` produces
-`ability_t CAbilityDoom`. Rawcodes remain explicit in the registry and in the
-`spell_info_t` code field.
+`ability_t CAbilityDoom`. The rawcode-to-handler mapping lives only in `abilitylist`
+in `s_skills.c`; spell macros and direct `spell_info_t` initializers describe behavior
+without a code. `InitAbilities()` assigns `spell_info_t.code` from the registry before
+calling the entry's init hook, including on subsequent game initialization.
+
+When several rows share a spell handler, mark the additional rows `.alias = true`.
+They participate in lookup without overwriting the canonical spell code. For example,
+Charm keeps `ANch` while accepting `AIco`. This preserves the existing execution/data
+contract independently of registry ordering. The registry generator preserves these
+alias designators. The test
+`wc3_spell.registry_initializes_spell_codes_and_preserves_aliases` covers initialization,
+canonical codes, and alias lookup; run it in ROC and TFT with
+`make test-wc3-engine WC3_PATTERN=wc3_spell.registry_initializes_spell_codes_and_preserves_aliases`.
 
 The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated
 from the `*AbilityStrings.txt` files in `data/strings`. It is grouped by source file,
@@ -168,7 +179,7 @@ For a spell that uses the unified pipeline, use the `SPELL` macro in
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, dealing damage over time."
  */
-SPELL(AbilityDoom, ('A','N','d','o'), SPELL_TARGET_UNIT, 0, doom_execute);
+SPELL(AbilityDoom, SPELL_TARGET_UNIT, 0, doom_execute);
 ```
 
 This generates `ability_t CAbilityDoom` with `.cmd = spell_cmd`. For abilities that
