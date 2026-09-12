@@ -66,8 +66,21 @@ static aura_cache_key_t const aura_cache_keys[] = {
 static FLOAT aura_cache[MAX_ENTITIES][sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)];
 static DWORD aura_cache_next_update[MAX_ENTITIES];
 static LPCVOID aura_cache_ability_data[MAX_ENTITIES];
+static DWORD aura_cache_last_time = UINT_MAX;
 
 static regenFamily_t regen_family(DWORD base_code);
+
+/* Invalidate deadlines when a new map or test resets the simulation clock. */
+static void aura_cache_update_time(void) {
+    if (level.time < aura_cache_last_time) {
+        memset(regen_value_next_update, 0, sizeof(regen_value_next_update));
+        memset(regen_visual_next_update, 0, sizeof(regen_visual_next_update));
+        memset(regen_value_ability_data, 0, sizeof(regen_value_ability_data));
+        memset(aura_cache_next_update, 0, sizeof(aura_cache_next_update));
+        memset(aura_cache_ability_data, 0, sizeof(aura_cache_ability_data));
+    }
+    aura_cache_last_time = level.time;
+}
 
 static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
     auraAbilityRef_t result = {0};
@@ -267,10 +280,11 @@ static FLOAT regen_aura_bonus(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
     LPCVOID ability_data;
 
     if (!unit || unit->s.number >= MAX_ENTITIES) return 0.0f;
+    aura_cache_update_time();
     family = regen_family(base_code);
     value = use_maximum ? REGEN_VALUE_MAXIMUM : REGEN_VALUE_NORMAL;
     ability_data = G_AbilityData(ID_REGEN_LIFE_ORC);
-    if (!level.time || level.time >= regen_value_next_update[unit->s.number] ||
+    if (level.time >= regen_value_next_update[unit->s.number] ||
         regen_value_ability_data[unit->s.number] != ability_data) {
         memset(regen_value_cache[unit->s.number], 0, sizeof(regen_value_cache[unit->s.number]));
         regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_ORC][REGEN_VALUE_NORMAL] =
@@ -359,8 +373,9 @@ void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
 
 /* Gate presentation reconciliation independently from value refreshes. */
 BOOL S_RegenerationAuraUpdateDue(LPEDICT unit) {
+    aura_cache_update_time();
     if (!unit || unit->s.number >= MAX_ENTITIES ||
-        (level.time && level.time < regen_visual_next_update[unit->s.number])) return false;
+        level.time < regen_visual_next_update[unit->s.number]) return false;
     regen_visual_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
     return true;
 }
@@ -374,8 +389,9 @@ static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
         if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
+    aura_cache_update_time();
     ability_data = G_AbilityData(ID_BRILLIANCE);
-    if (!level.time || level.time >= aura_cache_next_update[unit->s.number] ||
+    if (level.time >= aura_cache_next_update[unit->s.number] ||
         aura_cache_ability_data[unit->s.number] != ability_data) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
         FOR_LOOP(i, globals.num_edicts) {
