@@ -33,6 +33,15 @@ static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static DWORD regen_source_count;
 static DWORD regen_cache_frame = UINT_MAX;
 static LPCVOID regen_cache_ability_data;
+static LPEDICT regen_overlays[MAX_ENTITIES][3];
+
+typedef enum {
+    REGEN_FAMILY_LIFE_ORC,
+    REGEN_FAMILY_LIFE_BLIGHT,
+    REGEN_FAMILY_MANA
+} regenFamily_t;
+
+static regenFamily_t regen_family(DWORD base_code);
 
 static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
     auraAbilityRef_t result = {0};
@@ -163,12 +172,30 @@ static void regen_aura_cache_update(void) {
     }
     regen_cache_frame = level.framenum;
     regen_cache_ability_data = ability_data;
+    memset(regen_overlays, 0, sizeof(regen_overlays));
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        regenFamily_t family;
+        if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
+            effect->goalentity != effect->owner) continue;
+        if (effect->summon_ability != ID_REGEN_LIFE_ORC &&
+            effect->summon_ability != ID_REGEN_LIFE_BLIGHT && effect->summon_ability != ID_REGEN_MANA) continue;
+        family = regen_family(effect->summon_ability);
+        if (!regen_overlays[effect->owner->s.number][family])
+            regen_overlays[effect->owner->s.number][family] = effect;
+    }
 }
 
 static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, DWORD base_code) {
     if (base_code == ID_REGEN_LIFE_ORC) return entry->life_orc;
     if (base_code == ID_REGEN_LIFE_BLIGHT) return entry->life_blight;
     return entry->mana;
+}
+
+static regenFamily_t regen_family(DWORD base_code) {
+    if (base_code == ID_REGEN_LIFE_ORC) return REGEN_FAMILY_LIFE_ORC;
+    if (base_code == ID_REGEN_LIFE_BLIGHT) return REGEN_FAMILY_LIFE_BLIGHT;
+    return REGEN_FAMILY_MANA;
 }
 
 static regenerationAuraInfo_t regen_aura_info(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
@@ -228,17 +255,14 @@ static void sync_regen_aura_overlay(LPEDICT unit, DWORD base_code, regenerationA
         art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
     }
     DWORD desired_model = art && *art ? G_RegisterModel(art) : 0;
-    LPEDICT keep = NULL;
+    regenFamily_t const family = regen_family(base_code);
+    LPEDICT keep = unit->s.number < MAX_ENTITIES ? regen_overlays[unit->s.number][family] : NULL;
 
-
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT effect = g_edicts + i;
-        if (!is_regen_aura_overlay(effect, unit, base_code)) continue;
-        if (!keep && desired_model && effect->s.model == desired_model) {
-            keep = effect;
-            continue;
-        }
-        G_DestroyEffect(effect);
+    if (keep && !is_regen_aura_overlay(keep, unit, base_code)) keep = NULL;
+    if (keep && (!desired_model || keep->s.model != desired_model)) {
+        G_DestroyEffect(keep);
+        regen_overlays[unit->s.number][family] = NULL;
+        keep = NULL;
     }
 
     if (!keep && desired_model) {
@@ -250,6 +274,7 @@ static void sync_regen_aura_overlay(LPEDICT unit, DWORD base_code, regenerationA
              * each regeneration family own exactly one recipient overlay. */
             effect->owner = unit;
             effect->summon_ability = base_code;
+            regen_overlays[unit->s.number][family] = effect;
         }
     }
 }
@@ -271,6 +296,7 @@ void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
     sync_regen_aura_overlay(unit, ID_REGEN_LIFE_ORC, &health);
     sync_regen_aura_overlay(unit, ID_REGEN_LIFE_BLIGHT, &blight);
     sync_regen_aura_overlay(unit, ID_REGEN_MANA, &mana);
+
 }
 
 static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
