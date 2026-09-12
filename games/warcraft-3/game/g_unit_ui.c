@@ -183,6 +183,8 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     LPCSTR ubertip;
     LPCSTR hotkey;
     ability_t const *ability;
+    abilityitem_t item;
+    abilityCall_t call;
     DWORD ability_code = 0;
     BOOL toggle_on = false;
     BOOL upgrade_research = false;
@@ -210,8 +212,10 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
         base_code = code;
     }
     art_code = G_CommandArtCode(ent, code);
+    item = MAKE(abilityitem_t, .code = ability_code, .ability = ability);
+    call = MAKE(abilityCall_t, .item = &item);
     toggle_on = !research && (toggle_state >= 0 ? toggle_state != 0 :
-        ability && ability->is_toggle_on && ability->is_toggle_on(ent));
+        ability && S_AbilityMessage(ent, A_TOGGLE_ON, &call));
     art = FindConfigValue(art_code, toggle_on ? STR_UNART :
                          G_ResearchField(STR_ART, research && !upgrade_research));
     buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS :
@@ -233,7 +237,7 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
     G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
     G_CopyString(button->command, sizeof(button->command), code);
-    if (!research && ability && ability->autocast_set && ability->autocast_is_on) {
+    if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
         strlcat(button->alternate, code, sizeof(button->alternate));
         button->alternate_active = G_UnitAutocastIsOn(ent, ability) ? 1 : 0;
@@ -244,7 +248,7 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
     button->level = level;
-    button->active = (BYTE)GetAbilityIndex(ability);
+    button->active = (BYTE)GetAbilityIndex(ability ? ability->proc : NULL);
     if (ability_code) {
         button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
     }
@@ -308,7 +312,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
-    if (ability == &CAbilityStandDown && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
+    if (ability->proc == CAbilityStandDown && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;

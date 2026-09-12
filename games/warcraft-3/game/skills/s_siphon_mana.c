@@ -36,7 +36,7 @@ void siphon_mana_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT mana_per_second = MAX(S_SpellData(spell->code, level, 1), S_SpellData(spell->code, level, 2));
@@ -56,16 +56,5 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, ability_t cons
     thinker->freetime = G_Time() + 1000;
 }
 
-ability_t CAbilityDrainNeutral = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Siphon Mana",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = siphon_mana_execute,
-};
-
-ability_t CAbilityDrain = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Siphon Mana",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = siphon_mana_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityDrainNeutral, siphon_mana_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityDrain, siphon_mana_execute)

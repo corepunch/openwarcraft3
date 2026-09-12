@@ -180,61 +180,30 @@ static BOOL item_change_time_command(LPEDICT clent) {
 
 /* ---- Ability definitions ------------------------------------------------ */
 
-ability_t CAbilityItemHeal = {
-    .item_use = item_heal_command,
-};
-
-ability_t CAbilityItemManaRestore = {
-    .item_use = item_mana_command,
-};
-
-ability_t CAbilityMaxLifeMod = {
-    .item_use = item_permanent_life_command,
-};
+BZ_ITEM_PROC(AbilityItemHeal, item_heal_command)
+BZ_ITEM_PROC(AbilityItemManaRestore, item_mana_command)
+BZ_ITEM_PROC(AbilityMaxLifeMod, item_permanent_life_command)
 
 /* Passive items: init reads bonus value from SLK, actual apply/remove
  * handled by s_item_stats.c via inventory lifecycle hooks. */
-ability_t CAbilityAttackBonus = {
-    .init = SP_ability_item_attack_bonus,
-};
+#define BZ_ITEM_INIT_PROC(NAME, INIT) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        (void)ent; \
+        if (msg != A_INIT || !call || !call->classname) return false; \
+        INIT(call->classname); \
+        return true; \
+    }
 
-ability_t CAbilityAttributeBonus = {
-    .init = SP_ability_item_stat_bonus,
-};
-
-ability_t CAbilityDefenseBonus = {
-    .init = SP_ability_item_defense_bonus,
-};
-
-ability_t CAbilityMaxLifeBonus = {
-    .init = SP_ability_item_life_bonus,
-};
-
-ability_t CAbilityMaxManaBonus = {
-    .init = SP_ability_item_mana_bonus,
-};
+BZ_ITEM_INIT_PROC(AbilityAttackBonus, SP_ability_item_attack_bonus)
+BZ_ITEM_INIT_PROC(AbilityAttributeBonus, SP_ability_item_stat_bonus)
+BZ_ITEM_INIT_PROC(AbilityDefenseBonus, SP_ability_item_defense_bonus)
+BZ_ITEM_INIT_PROC(AbilityMaxLifeBonus, SP_ability_item_life_bonus)
+BZ_ITEM_INIT_PROC(AbilityMaxManaBonus, SP_ability_item_mana_bonus)
 
 /* Consume-on-use items. */
-ability_t CAbilityStrengthMod = {
-    .item_use = item_permanent_stat_command,
-};
-
-ability_t CAbilityFigurineSkeleton = {
-    .item_use = item_figurine_command,
-};
-
-ability_t CAbilityExperienceMod = {
-    .item_use = item_experience_command,
-};
-
-ability_t CAbilityLevelMod = {
-    .item_use = item_level_command,
-};
-
-ability_t CAbilityItemDefenseAoe = {
-    .item_use = item_defense_aoe_command,
-};
-
-ability_t CAbilityItemChangeTOD = {
-    .item_use = item_change_time_command,
-};
+BZ_ITEM_PROC(AbilityStrengthMod, item_permanent_stat_command)
+BZ_ITEM_PROC(AbilityFigurineSkeleton, item_figurine_command)
+BZ_ITEM_PROC(AbilityExperienceMod, item_experience_command)
+BZ_ITEM_PROC(AbilityLevelMod, item_level_command)
+BZ_ITEM_PROC(AbilityItemDefenseAoe, item_defense_aoe_command)
+BZ_ITEM_PROC(AbilityItemChangeTOD, item_change_time_command)

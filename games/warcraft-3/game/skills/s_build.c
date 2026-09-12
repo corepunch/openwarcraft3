@@ -65,7 +65,7 @@ static void ai_build_walk(LPEDICT ent) {
     unit_moveindirection(ent);
 }
 
-static umove_t build_move_walk = { "walk", ai_build_walk, NULL, &CAbilityBuild };
+static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
@@ -353,6 +353,4 @@ void build_command(LPEDICT edict) {
     if (client->connected) UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
 }
 
-ability_t CAbilityBuild = {
-    .cmd = build_command,
-};
+BZ_COMMAND_PROC(AbilityBuild, build_command)

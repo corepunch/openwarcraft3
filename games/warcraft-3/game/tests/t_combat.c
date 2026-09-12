@@ -624,20 +624,20 @@ TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) 
 
 TEST(wc3_combat, runentity_ability_index_from_currentmove) {
     /* Use order_move to place the entity into the walk state.  The walk
-     * umove_t has ability == &CAbilityMove, whose index in abilitylist[] is
+     * umove_t has ability == CAbilityMove, whose index in abilitylist[] is
      * non-zero (CAbilityStop is at index 0).  This ensures the assertion
      * would catch G_RunEntity hard-coding s.ability = 0. */
     LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
     VECTOR2 dest     = MAKE(VECTOR2, 100.0f, 100.0f);
     LPEDICT waypoint = Waypoint_add(&dest);
-    order_move(ent, waypoint);  /* sets currentmove->ability = &CAbilityMove */
+    order_move(ent, waypoint);  /* sets currentmove->proc = CAbilityMove */
     T_NOT_NULL(ent->currentmove);
-    T_NOT_NULL(ent->currentmove->ability);
+    T_NOT_NULL(ent->currentmove->proc);
 
     G_RunEntity(ent);
 
-    DWORD expected = GetAbilityIndex(ent->currentmove->ability);
+    DWORD expected = GetAbilityIndex(ent->currentmove->proc);
     T_ASSERT(expected != 0);  /* CAbilityMove is not the first entry (CAbilityStop is) */
     T_EQ((int)ent->s.ability, (int)expected);
 }
@@ -997,7 +997,7 @@ TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
 
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
+    T_ASSERT(follower->currentmove && follower->currentmove->proc == CAbilityMove);
 }
 
 /* unit_learnability (used by the SelectHeroSkill native): learning an ability
@@ -1408,7 +1408,7 @@ TEST(wc3_combat, command_lookup_preserves_engine_command_name) {
     ability_t const *a = FindAbilityForCommand(STR_CmdBuild);
     T_NOT_NULL(a);
     T_ASSERT(a == FindAbilityByClassname(STR_CmdBuild));
-    T_EQ(GetAbilityIndex(a), FindAbilityIndex(STR_CmdBuild));
+    T_EQ(GetAbilityIndex(a->proc), FindAbilityIndex(STR_CmdBuild));
 }
 
 TEST(wc3_combat, find_ability_unknown_returns_null) {
@@ -1438,7 +1438,7 @@ TEST(wc3_combat, registered_reference_ability_codes) {
     static LPCSTR codes[] = {
         "AHhb", "AHwe", "AHbz", "AHtb", "ANfb", "Apxf", "AOsf",
         "Abun", "Astd", "AEim", "Aenc", "Aent", "Aegm", "Aeat",
-        "Ambt", "ANch", "AIco", "AHca", "Agld", "Agl2", "Abgm",
+        "Ambt", "ANch", "AIco", "AHca", "Agld", "Abgm",
         "Abli", "Aaha", "Artn", "Ahar", "Awha", "Ahrl", "ANcl",
         "AUcs", "AInv", "Arep", "Aren", "Arst", "Avul", "Apit",
         "Aneu", "Aall", "Acoi", "AIhe", "AIma", "AIat", "AIab",
@@ -1547,15 +1547,15 @@ TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
 }
 
 /* Gold-mine tuning stays in AbilityData instead of being copied into shared
- * process-wide globals. Agl2 remains a marker without its own initializer. */
+ * process-wide globals. Abstract class markers are not gameplay definitions. */
 TEST(wc3_combat, gold_mine_data_remains_authoritative_in_ability_rows) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers_roc);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     T_FEQ(AB_Data("Agld", 1, 1), 12500.0f, 0.01f);
     T_FEQ(AB_Data("Agld", 1, 2), 1.0f, 0.01f);
     T_FEQ(AB_Data("Agld", 1, 3), 1.0f, 0.01f);
-    T_NULL(CAbilityGoldMine.init);
-    T_NULL(CAbilityGoldMineOverlayed.init);
+    T_ASSERT(!(FindAbilityByClassname("Agld")->flags & (AB_COMMAND | AB_SPELL | AB_ITEM | AB_UPDATE)));
+    T_NULL(FindAbilityByClassname("Agl2"));
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }

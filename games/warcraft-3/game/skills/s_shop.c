@@ -5,30 +5,15 @@
  * handles purchase. For now, these are marker abilities that can be extended
  * when the inventory/shop UI is wired up. */
 
-/* TODO: Neutral Building (Aneu) must scan the data-defined acquisition radius;
- * WarSmash: CAbilityNeutralBuilding.onTick scans units in rect, maintains
- * the shop selection lifecycle is not implemented yet. */
-static void SP_ability_neutral_building(LPCSTR classname, ability_t *self) {
-    /* activation_radius read from SLK "AcqRange" when implemented. */
-    (void)classname; (void)self;
-}
-
-ability_t CAbilityNeutral = {
-    .init = SP_ability_neutral_building,
-};
-
 /* TODO: Shop Purchase Item (Apit) must read the sold-item list, charge the
  * player, and create the item through the authoritative lifecycle. */
 static void shop_stub_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
 }
 
-ability_t CAbilityPurchaseItem = {
-    .cmd = shop_stub_command,
-};
+BZ_COMMAND_PROC(AbilityPurchaseItem, shop_stub_command)
 
-/* Shop Sharing (Aall): allows allies to use the shop. */
-ability_t CAbilityAllied = {0};
-
-/* Inventory (AInv): passive capability; inv1 supplies capacity up to the six-slot UI/storage limit. */
-ability_t CAbilityInventory = {0};
+/* Inventory is also the move identity for pickup and drop orders. */
+intptr_t CAbilityInventory(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    return CAbilityPassive(ent, msg, call);
+}

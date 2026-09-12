@@ -166,16 +166,6 @@ LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
     return NULL;
 }
 
-/* ---- Cargo Hold (Acar): passive ability on transport units ---------------- */
-static void SP_ability_cargo_hold(LPCSTR classname, ability_t *self) {
-    (void)classname;
-    (void)self;
-}
-
-ability_t CAbilityCargoHold = {
-    .init = SP_ability_cargo_hold,
-};
-
 /* ---- Load (Aloa): load a unit into a transport -------------------------- */
 
 static BOOL cargo_load_type_allowed(LPEDICT transport, LPEDICT target) {
@@ -234,9 +224,7 @@ static void load_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = load_selecttarget;
 }
 
-ability_t CAbilityCargoLoad = {
-    .cmd = load_command,
-};
+BZ_COMMAND_PROC(AbilityCargoLoad, load_command)
 
 /* ---- Battle Stations (Abtl): call nearby allowed units into cargo -------- */
 
@@ -311,7 +299,7 @@ static void ai_cargo_board_walk(LPEDICT unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, &CAbilityBattlestations };
+static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, CAbilityBattlestations };
 
 BOOL S_CargoOrderBoard(LPEDICT unit, LPEDICT transport) {
     if (!cargo_board_target_valid(unit, transport)) return false;
@@ -336,7 +324,7 @@ static BOOL battlestations_candidate(LPEDICT transport, LPEDICT unit, DWORD alia
     if (!cargo_board_target_valid(unit, transport)) return false;
     if (allowed_type && unit->class_id != allowed_type) return false;
     if (!S_SpellAllowsTarget(alias, transport, unit)) return false;
-    if (!battlestations_busy_allowed(alias) && unit->currentmove && unit->currentmove->ability) return false;
+    if (!battlestations_busy_allowed(alias) && unit->currentmove && unit->currentmove->proc) return false;
     return Vector2_distance(&transport->s.origin2, &unit->s.origin2) <= area;
 }
 
@@ -384,9 +372,7 @@ static void battlestations_command(LPEDICT clent) {
     Get_Commands_f(clent);
 }
 
-ability_t CAbilityBattlestations = {
-    .cmd = battlestations_command,
-};
+BZ_COMMAND_PROC(AbilityBattlestations, battlestations_command)
 
 /* ---- Drop (Adro): drop cargo at a point --------------------------------- */
 
@@ -403,24 +389,10 @@ static void drop_command(LPEDICT clent) {
     clent->client->menu.on_location_selected = drop_selectlocation;
 }
 
-ability_t CAbilityCargoDrop = {
-    .cmd = drop_command,
-};
+BZ_COMMAND_PROC(AbilityCargoDrop, drop_command)
 
 /* ---- Drop Instant (Adri): instant drop ---------------------------------- */
-ability_t CAbilityCargoDropInstant = {
-    .cmd = drop_command,
-};
-
-/* ---- Cargo Hold Burrow (Abun): Orc burrow variant ----------------------- */
-ability_t CAbilityBunker = {
-    .init = SP_ability_cargo_hold,
-};
-
-/* ---- Cargo Hold Entangled Mine (Aenc): NE entangled mine cargo ----------- */
-ability_t CAbilityEntangleCargo = {
-    .init = SP_ability_cargo_hold,
-};
+BZ_COMMAND_PROC(AbilityCargoDropInstant, drop_command)
 
 /* ---- Stand Down (Astd): stop combat, then unload all Burrow occupants --- */
 void S_CargoStandDown(LPEDICT caster) {
@@ -443,6 +415,4 @@ static void stand_down_command(LPEDICT clent) {
     Get_Commands_f(clent);
 }
 
-ability_t CAbilityStandDown = {
-    .cmd = stand_down_command,
-};
+BZ_COMMAND_PROC(AbilityStandDown, stand_down_command)

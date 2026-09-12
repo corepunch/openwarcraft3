@@ -35,6 +35,4 @@ static void holdpos_command(LPEDICT ent) {
         S_HoldPosition(e);
 }
 
-ability_t CAbilityHoldPosition = {
-    .cmd = holdpos_command,
-};
+BZ_COMMAND_PROC(AbilityHoldPosition, holdpos_command)

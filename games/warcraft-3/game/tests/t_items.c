@@ -161,8 +161,12 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
 
     ability = FindAbilityForCommand("AIct");
     T_NOT_NULL(ability);
-    T_NOT_NULL(ability->item_use);
-    T_ASSERT(ability->item_use(player));
+    T_ASSERT(ability->flags & AB_ITEM);
+    {
+        abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','I','c','t'));
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = player);
+        T_ASSERT(S_AbilityMessage(player, A_ITEM_USE, &call));
+    }
     T_ASSERT(level.timeofday.false_time.active);
     T_ASSERT(!level.timeofday.false_time.initialized);
     T_EQ(level.timeofday.false_time.hour, 18);

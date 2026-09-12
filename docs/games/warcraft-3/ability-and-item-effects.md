@@ -108,12 +108,12 @@ Item object data remains authoritative for item properties. `abilList` is an
 `ItemData_t.abilList` row first. `FindConfigValue(itemRawcode, "abilList")` is
 retained only as a compatibility fallback for custom/legacy data; that helper
 searches TXT/INI configuration and is not an authoritative ItemData SLK lookup.
-Immediate item abilities use the `ability_t.item_use` callback when they can
+Immediate item abilities declare `AB_ITEM` and handle `A_ITEM_USE` when they can
 synchronously report whether the gameplay effect actually happened. The
 callback is append-only at the end of `ability_t`; existing dispatch-field
 offsets must not be changed.
 
-The inventory command walks `abilList` in authored order and uses the first registered ability it can handle. For a synchronous `item_use` callback:
+The inventory command walks `abilList` in authored order and uses the first registered ability it can handle. For a synchronous `A_ITEM_USE` procedure case:
 
 ```text
 inventory click
@@ -128,7 +128,7 @@ Failed uses do not publish use-item events and do not consume a charge. For exam
 
 `G_ConsumeItemCharge` decrements a positive runtime charge count after successful use. When the final charge belongs to a `perishable` item, the item is removed through `G_RemoveItem`, which also reverses passive item-stat hooks and clears the inventory slot. A non-perishable item also decrements to zero but remains present.
 
-Legacy/asynchronous item abilities that enter a targeting command through `ability_t.cmd` are still dispatched, but their eventual success cannot be known by the inventory click handler. This slice intentionally does not consume their charges or publish success events at click time. The eventual targeted-item completion path needs to own those operations.
+Asynchronous item abilities that enter a targeting command through `AB_COMMAND`/`A_COMMAND` are still dispatched, but their eventual success cannot be known by the inventory click handler. This slice intentionally does not consume their charges or publish success events at click time. The eventual targeted-item completion path needs to own those operations.
 
 Spell command dispatch has a similar rawcode boundary: a WC3 FourCC held in a
 `DWORD` is not a C string. Runtime lookup must convert it through

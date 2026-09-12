@@ -85,25 +85,3 @@ FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage) {
     if (!level) return 0.0f;
     return MAX(S_SpellData(ID_SPIKED_CARAPACE, level, 2), damage * S_SpellData(ID_SPIKED_CARAPACE, level, 1));
 }
-
-ability_t CAbilityAuraBrilliance = { .flags = AB_PASSIVE };
-ability_t CAbilityCriticalStrike = { .flags = AB_PASSIVE };
-ability_t CAbilityThornyShield = { .flags = AB_PASSIVE };
-ability_t CAbilityAuraUnholy = { .flags = AB_PASSIVE };
-ability_t CAbilityEvasion = { .flags = AB_PASSIVE };
-ability_t CAbilityAuraVampiric = { .flags = AB_PASSIVE };
-ability_t CAbilityAuraSpell = { .flags = AB_PASSIVE };
-ability_t CAbilityManaShield = { .flags = AB_PASSIVE };
-ability_t CAbilityDrunkenBrawler = { .flags = AB_PASSIVE };
-ability_t CAbilityCleavingAttack = { .flags = AB_PASSIVE };
-
-/* CommonAbility marker types are consumed by unit spawning, building-fire
- * presentation, Hero revival, and ordinary order systems rather than casts. */
-ability_t CAbilityBurrowDetector = { .flags = AB_PASSIVE };
-ability_t CAbilityRevive = { .flags = AB_PASSIVE };
-ability_t CAbilityAwaken = { .flags = AB_PASSIVE };
-ability_t CAbilityDetector = { .flags = AB_PASSIVE };
-ability_t CAbilityHero = { .flags = AB_PASSIVE };
-ability_t CAbilityAlarm = { .flags = AB_PASSIVE };
-ability_t CAbilityLocust = { .flags = AB_PASSIVE };
-ability_t CAbilityTankTurret = { .flags = AB_PASSIVE };

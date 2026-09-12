@@ -5,7 +5,7 @@ static void whirlwind_think(LPEDICT ent);
 typedef struct {
     LPEDICT caster;
     spellTarget_t target;
-    ability_t const *spell;
+    abilityitem_t const *spell;
     FLOAT scale;
     BOOL random_jumps;
 } bounceParams_t;
@@ -18,12 +18,12 @@ BOOL S_UnitHasStatus(LPCEDICT unit, DWORD code) {
     return false;
 }
 
-static LPCSTR spell_buff(ability_t const *spell, DWORD level) {
+static LPCSTR spell_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
-static void target_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void target_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = spell_buff(spell, level);
     if (!st.entity || !buff) return;
@@ -31,15 +31,15 @@ static void target_status_execute(LPEDICT caster, spellTarget_t st, ability_t co
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static void toggle_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void toggle_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
     }
-    unit_addstatus(caster, (LPCSTR)&spell->code, S_SpellLevel(caster, spell->code));
+    unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
 }
 
-static void area_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void area_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPCSTR buff = spell_buff(spell, level);
@@ -49,7 +49,7 @@ static void area_status_execute(LPEDICT caster, spellTarget_t st, ability_t cons
     }
 }
 
-static void mass_teleport_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void mass_teleport_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = 1;
     VECTOR2 src = caster->s.origin2, dst = st.entity ? st.entity->s.origin2 : st.point;
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -67,7 +67,7 @@ static void mass_teleport_execute(LPEDICT caster, spellTarget_t st, ability_t co
     }
 }
 
-static void radial_damage_status(LPEDICT caster, VECTOR2 point, ability_t const *spell, DWORD data) {
+static void radial_damage_status(LPEDICT caster, VECTOR2 point, abilityitem_t const *spell, DWORD data) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPCSTR buff = spell_buff(spell, level);
@@ -79,7 +79,7 @@ static void radial_damage_status(LPEDICT caster, VECTOR2 point, ability_t const 
     }
 }
 
-static void stomp_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void stomp_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
@@ -87,7 +87,7 @@ static void stomp_execute(LPEDICT caster, spellTarget_t st, ability_t const *spe
     thinker->freetime = G_Time(); thinker->think = whirlwind_think;
 }
 
-static void impale_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void impale_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
     FLOAT distance = Vector2_distance(&caster->s.origin2, &st.point);
@@ -109,7 +109,8 @@ static void impale_execute(LPEDICT caster, spellTarget_t st, ability_t const *sp
 
 static void earthquake_think(LPEDICT ent) {
     DWORD level = S_SpellLevel(ent->owner, ent->class_id), now = G_Time();
-    ability_t const *spell = S_SpellAbilityForCode(ent->class_id);
+    abilityitem_t item = S_AbilityItem(ent->class_id);
+    abilityitem_t const *spell = &item;
     LPCSTR buff = spell_buff(spell, level);
     if (now >= ent->spawn_time) { S_SpellCancelChannel(ent->owner); G_FreeEdict(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
@@ -121,7 +122,7 @@ static void earthquake_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-static void earthquake_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void earthquake_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
@@ -130,16 +131,17 @@ static void earthquake_execute(LPEDICT caster, spellTarget_t st, ability_t const
 }
 
 static void whirlwind_think(LPEDICT ent) {
-    DWORD data = ent->class_id == MAKEFOURCC('A','N','s','t') ? 2 : 1;
+    abilityitem_t item = S_AbilityItem(ent->class_id);
+    DWORD data = item.ability && item.ability->proc == CAbilityStampede ? 2 : 1;
     if (G_Time() >= ent->spawn_time) { S_SpellCancelChannel(ent->owner); G_FreeEdict(ent); return; }
     if (ent->freetime && G_Time() < ent->freetime) return;
-    if (ent->class_id == MAKEFOURCC('A','O','w','w') || ent->class_id == MAKEFOURCC('A','N','t','o'))
+    if (item.ability && (item.ability->proc == CAbilityWhirlwind || item.ability->proc == CAbilityTornado))
         ent->s.origin2 = ent->owner->s.origin2;
-    radial_damage_status(ent->owner, ent->s.origin2, S_SpellAbilityForCode(ent->class_id), data);
+    radial_damage_status(ent->owner, ent->s.origin2, &item, data);
     ent->freetime = G_Time() + 1000;
 }
 
-static void whirlwind_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void whirlwind_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code;
@@ -153,7 +155,7 @@ static void morph_end(LPEDICT thinker) {
     G_FreeEdict(thinker);
 }
 
-static void morph_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void morph_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level), original = caster->class_id;
     FLOAT duration = S_SpellDuration(spell->code, level, true);
     if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
@@ -162,13 +164,13 @@ static void morph_execute(LPEDICT caster, spellTarget_t st, ability_t const *spe
     thinker->spawn_time = G_Time() + (DWORD)(duration * 1000.0f); thinker->think = morph_end;
 }
 
-static void summon_execute_requested(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void summon_execute_requested(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     S_SummonUnits(caster, S_SpellUnitId(spell->code, level), (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)),
                   S_SpellDuration(spell->code, level, false));
 }
 
-static void carrion_beetles_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void carrion_beetles_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FLOAT range = S_SpellRange(spell->code, level);
     LPEDICT corpse = NULL;
@@ -192,20 +194,21 @@ void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target) {
                    S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
 }
 
-static BOOL death_coil_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL death_coil_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     LPCSTR race = st.entity && st.entity->data.UnitData ? st.entity->data.UnitData->race : NULL;
     return S_SpellIsAliveTarget(st.entity) && race && ((!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, st.entity)) ||
            (strcmp(race, STR_UNDEAD) && S_SpellIsEnemy(caster, st.entity)));
 }
 
-static void death_coil_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void death_coil_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = S_SpellData(spell->code, level, 1);
     if (!strcmp(st.entity->data.UnitData->race, STR_UNDEAD)) S_SpellHeal(st.entity, amount);
     else S_SpellDamage(st.entity, caster, (int)(amount * 0.5f));
 }
 
-static void death_pact_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void death_pact_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT life = st.entity->health.value;
     S_SpellHeal(caster, S_SpellData(spell->code, level, 2) * life);
@@ -217,7 +220,7 @@ static void death_pact_execute(LPEDICT caster, spellTarget_t st, ability_t const
 static void bounce_execute(bounceParams_t const *params) {
     LPEDICT caster = params->caster;
     spellTarget_t st = params->target;
-    ability_t const *spell = params->spell;
+    abilityitem_t const *spell = params->spell;
     FLOAT scale = params->scale;
     BOOL random_jumps = params->random_jumps;
     DWORD level = S_SpellLevel(caster, spell->code), hits = (DWORD)S_SpellData(spell->code, level, 2);
@@ -241,20 +244,20 @@ static void bounce_execute(bounceParams_t const *params) {
     }
 }
 
-static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
         .scale = 1.0f - S_SpellData(spell->code, level, 3), .random_jumps = true };
     bounce_execute(&params);
 }
 
-static void forked_lightning_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void forked_lightning_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     bounceParams_t params = { .caster = caster, .target = st, .spell = spell,
         .scale = 1.0f, .random_jumps = false };
     bounce_execute(&params);
 }
 
-static void animate_dead_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void animate_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = 0, limit = (DWORD)S_SpellData(spell->code, level, 1);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(unit, count < limit && unit->inuse && M_IsDead(unit) && !G_UnitIsHero(unit) &&
@@ -267,13 +270,13 @@ static void animate_dead_execute(LPEDICT caster, spellTarget_t st, ability_t con
     }
 }
 
-static void inferno_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void inferno_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     radial_damage_status(caster, st.point, spell, 1);
     S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, S_SpellData(spell->code, level, 2));
 }
 
-static void far_sight_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void far_sight_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     G_FowSetStateRadius(&(FOGWRITE){ caster->s.player, WC3_FOG_STATE_VISIBLE, true }, &st.point,
                         S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
@@ -295,7 +298,7 @@ void S_ReincarnationOnDeath(LPEDICT unit) {
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
 }
 
-static void healing_wave_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void healing_wave_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)S_SpellData(spell->code, level, 2);
     FLOAT amount = S_SpellData(spell->code, level, 1), loss = S_SpellData(spell->code, level, 3);
     LPEDICT current = st.entity, visited[32] = {0};
@@ -311,7 +314,7 @@ static void healing_wave_execute(LPEDICT caster, spellTarget_t st, ability_t con
     }
 }
 
-static void big_bad_voodoo_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void big_bad_voodoo_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = spell_buff(spell, level);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -329,7 +332,7 @@ static void acid_bomb_think(LPEDICT thinker) {
     }
 }
 
-static void acid_bomb_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void acid_bomb_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = spell_buff(spell, level);
     LPEDICT thinker;
@@ -339,7 +342,7 @@ static void acid_bomb_execute(LPEDICT caster, spellTarget_t st, ability_t const 
     thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }
 
-static void revive_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void revive_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), count = 0;
     DWORD limit = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -351,7 +354,7 @@ static void revive_execute(LPEDICT caster, spellTarget_t st, ability_t const *sp
     }
 }
 
-static void breath_of_fire_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void breath_of_fire_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -360,7 +363,7 @@ static void breath_of_fire_execute(LPEDICT caster, spellTarget_t st, ability_t c
         S_SpellDamage(target, caster, damage);
 }
 
-static void area_buff_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void area_buff_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -371,145 +374,129 @@ static void area_buff_execute(LPEDICT caster, spellTarget_t st, ability_t const 
         if (buff && strlen(buff) >= 4) unit_addtimedstatus(target, buff, level, duration);
 }
 
-#define SPELL(NAME, TARGET, FLAGS, EXECUTE) \
-    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL | (FLAGS), .execute = EXECUTE }
-
 /* Name=Mass Teleport
  * Ubertip="Teleports the caster and nearby friendly units to a target location."
  */
-SPELL(AbilityMassTeleport, SPELL_TARGET_UNIT, 0, mass_teleport_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityMassTeleport, mass_teleport_execute)
 /* Name=Stampede
  * Ubertip="Calls down hordes of rampaging thunder lizards to explode upon the Beastmaster's enemies."
  */
-SPELL(AbilityStampede, SPELL_TARGET_POINT, AB_CHANNEL, stomp_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityStampede, stomp_execute)
 /* Name=Bladestorm
  * Ubertip="Causes a Blademaster to spin violently, damaging nearby enemy units."
  */
-SPELL(AbilityWhirlwind, SPELL_TARGET_NONE, AB_CHANNEL, whirlwind_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityWhirlwind, whirlwind_execute)
 /* Name=Tornado
  * Ubertip="Creates a tornado that damages and disables enemy units."
  */
-SPELL(AbilityTornado, SPELL_TARGET_NONE, AB_CHANNEL, whirlwind_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityTornado, whirlwind_execute)
 /* Name=Banish
  * Ubertip="Turns a target unit ethereal, making it unable to attack or be attacked by physical attacks."
  */
-SPELL(AbilityBanish, SPELL_TARGET_UNIT, 0, target_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityBanish, target_status_execute)
 /* Name=Phoenix
  * Ubertip="Summons a Phoenix to fight for the caster."
  */
-SPELL(AbilitySummonPhoenix, SPELL_TARGET_NONE, 0, summon_execute_requested);
+BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix, summon_execute_requested)
 /* Name=Carrion Beetles
  * Ubertip="Raises carrion beetles from a nearby corpse."
  */
-SPELL(AbilityCarrionScarabs, SPELL_TARGET_NONE, AB_AUTOCAST, carrion_beetles_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs, carrion_beetles_execute)
 /* Name=Impale
  * Ubertip="Slams the ground, impaling enemy units in a line and stunning them."
  */
-SPELL(AbilityImpale, SPELL_TARGET_POINT, 0, impale_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityImpale, impale_execute)
 /* Name=Locust Swarm
  * Ubertip="Summons a swarm of locusts that damages enemy units and returns life to the caster."
  */
-SPELL(AbilityLocustSwarm, SPELL_TARGET_NONE, AB_CHANNEL, summon_execute_requested);
+BZ_SIMPLE_SPELL_PROC(AbilityLocustSwarm, summon_execute_requested)
 /* Name=Black Arrow
  * Ubertip="Adds bonus damage to attacks and summons a skeleton when an attacked unit dies."
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-SPELL(AbilityBlackArrow, SPELL_TARGET_NONE, AB_TOGGLE | AB_AUTOCAST, toggle_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityBlackArrow, toggle_status_execute)
 /* Name=Poison Arrows
  * Ubertip="Adds <AHfa,DataA1> bonus fire damage to an attack against enemies, but drains mana with each shot fired."
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-SPELL(AbilityPoisonArrows, SPELL_TARGET_NONE, AB_TOGGLE | AB_AUTOCAST, toggle_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityPoisonArrows, toggle_status_execute)
 /* Name=Silence
  * Ubertip="Stops enemy units in an area from casting spells."
  */
-SPELL(AbilitySilence, SPELL_TARGET_POINT, 0, area_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilitySilence, area_status_execute)
 /* Name=Animate Dead
  * Ubertip="Raises a number of corpses to serve the caster for a limited time."
  */
-SPELL(AbilityAnimateDead, SPELL_TARGET_NONE, 0, animate_dead_execute);
-ability_t CAbilityDeathCoil = {
-    .flags = AB_SPELL,
-    .name = "Death Coil",
-    .target_type = SPELL_TARGET_UNIT,
-    .validate = death_coil_validate,
-    .execute = death_coil_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityAnimateDead, animate_dead_execute)
+BZ_VALIDATED_SPELL_PROC(AbilityDeathCoil, death_coil_validate, death_coil_execute)
 /* Name=Death Pact
  * Ubertip="Sacrifices a friendly undead unit to restore the Death Knight's life and mana."
  */
-SPELL(AbilityDeathPact, SPELL_TARGET_UNIT, 0, death_pact_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDeathPact, death_pact_execute)
 /* Name=Metamorphosis
  * Ubertip="Transforms the Demon Hunter into a powerful demon."
  */
-SPELL(AbilityMetamorphosis, SPELL_TARGET_NONE, 0, morph_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis, morph_execute)
 /* Name=Sleep
  * Ubertip="Puts a target enemy unit to sleep."
  */
-SPELL(AbilitySleep, SPELL_TARGET_UNIT, 0, target_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilitySleep, target_status_execute)
 /* Name=Inferno
  * Ubertip="Calls down an infernal that damages nearby enemy units."
  */
-SPELL(AbilityDreadLordInferno, SPELL_TARGET_POINT, 0, inferno_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDreadLordInferno, inferno_execute)
 /* Name=Chain Lightning
  * Ubertip="Hurls a bolt of lightning that jumps between enemy units."
  */
-SPELL(AbilityChainLightning, SPELL_TARGET_UNIT, 0, chain_lightning_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityChainLightning, chain_lightning_execute)
 /* Name=Forked Lightning
  * Ubertip="Strikes multiple enemy units with lightning."
  */
-SPELL(AbilityForkedLightning, SPELL_TARGET_UNIT, 0, forked_lightning_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning, forked_lightning_execute)
 /* Name=Earthquake
  * Ubertip="Causes the earth to shake, damaging enemy buildings and slowing enemy units."
  */
-SPELL(AbilityEarthquake, SPELL_TARGET_POINT, AB_CHANNEL, earthquake_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityEarthquake, earthquake_execute)
 /* Name=Far Sight
  * Ubertip="Reveals a specified area of the map."
  */
-SPELL(AbilityFarSight, SPELL_TARGET_POINT, 0, far_sight_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityFarSight, far_sight_execute)
 /* Name=Resurrection
  * Ubertip="Brings dead friendly Heroes back to life."
  */
-SPELL(AbilityResurrection, SPELL_TARGET_POINT, 0, revive_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityResurrection, revive_execute)
 /* Name=Breath of Fire
  * Ubertip="Breathes a cone of fire at enemy units, dealing <ANcf,DataA1> initial damage."
  */
-SPELL(AbilityBreathOfFire, SPELL_TARGET_POINT, 0, breath_of_fire_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFire, breath_of_fire_execute)
 /* Name=Howl of Terror
  * Ubertip="Reduces the attack damage of nearby enemy units."
  */
-SPELL(AbilityHowlOfTerror, SPELL_TARGET_NONE, 0, area_buff_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror, area_buff_execute)
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
-SPELL(AbilityDrunkenHaze, SPELL_TARGET_UNIT, 0, target_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze, target_status_execute)
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
  */
-SPELL(AbilityDoom, SPELL_TARGET_UNIT, 0, target_status_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDoom, target_status_execute)
 /* Name=Healing Wave
  * Ubertip="Heals a target friendly unit and bounces to nearby friendlies, healing less each jump."
  */
-SPELL(AbilityHealingWave, SPELL_TARGET_UNIT, 0, healing_wave_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityHealingWave, healing_wave_execute)
 /* Name=Hex
  * Ubertip="Transforms an enemy unit into a random critter for <ANhx,Dur1> seconds."
  */
-SPELL(AbilityHex, SPELL_TARGET_UNIT, 0, target_status_execute);
-SPELL(AbilitySpiritOfVengeance, SPELL_TARGET_NONE, 0, summon_execute_requested);
-SPELL(AbilityVoodoo, SPELL_TARGET_NONE, 0, big_bad_voodoo_execute);
-SPELL(AbilityAcidBomb, SPELL_TARGET_UNIT, 0, acid_bomb_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityHex, target_status_execute)
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritOfVengeance, summon_execute_requested)
+BZ_SIMPLE_SPELL_PROC(AbilityVoodoo, big_bad_voodoo_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb, acid_bomb_execute)
 
-static void searing_arrows_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void searing_arrows_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     toggle_status_execute(caster, st, spell);
 }
 
-ability_t CAbilityFlamingArrows = {
-    .flags = AB_SPELL | AB_TOGGLE | AB_AUTOCAST,
-    .name = "Searing Arrows",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = searing_arrows_execute,
-};
-ability_t CAbilityAuraTrueshot = { .flags = AB_PASSIVE };
-ability_t CAbilityReincarnation = { .flags = AB_PASSIVE };
+BZ_SIMPLE_SPELL_PROC(AbilityFlamingArrows, searing_arrows_execute)

@@ -536,10 +536,10 @@ static void ai_cooldown(LPEDICT ent) {
     unit_runwait(ent, harvest_swing);
 }
 
-static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &CAbilityHarvest };
-static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, &CAbilityHarvest };
-static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, &CAbilityHarvest };
-static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, &CAbilityHarvest };
+static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, CAbilityHarvest };
+static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, CAbilityHarvest };
+static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, CAbilityHarvest };
+static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, CAbilityHarvest };
 
 void harvest_cooldown(LPEDICT ent) {
     if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
@@ -618,7 +618,7 @@ static void ai_wisp_mine(LPEDICT ent) {
     }
 }
 
-static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, &CAbilityWispHarvest };
+static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, CAbilityWispHarvest };
 
 static void ai_wisp_walktree(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
@@ -630,7 +630,7 @@ static void ai_wisp_walktree(LPEDICT ent) {
     }
 }
 
-static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, &CAbilityWispHarvest };
+static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, CAbilityWispHarvest };
 
 void wisp_harvest_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
@@ -652,15 +652,17 @@ static void wisp_harvest_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
 }
 
-static void SP_ability_wisp_harvest(LPCSTR classname, ability_t *self) {
-    wisp_lumber_per_interval = G_AbilityDataName(classname)->level[0].data[0].number;
-    wisp_interval_count = (DWORD)G_AbilityDataName(classname)->level[0].data[1].number;
+intptr_t CAbilityWispHarvest(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    switch (msg) {
+    case A_INIT:
+        if (!call || !call->classname) return false;
+        wisp_lumber_per_interval = G_AbilityDataName(call->classname)->level[0].data[0].number;
+        wisp_interval_count = (DWORD)G_AbilityDataName(call->classname)->level[0].data[1].number;
+        return true;
+    case A_COMMAND: wisp_harvest_command(call && call->client ? call->client : ent); return true;
+    default: return false;
+    }
 }
-
-ability_t CAbilityWispHarvest = {
-    .init = SP_ability_wisp_harvest,
-    .cmd = wisp_harvest_command,
-};
 
 /* ---- Acolyte harvest: target blighted gold mine ------------------------- */
 static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
@@ -678,9 +680,7 @@ static void acolyte_harvest_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = acolyte_harvest_selecttarget;
 }
 
-ability_t CAbilityAcolyteHarvest = {
-    .cmd = acolyte_harvest_command,
-};
+BZ_COMMAND_PROC(AbilityAcolyteHarvest, acolyte_harvest_command)
 
 /* ---- Return Resources: standalone command to deposit carried resources --- */
 static void return_resources_command(LPEDICT clent) {
@@ -695,9 +695,7 @@ static void return_resources_command(LPEDICT clent) {
     }
 }
 
-ability_t CAbilityReturn = {
-    .cmd = return_resources_command,
-};
+BZ_COMMAND_PROC(AbilityReturn, return_resources_command)
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
@@ -736,17 +734,19 @@ void harvest_command(LPEDICT ent) {
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }
 
-void SP_ability_harvest(LPCSTR classname, ability_t *self) {
-    HARVEST_TREE_DAMAGE = AB_Data(classname, 1, 1);     /* lumber/tree-HP per swing */
-    HARVEST_LUMBER_CAPACITY = AB_Data(classname, 1, 2); /* max lumber to carry */
-    HARVEST_GOLD_CAPACITY = AB_Data(classname, 1, 3);
-    HARVEST_RANGE = G_AbilityDataName(classname)->level[0].range;
-    HARVEST_COOLDOWN = G_AbilityDataName(classname)->level[0].dur;
-    HARVEST_SEARCH_RANGE = G_AbilityDataName(classname)->level[0].area;
+intptr_t CAbilityHarvest(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    switch (msg) {
+    case A_INIT:
+        if (!call || !call->classname) return false;
+        HARVEST_TREE_DAMAGE = AB_Data(call->classname, 1, 1);     /* lumber/tree-HP per swing */
+        HARVEST_LUMBER_CAPACITY = AB_Data(call->classname, 1, 2); /* max lumber to carry */
+        HARVEST_GOLD_CAPACITY = AB_Data(call->classname, 1, 3);
+        HARVEST_RANGE = G_AbilityDataName(call->classname)->level[0].range;
+        HARVEST_COOLDOWN = G_AbilityDataName(call->classname)->level[0].dur;
+        HARVEST_SEARCH_RANGE = G_AbilityDataName(call->classname)->level[0].area;
+        return true;
+    case A_COMMAND: harvest_command(call && call->client ? call->client : ent); return true;
+    case A_TOGGLE_ON: return harvest_is_toggle_on(ent);
+    default: return false;
+    }
 }
-
-ability_t CAbilityHarvest = {
-    .init = SP_ability_harvest,
-    .cmd = harvest_command,
-    .is_toggle_on = harvest_is_toggle_on,
-};

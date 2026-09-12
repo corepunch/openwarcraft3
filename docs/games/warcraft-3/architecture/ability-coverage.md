@@ -16,18 +16,18 @@ an explicit command or an executable `AB_SPELL` definition so a stub cannot crea
 ## Current Model
 
 Campaign rawcodes in `CampaignAbilityStrings.txt` are registered through
-`games/warcraft-3/game/skills/s_campaign_abilities.c`. Each entry owns a
-rawcode-specific `ability_t`, so `S_SpellData`, duration, unit, buff, and
+`games/warcraft-3/game/skills/s_campaign_abilities.c`. Registry entries resolve to reusable `ability_t` handlers; each invocation carries its
+actual rawcode in `abilityitem_t`, so `S_SpellData`, duration, unit, buff, and
 target lookups read the campaign `AbilityData.slk` row. Shared execution
 families cover campaign area damage, War Stomp, summons, timed statuses,
 toggles, dispel, Battle Roar, and Storm Bolt without aliasing a standard
-rawcode's descriptor. The registry test in `game/tests/t_spell.c` checks every
-campaign rawcode for a concrete command, execute callback, and matching spell
+rawcode's gameplay data. The registry test in `game/tests/t_spell.c` checks every
+campaign rawcode for a concrete command, executable procedure, and matching spell
 code. Campaign-specific presentation, exact summon composition, Parasite
 death spawning, and full three-form Storm/Earth/Fire behavior remain separate
 follow-up contracts when their authored rows and runtime consumers are added.
 
-OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook or `AB_SPELL` with a direct execute callback; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
+OpenWarcraft3 uses a small Quake-style `ability_t` registry row and one `abilityProc_t` per behavior. Flags select command, spell, item, autocast and update paths; those paths send typed `abilityMsg_t` messages. `UnitAddAbility` and `UnitRemoveAbility` send `A_ENABLE` and `A_DISABLE` immediately. Stateful abilities answer `A_LEVEL`, and `S_RefreshAbilityLevel()` forwards the value through `A_LEVEL_CHANGED`. Command-card discovery uses `S_AbilityHasCommand`, so passive/no-op procedures do not create dead buttons. Concrete procedures explicitly call their TFT parent procedure for unhandled messages; no callback descriptor or runtime parent table exists.
 
 The CommonAbility base codes use the subsystem that already owns their behavior.
 `AEbu`, `AGbu`, `AHbu`, `ANbu`, `AObu`, and `AUbu` share the build command;
@@ -35,17 +35,17 @@ The CommonAbility base codes use the subsystem that already owns their behavior.
 `Atdp` and `Atlp` share cargo drop/load. `AEpa` is the Poison Arrows toggle and
 reads its own `DataA` bonus in missile attack resolution. `Aloc` applies
 unselectable, invulnerable, collisionless, no-pathing traits during unit spawn.
-The five `Afih`/`Afin`/`Afio`/`Afir`/`Afiu` rawcodes share one passive descriptor;
+The five `Afih`/`Afin`/`Afio`/`Afir`/`Afiu` rawcodes share one passive procedure;
 retail does not list these rawcodes in `UnitAbilities.slk`, so buildings synthesize
-`a_on_fire` as an intrinsic capability. `G_SetHealth()` refreshes its derived level and
-the `level_changed` callback owns health-stage and `UnitData.race` model selection. Hero revival and Hero identity
+`CAbilityOnFireHuman` as an intrinsic capability. `G_SetHealth()` refreshes its derived level and
+the `A_LEVEL_CHANGED` case owns health-stage and `UnitData.race` model selection. Hero revival and Hero identity
 remain owned by their existing lifecycle systems, while their CommonAbility rawcodes
-are explicit passive descriptors. ROC and TFT `ability_audit` rows match for this block;
+are explicit passive rows. ROC and TFT `ability_audit` rows match for this block;
 `Adet` is an abstract base code absent as a standalone row in both archives.
 
 Timed statuses remain generic `abilstatus[]` records. Their common duration and
 expiration bookkeeping stays in `unit_updatestatuses()`; add apply, refresh, or remove
-callbacks only when a status record can resolve its owning ability unambiguously.
+procedure cases only when a status record can resolve its owning ability unambiguously.
 
 Abilities are discovered through the static `abilitylist[]` in
 `games/warcraft-3/game/skills/s_skills.c`. Normal unit command buttons are shown only when the
@@ -68,7 +68,7 @@ handler is being developed, and must be removed from an entry when that entry
 is registered for gameplay.
 
 Directly copying another engine's ability classes is not mechanical. The local
-implementation should port behavior into flat C handlers, `umove_t` state
+implementation should port behavior into flat C procedures, `umove_t` state
 machines, existing edict fields, and data loaded from SLK/config tables.
 
 ## Local Registry

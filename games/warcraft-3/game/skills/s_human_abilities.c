@@ -22,7 +22,7 @@ static DWORD const polymorph_move_types_count = sizeof(polymorph_move_types) / s
 
 void human_ability_think(LPEDICT thinker);
 
-static LPCSTR human_buff(ability_t const *spell, DWORD level) {
+static LPCSTR human_buff(abilityitem_t const *spell, DWORD level) {
     LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
@@ -35,7 +35,7 @@ static void human_remove_status(LPEDICT ent, DWORD code) {
             memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
 }
 
-static void human_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void human_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPCSTR buff = human_buff(spell, level);
     if (!st.entity || !buff) return;
@@ -43,14 +43,14 @@ static void human_status_execute(LPEDICT caster, spellTarget_t st, ability_t con
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static void human_toggle_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void human_toggle_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT duration = S_SpellDuration(spell->code, level, G_UnitIsHero(caster));
     (void)st;
     if (human_has_status(caster, spell->code)) {
         human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
     }
-    unit_addtimedstatus(caster, (LPCSTR)&spell->code, level, duration);
+    unit_addtimedstatus(caster, GetClassName(spell->code), level, duration);
 }
 
 /* Retail CBuffAvatar owns immunity for its lifetime, independently of invulnerability. */
@@ -77,7 +77,8 @@ void S_AvatarExpire(LPEDICT unit) {
 }
 
 /* Reserve the Avatar buff slot before spell_commit spends mana; cooldowns have independent storage. */
-static BOOL avatar_validate(LPEDICT caster, spellTarget_t target) {
+static BOOL avatar_validate(LPEDICT caster, spellTarget_t target, abilityitem_t const *spell) {
+    (void)spell;
     DWORD slots = 0;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || caster->avatar.level) return false;
@@ -88,7 +89,7 @@ static BOOL avatar_validate(LPEDICT caster, spellTarget_t target) {
 }
 
 /* CAbilityAvatar creates BHav, then CBuffAvatar applies the authored A/B/C deltas. */
-static void avatar_execute(LPEDICT caster, spellTarget_t target, ability_t const *spell) {
+static void avatar_execute(LPEDICT caster, spellTarget_t target, abilityitem_t const *spell) {
     DWORD rank = S_SpellLevel(caster, spell->code);
     (void)target;
     if (caster->avatar.level) return;
@@ -107,51 +108,57 @@ static void avatar_execute(LPEDICT caster, spellTarget_t target, ability_t const
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 
-static BOOL aerial_shackles_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL aerial_shackles_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && st.entity->targtype == TARG_AIR && S_SpellIsEnemy(caster, st.entity);
 }
 
-static BOOL control_magic_validate(LPEDICT caster, spellTarget_t st) {
-    DWORD level = S_SpellLevel(caster, MAKEFOURCC('A','c','m','g'));
+static BOOL control_magic_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
     return st.entity && st.entity->owner && S_SpellIsEnemy(caster, st.entity) &&
-           caster->mana.value >= st.entity->health.value * S_SpellData(MAKEFOURCC('A','c','m','g'), level, 2);
+           caster->mana.value >= st.entity->health.value * S_SpellData(spell->code, level, 2);
 }
 
-static void control_magic_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void control_magic_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     caster->mana.value -= st.entity->health.value * S_SpellData(spell->code, level, 2);
     G_SetUnitPlayer(st.entity, caster->s.player); st.entity->owner = caster; st.entity->combatentity = NULL;
     if (st.entity->stand) st.entity->stand(st.entity);
 }
 
-static BOOL cloud_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL cloud_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && G_UnitIsBuilding(st.entity->class_id) && st.entity->attack1.type != ATK_NONE &&
            S_SpellIsEnemy(caster, st.entity);
 }
 
-static BOOL inner_fire_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL inner_fire_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && S_SpellIsFriend(caster, st.entity);
 }
 
-static BOOL heal_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL heal_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && st.entity->targtype != TARG_MECHANICAL && S_SpellIsFriend(caster, st.entity) &&
            st.entity->health.value < st.entity->health.max_value;
 }
 
-static void heal_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void heal_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     S_SpellHeal(st.entity, S_SpellData(spell->code, S_SpellLevel(caster, spell->code), 1));
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static BOOL slow_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL slow_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && S_SpellIsEnemy(caster, st.entity);
 }
 
-static BOOL invisibility_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL invisibility_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    (void)spell;
     return st.entity && S_SpellIsFriend(caster, st.entity);
 }
 
-static void invisibility_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void invisibility_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     human_status_execute(caster, st, spell);
     st.entity->s.renderfx |= RF_HIDDEN;
 }
@@ -162,7 +169,7 @@ BOOL S_UnitPolymorphed(LPCEDICT unit) {
 }
 
 /* Select the authored Ply2-Ply5 form from the target's movement class. */
-static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
+static DWORD polymorph_form_type(LPCEDICT target, DWORD level, DWORD code) {
     LPCSTR movetp;
     DWORD data_slot = BZ_POLYMORPH_GROUND_SLOT;
 
@@ -178,23 +185,23 @@ static DWORD polymorph_form_type(LPCEDICT target, DWORD level) {
     /* AbilityData stores Ply1..Ply5 in DataA..DataE.  The typed FOURCC view
      * deliberately keeps the first rawcode from Warcraft's unit-list string;
      * stock Aply uses one morph unit for each movement class. */
-    return S_SpellDataId(BZ_POLYMORPH, level, data_slot);
+    return S_SpellDataId(code, level, data_slot);
 }
 
 /* Reject invalid targets and authored morph forms before spell resources commit. */
-static BOOL polymorph_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL polymorph_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level, max_creep_level, form_type;
     UnitBalance_t const *balance;
 
     if (!st.entity || !S_SpellIsEnemy(caster, st.entity) || G_UnitIsHero(st.entity) ||
         st.entity->summon_ability || (st.entity->aiflags & AI_ILLUSION) ||
         st.entity->targtype == TARG_MECHANICAL) return false;
-    level = S_SpellLevel(caster, BZ_POLYMORPH);
-    max_creep_level = (DWORD)MAX(0.0f, S_SpellData(BZ_POLYMORPH, level, 1)); /* Ply1 */
+    level = S_SpellLevel(caster, spell->code);
+    max_creep_level = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 1)); /* Ply1 */
     balance = st.entity->data.UnitBalance;
     if (st.entity->s.player == PLAYER_NEUTRAL_AGGRESSIVE && max_creep_level && balance &&
         balance->level > (LONG)max_creep_level) return false;
-    form_type = polymorph_form_type(st.entity, level);
+    form_type = polymorph_form_type(st.entity, level, spell->code);
     if (!form_type) {
         fprintf(stderr, "WC3 Polymorph: no authored morph form for target %08x\n", st.entity->class_id);
         return false;
@@ -230,7 +237,7 @@ void S_PolymorphRemove(LPEDICT unit) {
 }
 
 /* Apply the authored morph presentation while preserving the target edict and stats. */
-static void polymorph_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void polymorph_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level, form_type, buff_code = 0;
     LPCSTR buff;
     UnitUI_t const *ui;
@@ -241,7 +248,7 @@ static void polymorph_execute(LPEDICT caster, spellTarget_t st, ability_t const 
 
     if (!st.entity) return;
     level = S_SpellLevel(caster, spell->code);
-    form_type = polymorph_form_type(st.entity, level);
+    form_type = polymorph_form_type(st.entity, level, spell->code);
     buff = human_buff(spell, level);
     if (!form_type) {
         fprintf(stderr, "WC3 Polymorph: no authored morph form for target %08x\n", st.entity->class_id);
@@ -306,7 +313,7 @@ static void polymorph_execute(LPEDICT caster, spellTarget_t st, ability_t const 
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static void dispel_magic_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void dispel_magic_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
@@ -321,7 +328,7 @@ static void dispel_magic_execute(LPEDICT caster, spellTarget_t st, ability_t con
     }
 }
 
-static void flare_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void flare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
@@ -329,7 +336,7 @@ static void flare_execute(LPEDICT caster, spellTarget_t st, ability_t const *spe
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
 
-static void aerial_shackles_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void aerial_shackles_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     LPCSTR buff = human_buff(spell, level);
@@ -343,7 +350,7 @@ static void aerial_shackles_execute(LPEDICT caster, spellTarget_t st, ability_t 
 
 void human_ability_think(LPEDICT thinker) {
     DWORD now = G_Time();
-    if (thinker->class_id == MAKEFOURCC('A','f','l','a')) {
+    if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
         if (now >= thinker->spawn_time || !thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
         G_FowSetStateRadius(&(FOGWRITE){ thinker->owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
                             S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, 1));
@@ -360,7 +367,7 @@ void human_ability_think(LPEDICT thinker) {
     }
 }
 
-static void spell_steal_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void spell_steal_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT receiver = NULL;
     heroabilitystatus_t stolen = {0};
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -412,72 +419,69 @@ HUMAN_AUTOCAST(inner_fire, ('A','i','n','f'), true, false)
 HUMAN_AUTOCAST(heal, ('A','h','e','a'), true, true)
 HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
 
-#define HUMAN_SPELL(NAME, TARGET, FLAGS, VALIDATE, EXECUTE) \
-    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL | (FLAGS), .validate = VALIDATE, .execute = EXECUTE }
+#define HUMAN_AUTOCAST_SPELL(NAME, EXECUTE, PREFIX) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        switch (msg) { \
+        case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
+        case A_AUTOCAST_ON: return PREFIX##_is_on(ent); \
+        case A_AUTOCAST_SET: PREFIX##_set(ent, call && call->enabled); return true; \
+        case A_AUTOCAST_ACQUIRE: return PREFIX##_acquire(ent); \
+        default: return CAbilitySimpleSpell(ent, msg, call); \
+        } \
+    }
+#define HUMAN_VALIDATED_AUTOCAST_SPELL(NAME, VALIDATE, EXECUTE, PREFIX) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        switch (msg) { \
+        case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
+        case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
+        case A_AUTOCAST_ON: return PREFIX##_is_on(ent); \
+        case A_AUTOCAST_SET: PREFIX##_set(ent, call && call->enabled); return true; \
+        case A_AUTOCAST_ACQUIRE: return PREFIX##_acquire(ent); \
+        default: return CAbilitySimpleSpell(ent, msg, call); \
+        } \
+    }
 
 /* Name=Aerial Shackles
  * Ubertip="Magically binds a target enemy air unit, so that it cannot move or attack and takes <Amls,DataA1> damage per second. Lasts <Amls,Dur1> seconds."
  */
-HUMAN_SPELL(AbilityMagicLeash, SPELL_TARGET_UNIT, AB_CHANNEL, aerial_shackles_validate, aerial_shackles_execute);
+BZ_VALIDATED_SPELL_PROC(AbilityMagicLeash, aerial_shackles_validate, aerial_shackles_execute)
 /* Name=Control Magic
  * Ubertip="Takes control of an enemy summoned unit. The mana cost is <Acmg,DataB1,%>% of the summoned unit's current hit points."
  */
-HUMAN_SPELL(AbilityControlMagic, SPELL_TARGET_UNIT, 0, control_magic_validate, control_magic_execute);
+BZ_VALIDATED_SPELL_PROC(AbilityControlMagic, control_magic_validate, control_magic_execute)
 /* Name=Magic Defense; Untip=Stop Magic Defense */
-HUMAN_SPELL(AbilityMagicDefense, SPELL_TARGET_NONE, AB_TOGGLE, NULL, human_toggle_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense, human_toggle_execute)
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilitySpellSteal, SPELL_TARGET_UNIT, AB_AUTOCAST, NULL, spell_steal_execute);
+HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_execute, spell_steal)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
-HUMAN_SPELL(AbilityCloudOfFog, SPELL_TARGET_UNIT, 0, cloud_validate, human_status_execute);
+BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
 /* Name=Defend; Untip=Stop Defend */
-HUMAN_SPELL(AbilityDefend, SPELL_TARGET_NONE, AB_TOGGLE, NULL, human_toggle_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDefend, human_toggle_execute)
 /* Name=Flare; Ubertip="Launches a Dwarven flare above a target point, which reveals that area for <Afla,Dur1> seconds." */
-HUMAN_SPELL(AbilityFlare, SPELL_TARGET_POINT, 0, NULL, flare_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityFlare, flare_execute)
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilityInnerFire, SPELL_TARGET_UNIT, AB_AUTOCAST, inner_fire_validate, human_status_execute);
+HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate, human_status_execute, inner_fire)
 /* Name=Dispel Magic; Ubertip="Removes all buffs from units in a target area. Deals <Adis,DataB1> damage to summoned units." */
-HUMAN_SPELL(AbilityDispelMagic, SPELL_TARGET_POINT, 0, NULL, dispel_magic_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic, dispel_magic_execute)
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
-HUMAN_SPELL(AbilityHeal, SPELL_TARGET_UNIT, AB_AUTOCAST, heal_validate, heal_execute);
+HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityHeal, heal_validate, heal_execute, heal)
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilitySlow, SPELL_TARGET_UNIT, AB_AUTOCAST, slow_validate, human_status_execute);
+HUMAN_VALIDATED_AUTOCAST_SPELL(AbilitySlow, slow_validate, human_status_execute, slow)
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
-HUMAN_SPELL(AbilityInvisibility, SPELL_TARGET_UNIT, 0, invisibility_validate, invisibility_execute);
+BZ_VALIDATED_SPELL_PROC(AbilityInvisibility, invisibility_validate, invisibility_execute)
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
-HUMAN_SPELL(AbilityPolymorph, SPELL_TARGET_UNIT, 0, polymorph_validate, polymorph_execute);
+BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 /* Name=Avatar */
-ability_t CAbilityAvatar = {
-    .flags = AB_SPELL,
-    .name = "Avatar",
-    .target_type = SPELL_TARGET_NONE,
-    .validate = avatar_validate,
-    .execute = avatar_execute,
-    .disabled = S_AvatarExpire,
-};
-
-#define HUMAN_PASSIVE(NAME) ability_t C##NAME = { .flags = AB_PASSIVE }
-
-/* Attack and detection consumers resolve these passive contracts from AbilityData. */
-HUMAN_PASSIVE(AbilityFeedback);
-HUMAN_PASSIVE(AbilityFlakCannon);
-HUMAN_PASSIVE(AbilityFragShards);
-HUMAN_PASSIVE(AbilityBarrage);
-HUMAN_PASSIVE(AbilitySphere);
-HUMAN_PASSIVE(AbilityPhoenix);
-HUMAN_PASSIVE(AbilityGyroBombs);
-HUMAN_PASSIVE(AbilityStormHammers);
-HUMAN_PASSIVE(AbilityGyroVision);
-HUMAN_PASSIVE(AbilityMagicSentry);
-
-static void human_attach_autocast(ability_t *ability, BOOL (*is_on)(LPEDICT), void (*set)(LPEDICT, BOOL), BOOL (*acquire)(LPEDICT)) {
-    ability->autocast_is_on = is_on; ability->autocast_set = set; ability->autocast_acquire = acquire;
-}
-
-void S_InitHumanAbilities(void) {
-    human_attach_autocast(&CAbilitySpellSteal, spell_steal_is_on, spell_steal_set, spell_steal_acquire);
-    human_attach_autocast(&CAbilityInnerFire, inner_fire_is_on, inner_fire_set, inner_fire_acquire);
-    human_attach_autocast(&CAbilityHeal, heal_is_on, heal_set, heal_acquire);
-    human_attach_autocast(&CAbilitySlow, slow_is_on, slow_set, slow_acquire);
+intptr_t CAbilityAvatar(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    switch (msg) {
+    case A_VALIDATE: return avatar_validate(ent, target, call ? call->item : NULL);
+    case A_EXECUTE: avatar_execute(ent, target, call ? call->item : NULL); return true;
+    case A_DISABLE: S_AvatarExpire(ent); return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
 }
 
 BOOL S_HumanCanAttack(LPCEDICT unit) {

@@ -3,10 +3,8 @@
 static void raven_forward_end(LPEDICT unit);
 static void raven_reverse_end(LPEDICT unit);
 
-static umove_t raven_morph = { "morph", NULL, raven_forward_end, &CAbilityRavenForm };
-static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, &CAbilityRavenForm };
-static LPCSTR const raven_orders[] = { "ravenform", "unravenform", NULL };
-
+static umove_t raven_morph = { "morph", NULL, raven_forward_end, CAbilityRavenForm };
+static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, CAbilityRavenForm };
 typedef struct ravenform_s {
     AbilityData_t const *ability;
     DWORD base_type;
@@ -175,10 +173,12 @@ static void raven_command(LPEDICT ent) {
         unit_issueimmediateorder(unit, raven_orders[raven_is_on(unit) ? 1 : 0]);
 }
 
-ability_t CAbilityRavenForm = {
-    .cmd = raven_command,
-    .is_toggle_on = raven_is_on,
-    .orders = raven_orders,
-    .order = raven_order,
-    .update = raven_update,
-};
+intptr_t CAbilityRavenForm(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    switch (msg) {
+    case A_COMMAND: raven_command(call && call->client ? call->client : ent); return true;
+    case A_TOGGLE_ON: return raven_is_on(ent);
+    case A_ORDER: return call && call->order && raven_order(ent, call->order);
+    case A_UPDATE: raven_update(ent); return true;
+    default: return false;
+    }
+}

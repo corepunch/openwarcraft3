@@ -20,6 +20,4 @@ static void blight_command(LPEDICT clent) {
     clent->client->menu.on_location_selected = blight_selectlocation;
 }
 
-ability_t CAbilityBlightGrowth = {
-    .cmd = blight_command,
-};
+BZ_COMMAND_PROC(AbilityBlightGrowth, blight_command)

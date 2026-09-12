@@ -14,6 +14,7 @@
  * prevents deadlocks when many units converge on the same destination.
  */
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 /* Hero per-attribute regen bonuses (WC3 Units\MiscGame.txt):
  * StrRegenBonus=0.05 HP/sec per Strength, IntRegenBonus=0.05 mana/sec per
@@ -23,9 +24,7 @@
 
 /* IS_HOLLOW is shared and lives in g_local.h. */
 #define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
-#define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &CAbilityMove)
-
-extern ability_t CAbilityMove;
+#define IS_MOVING(ent) (ent->currentmove && ent->currentmove->proc == CAbilityMove)
 extern void spell_run_frame(LPEDICT ent);
 
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
@@ -144,7 +143,7 @@ void G_RunEntity(LPEDICT ent) {
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {
-        ent->s.ability = GetAbilityIndex(ent->currentmove->ability);
+        ent->s.ability = GetAbilityIndex(ent->currentmove->proc);
     } else {
         ent->s.ability = 255;
     }

@@ -78,7 +78,7 @@ the first registered item ability it can handle. This matters because
 `abilList` is an `ItemData.slk` field; `FindConfigValue` searches TXT/INI
 configuration and therefore cannot be the primary lookup for a real carried
 item. A TXT/INI lookup remains only as a fallback when the typed field is
-absent. Immediate effects use `ability_t.item_use`, which returns
+absent. Immediate effects declare `AB_ITEM` and handle `A_ITEM_USE`, which returns
 true only when the gameplay effect actually applies. Current handlers cover the
 existing heal, mana, permanent-life/stat, experience/level, and figurine item
 abilities, plus stock item-defense AOE (`AIda`, used by Scroll of Protection).
@@ -100,7 +100,7 @@ it, clearing the slot and reversing passive item-stat hooks. A non-perishable
 item also decrements to zero but remains present.
 
 Existing item abilities that enter an asynchronous targeting command through
-`ability_t.cmd` are still dispatched, but the click handler cannot yet know
+`AB_COMMAND`/`A_COMMAND` are still dispatched, but the click handler cannot yet know
 whether that later target operation succeeds. It therefore does not consume
 their charge or publish a success event at click time. That completion path is
 explicitly future work rather than speculative charge consumption.

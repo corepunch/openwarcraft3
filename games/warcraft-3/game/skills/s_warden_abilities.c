@@ -6,10 +6,10 @@
 
 /* ---- Blink (AEbl): instant teleport to a target point within range -------- */
 
-static BOOL blink_validate(LPEDICT caster, spellTarget_t st) {
-    DWORD level = S_SpellLevel(caster, ID_BLINK);
-    FLOAT maxrange = S_SpellData(ID_BLINK, level, 1);
-    FLOAT minrange = S_SpellData(ID_BLINK, level, 2);
+static BOOL blink_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT maxrange = S_SpellData(spell->code, level, 1);
+    FLOAT minrange = S_SpellData(spell->code, level, 2);
     FLOAT dist = Vector2_distance(&caster->s.origin2, &st.point);
 
     if (maxrange > 0 && dist > maxrange) return false;
@@ -17,7 +17,7 @@ static BOOL blink_validate(LPEDICT caster, spellTarget_t st) {
     return true;
 }
 
-static void blink_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void blink_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     VECTOR2 dest = st.point;
     CM_ClosestPathablePointForRadius(&st.point, caster->collision, &dest);
@@ -30,7 +30,7 @@ static void blink_execute(LPEDICT caster, spellTarget_t st, ability_t const *spe
 
 /* ---- Fan of Knives (AEfk): instant area damage centred on the caster ------ */
 
-static void fanofknives_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void fanofknives_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -55,7 +55,7 @@ static void fanofknives_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 
 /* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
 
-static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
@@ -68,32 +68,8 @@ static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, ability_t con
 
 /* ---- Registration -------------------------------------------------------- */
 
-static void SP_ability_noop(LPCSTR classname, ability_t *self) {
-    (void)classname;
-    (void)self;
-}
+BZ_VALIDATED_SPELL_PROC(AbilityBlink, blink_validate, blink_execute)
 
-ability_t CAbilityBlink = {
-    .flags = AB_SPELL,
-    .name = "Blink",
-    .target_type = SPELL_TARGET_POINT,
-    .validate = blink_validate,
-    .execute = blink_execute,
-    .init = SP_ability_noop,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives, fanofknives_execute)
 
-ability_t CAbilityFanOfKnives = {
-    .flags = AB_SPELL,
-    .name = "Fan of Knives",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = fanofknives_execute,
-    .init = SP_ability_noop,
-};
-
-ability_t CAbilityShadowStrike = {
-    .flags = AB_SPELL,
-    .name = "Shadow Strike",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = shadowstrike_execute,
-    .init = SP_ability_noop,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike, shadowstrike_execute)

@@ -490,7 +490,6 @@ void SP_CallSpawn(LPEDICT edict) {
 }
 
 void SP_worldspawn(LPEDICT ent) {
-    SetAbilityNames();
 }
 
 static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {

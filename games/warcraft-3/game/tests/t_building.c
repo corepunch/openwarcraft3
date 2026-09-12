@@ -1251,7 +1251,7 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
 }
 
 TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {
-    T_ASSERT(FindAbilityForCommand(STR_CmdCancelBuild) == FindAbilityForCommand(STR_CmdCancel));
+    T_EQ(FindAbilityForCommand(STR_CmdCancelBuild)->proc, FindAbilityForCommand(STR_CmdCancel)->proc);
 }
 
 TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {

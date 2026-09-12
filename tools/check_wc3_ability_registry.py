@@ -20,6 +20,7 @@ from pathlib import Path
 
 CELL_RE = re.compile(r"^C;(.*)$")
 REGISTRY_RE = re.compile(r'^\s*(?://\s*(?:TODO:\s*)?)?\{\s*"([^"]+)"\s*,')
+TODO_RE = re.compile(r'^\s*//\s*TODO:\s*([A-Za-z0-9]{4})\b')
 
 
 def slk_value(token: str) -> str:
@@ -31,7 +32,7 @@ def slk_value(token: str) -> str:
     return value
 
 
-def read_ability_rows(lines: list[str]) -> dict[str, str]:
+def read_ability_rows(lines: list[str], key_column: int = 1) -> dict[str, str]:
     rows: dict[str, dict[int, str]] = {}
     cur_y = 0
     for line in lines:
@@ -54,7 +55,7 @@ def read_ability_rows(lines: list[str]) -> dict[str, str]:
 
     result = {}
     for row in rows.values():
-        rawcode = row.get(1, "")
+        rawcode = row.get(key_column, "")
         comment = row.get(4, "")
         if not comment or comment.replace(".", "", 1).isdigit():
             comment = row.get(3, "")
@@ -63,11 +64,17 @@ def read_ability_rows(lines: list[str]) -> dict[str, str]:
     return result
 
 
-def read_registry(path: Path) -> set[str]:
+def read_registry(path: Path, active_only: bool = False) -> set[str]:
     result = set()
     for line in path.read_text(encoding="utf-8").splitlines():
+        if active_only and line.lstrip().startswith("//"):
+            continue
         match = REGISTRY_RE.match(line)
         if match and len(match.group(1)) == 4:
+            result.add(match.group(1))
+            continue
+        match = TODO_RE.match(line)
+        if match and not active_only:
             result.add(match.group(1))
     return result
 
@@ -77,6 +84,7 @@ def main() -> int:
     parser.add_argument("--slk", type=Path, action="append", help="AbilityData.slk; may be repeated")
     parser.add_argument("--mpq", type=Path, action="append", help="MPQ containing AbilityData.slk; may be repeated")
     parser.add_argument("--mpqtool", default="build/bin/mpqtool", help="mpqtool executable used with --mpq")
+    parser.add_argument("--check-active", action="store_true", help="reject active rawcodes absent from both AbilityData alias and code columns")
     parser.add_argument(
         "--skills",
         type=Path,
@@ -85,27 +93,37 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    source = {}
+    source, implementations = {}, {}
     if args.mpq:
         for archive in args.mpq:
             result = subprocess.run([args.mpqtool, "-mpq", str(archive), "cat", "Units/AbilityData.slk"],
                                     check=True, capture_output=True, text=True)
-            source.update(read_ability_rows(result.stdout.splitlines()))
+            lines = result.stdout.splitlines()
+            source.update(read_ability_rows(lines))
+            implementations.update(read_ability_rows(lines, 2))
     elif args.slk:
         for slk in args.slk:
-            source.update(read_ability_rows(slk.read_text(encoding="utf-8", errors="replace").splitlines()))
+            lines = slk.read_text(encoding="utf-8", errors="replace").splitlines()
+            source.update(read_ability_rows(lines))
+            implementations.update(read_ability_rows(lines, 2))
     else:
-        source = read_ability_rows(sys.stdin.readlines())
+        lines = sys.stdin.readlines()
+        source, implementations = read_ability_rows(lines), read_ability_rows(lines, 2)
     registry = read_registry(args.skills)
     missing = sorted(set(source) - registry)
+    extra = sorted(read_registry(args.skills, active_only=True) - source.keys() - implementations.keys()) if args.check_active else []
 
     print(f"AbilityData rows: {len(source)}")
     print(f"Registry rawcodes: {len(registry)}")
     print(f"Missing rawcodes: {len(missing)}")
     for rawcode in missing:
         comment = source[rawcode].strip() or "(no AbilityData comment)"
-        print(f'// TODO: {{ "{rawcode}", &a_unknown }},  /* {comment} */')
-    return 1 if missing else 0
+        print(f'// TODO: {rawcode} CAbilityNoop  /* {comment} */')
+    if args.check_active:
+        print(f"Non-data active rawcodes: {len(extra)}")
+        for rawcode in extra:
+            print(f"Remove or justify internal command: {rawcode}")
+    return 1 if missing or extra else 0
 
 
 if __name__ == "__main__":

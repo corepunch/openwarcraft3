@@ -753,7 +753,7 @@ CLIENTCOMMAND(Autocast) {
     main = G_GetMainSelectedUnit(client);
     ability = FindAbilityForCommand(classname);
     if (!G_UnitCanControl(client, main) || !G_ActorHasSkill(main, classname) ||
-        !ability || !ability->autocast_set || !ability->autocast_is_on) {
+        !ability || !(ability->flags & AB_AUTOCAST)) {
 #ifdef WC3_DEBUG_AUTOCAST
         if (G_AutocastDebugLevel() >= 1) {
             fprintf(stderr,
@@ -763,8 +763,8 @@ CLIENTCOMMAND(Autocast) {
                     G_UnitCanControl(client, main) ? 1 : 0,
                     main && G_ActorHasSkill(main, classname) ? 1 : 0,
                     (void *)ability,
-                    ability && ability->autocast_set ? 1 : 0,
-                    ability && ability->autocast_is_on ? 1 : 0);
+                    ability && (ability->flags & AB_AUTOCAST) ? 1 : 0,
+                    ability && (ability->flags & AB_AUTOCAST) ? 1 : 0);
         }
 #endif
         return;
@@ -1254,12 +1254,14 @@ CLIENTCOMMAND(Inventory) {
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
             ability_t const *ability = FindAbilityForCommand(ability_name);
+            abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
+            abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
             BOOL succeeded = false;
 
             if (!ability) continue;
             client->menu.ability_code = *((DWORD const *)ability_name);
-            if (ability->item_use) {
-                succeeded = ability->item_use(clent);
+            if (ability->flags & AB_ITEM) {
+                succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
                 handled = true;
             } else if (S_AbilityHasCommand(ability)) {
                 /* Preserve existing support for item-authored command abilities
