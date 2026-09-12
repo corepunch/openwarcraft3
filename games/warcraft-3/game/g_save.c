@@ -70,7 +70,7 @@ enum {
 
 static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-static DWORD const save_version = 19; // adds persistent Raven Form takeoff state
+static DWORD const save_version = 19; // adds Raven Form takeoff and race-specific construction lifecycle state
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -292,6 +292,7 @@ static field_t const link_fields[] = {
 
 static field_t const construction_fields[] = {
     TF(edictConstruction_s, primary_builder, F_EDICT, 0, FIELD_NONE),
+    TF(edictConstruction_s, worker, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 

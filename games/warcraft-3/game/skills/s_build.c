@@ -66,6 +66,10 @@ static void ai_build_walk(LPEDICT ent) {
 }
 
 static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
+/* Undead builders remain visible for the short summon animation while the
+ * structure has already begun autonomous construction. The building-owned
+ * construction timer releases this worker after the Warsmash 2.267 s window. */
+static umove_t build_move_summon = { "stand work", NULL, NULL, CAbilityBuild };
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {

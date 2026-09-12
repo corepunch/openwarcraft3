@@ -71,6 +71,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 issued target/point-order JASS events, order/target/point callback context, campaign tutorial compatibility | [docs/games/warcraft-3/issued-target-order-events.md](docs/games/warcraft-3/issued-target-order-events.md) |
 | WC3 persistent Hero and idle-worker HUD shortcuts, event-driven invalidation, F1-F8 cycling | [docs/games/warcraft-3/unit-shortcuts.md](docs/games/warcraft-3/unit-shortcuts.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
+| WC3 race-specific construction strategies and remaining Human/Orc/Undead/Night Elf mechanic gaps | [docs/games/warcraft-3/race-mechanics.md](docs/games/warcraft-3/race-mechanics.md) |
 | WC3 research queues, upgrade costs/requirements, player tech state, Blacksmith attack/armor effects | [docs/games/warcraft-3/research-and-upgrades.md](docs/games/warcraft-3/research-and-upgrades.md) |
 | WC3 building damage fire thresholds, MDX Sprite attachments, race-specific effect families | [docs/games/warcraft-3/building-damage-rendering.md](docs/games/warcraft-3/building-damage-rendering.md) |
 | WC3 area-based JASS doodad animation, show/hide, looping and non-looping sequence lifecycle | [docs/games/warcraft-3/doodad-animation.md](docs/games/warcraft-3/doodad-animation.md) |

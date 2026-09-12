@@ -2906,17 +2906,35 @@ TEST(wc3_save, construction_payment_round_trip) {
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
     unit->construction.active = true;
+    unit->construction.type = CONSTRUCTION_ORC;
+    unit->construction.worker_spawn_time = 1234;
+    unit->construction.worker_inside = true;
+    unit->construction.consumes_worker = true;
+    unit->construction.restore_invulnerable = true;
+    unit->construction.worker_release_time = 5678;
     unit->construction.paid = true;
     unit->construction.payer = 3;
     unit->construction.gold = 100;
     unit->construction.lumber = 80;
 
     T_ASSERT(WriteGame(filename));
+    unit->construction.type = CONSTRUCTION_NONE;
+    unit->construction.worker_spawn_time = 0;
+    unit->construction.worker_inside = false;
+    unit->construction.consumes_worker = false;
+    unit->construction.restore_invulnerable = false;
+    unit->construction.worker_release_time = 0;
     unit->construction.paid = false;
     unit->construction.payer = 0;
     unit->construction.gold = 0;
     unit->construction.lumber = 0;
     T_ASSERT(ReadGame(filename));
+    T_EQ(unit->construction.type, CONSTRUCTION_ORC);
+    T_EQ(unit->construction.worker_spawn_time, 1234);
+    T_ASSERT(unit->construction.worker_inside);
+    T_ASSERT(unit->construction.consumes_worker);
+    T_ASSERT(unit->construction.restore_invulnerable);
+    T_EQ(unit->construction.worker_release_time, 5678);
     T_ASSERT(unit->construction.paid);
     T_EQ(unit->construction.payer, 3);
     T_EQ(unit->construction.gold, 100);
@@ -2925,6 +2943,7 @@ TEST(wc3_save, construction_payment_round_trip) {
 }
 
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
+SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction.worker", construction.worker, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)
 SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", revival.queue_next, 0)

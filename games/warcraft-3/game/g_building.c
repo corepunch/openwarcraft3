@@ -4,6 +4,7 @@
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
+#define WC3_UNDEAD_BUILD_WORK_MS 2267 // Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
@@ -817,14 +818,40 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     building->s.frame = frame;
 }
 
-BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
+static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
+    LPCSTR list;
+    UnitBalance_t const *balance;
+    UnitData_t const *data;
+
+    if (!unit || !wanted || !*wanted) return false;
+    balance = unit->data.UnitBalance;
+    data = unit->data.UnitData;
+    list = balance ? balance->type : NULL;
+    if (!list || !*list) list = data ? data->unitClassification : NULL;
+    if (!list || !*list) return false;
+
+    PARSE_LIST(list, item, parse_segment) {
+        if (!strcasecmp(item, wanted)) return true;
+    }
+    return false;
+}
+
+static BOOL G_StartConstruction(LPEDICT builder, LPEDICT building,
+                                constructionType_t type, BOOL paused) {
     edictStat_s *hp;
 
     if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
-    building->construction.paused = true;
-    building->construction.primary_builder = builder;
+    building->construction.paused = paused;
+    building->construction.type = type;
+    building->construction.primary_builder = NULL;
+    building->construction.worker = NULL;
+    building->construction.worker_spawn_time = 0;
+    building->construction.worker_inside = false;
+    building->construction.consumes_worker = false;
+    building->construction.restore_invulnerable = false;
+    building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
     building->construction.payer = 0;
@@ -837,9 +864,137 @@ BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     return true;
 }
 
-/* Construction teardown must release every Human Repair participant before the
- * target enters death/completion cleanup; otherwise workers retain pointers to
- * an entity whose construction state no longer exists. */
+static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL inside) {
+    if (!building || !worker) return;
+    building->construction.worker = worker;
+    building->construction.worker_spawn_time = worker->spawn_time;
+    building->construction.worker_inside = inside;
+    building->construction.restore_invulnerable = worker->invulnerable;
+    worker->build = building;
+    worker->goalentity = building;
+    if (!inside) return;
+
+    worker->s.renderfx |= RF_HIDDEN;
+    worker->paused = true;
+    worker->invulnerable = true;
+    G_InvalidateUnitShortcutsForUnit(worker);
+}
+
+BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true)) return false;
+    building->construction.primary_builder = builder;
+    return true;
+}
+
+BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_ORC, false)) return false;
+    G_AssignConstructionWorker(building, builder, true);
+    return true;
+}
+
+BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false)) return false;
+    G_AssignConstructionWorker(building, builder, false);
+    building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
+    return true;
+}
+
+BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false)) return false;
+    G_AssignConstructionWorker(building, builder, true);
+    if (G_ConstructionHasClassification(building, "ancient")) {
+        building->construction.consumes_worker = true;
+        /* Warsmash removes the Wisp's food contribution as soon as it becomes
+         * part of an Ancient. Cancellation restores the worker and its food. */
+        G_SetUnitFoodUsed(builder, 0);
+    }
+    return true;
+}
+
+static LPEDICT G_ConstructionWorker(LPEDICT building) {
+    LPEDICT worker;
+
+    if (!building || !(worker = building->construction.worker)) return NULL;
+    if (!worker->inuse || worker->spawn_time != building->construction.worker_spawn_time) {
+        building->construction.worker = NULL;
+        building->construction.worker_spawn_time = 0;
+        building->construction.worker_inside = false;
+        building->construction.worker_release_time = 0;
+        return NULL;
+    }
+    return worker;
+}
+
+static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
+    LPEDICT worker;
+    BOOL consumes, inside;
+
+    if (!building) return;
+    worker = G_ConstructionWorker(building);
+    consumes = building->construction.consumes_worker;
+    inside = building->construction.worker_inside;
+    building->construction.worker = NULL;
+    building->construction.worker_spawn_time = 0;
+    building->construction.worker_inside = false;
+    building->construction.worker_release_time = 0;
+    if (!worker) return;
+
+    if (completed && consumes) {
+        /* The Wisp was already removed from Food Used at construction start. */
+        G_FreeEdict(worker);
+        return;
+    }
+
+    worker->paused = false;
+    worker->invulnerable = building->construction.restore_invulnerable;
+    worker->s.renderfx &= ~RF_HIDDEN;
+    G_InvalidateUnitShortcutsForUnit(worker);
+    if (consumes && worker->data.UnitBalance)
+        G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);
+
+    if (inside) {
+        VECTOR2 origin;
+        FLOAT angle;
+        if (SP_FindUnitExitPosition(building, worker, &origin, &angle)) {
+            worker->s.origin2 = origin;
+            worker->s.angle = angle - M_PI;
+        }
+    }
+    gi.LinkEntity(worker);
+    worker->build = NULL;
+    if (worker->goalentity == building) worker->goalentity = NULL;
+    if (worker->stand) worker->stand(worker);
+}
+
+void G_RunConstructionFrame(LPEDICT building) {
+    FLOAT duration, hp_gain;
+    edictStat_s *hp;
+
+    if (!building || !building->construction.active || building->construction.paused ||
+        building->paused || !building->data.UnitBalance) return;
+    if (building->construction.type != CONSTRUCTION_ORC &&
+        building->construction.type != CONSTRUCTION_UNDEAD &&
+        building->construction.type != CONSTRUCTION_NIGHTELF) return;
+
+    if (building->construction.type == CONSTRUCTION_UNDEAD &&
+        building->construction.worker_release_time &&
+        G_Time() >= building->construction.worker_release_time) {
+        G_ReleaseConstructionWorker(building, false);
+    }
+
+    duration = MAX(1.0f, (FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
+    hp = &building->health;
+    building->construction.progress += (FLOAT)FRAMETIME;
+    hp_gain = (hp->max_value - MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE)) *
+              ((FLOAT)FRAMETIME / duration);
+    hp->value = MIN(hp->max_value, hp->value + MAX(0.0f, hp_gain));
+    G_UpdateConstructionAnimation(building);
+    if (building->construction.progress >= duration) G_CompleteConstruction(building);
+}
+
+/* Construction teardown releases Human Repair participants and any race-owned
+ * worker before the target enters death/completion cleanup; otherwise workers
+ * retain pointers to an entity whose construction state no longer exists. */
 void G_StopConstruction(LPEDICT building) {
     if (!building || !building->construction.active) return;
 
@@ -849,12 +1004,21 @@ void G_StopConstruction(LPEDICT building) {
         if (worker->stand) worker->stand(worker);
     }
 
+    G_ReleaseConstructionWorker(building, false);
+
     /* The construction info panel historically used a self-linked build queue.
      * Clear it before unit_die() walks production/revival ownership. */
     if (building->build == building) building->build = NULL;
     building->construction.active = false;
     building->construction.paused = false;
+    building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;
+    building->construction.worker = NULL;
+    building->construction.worker_spawn_time = 0;
+    building->construction.worker_inside = false;
+    building->construction.consumes_worker = false;
+    building->construction.restore_invulnerable = false;
+    building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
     building->construction.payer = 0;
@@ -923,9 +1087,17 @@ void G_CompleteConstruction(LPEDICT building) {
     }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
+    G_ReleaseConstructionWorker(building, true);
     building->construction.active = false;
     building->construction.paused = false;
+    building->construction.type = CONSTRUCTION_NONE;
     building->construction.primary_builder = NULL;
+    building->construction.worker = NULL;
+    building->construction.worker_spawn_time = 0;
+    building->construction.worker_inside = false;
+    building->construction.consumes_worker = false;
+    building->construction.restore_invulnerable = false;
+    building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
     building->construction.payer = 0;

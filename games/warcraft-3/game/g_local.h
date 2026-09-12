@@ -101,6 +101,14 @@ typedef enum {
     PLACE_REQUIRED_PARENT_MISSING,
 } buildPlacementResult_t;
 
+typedef enum {
+    CONSTRUCTION_NONE,
+    CONSTRUCTION_HUMAN,
+    CONSTRUCTION_ORC,
+    CONSTRUCTION_UNDEAD,
+    CONSTRUCTION_NIGHTELF,
+} constructionType_t;
+
 typedef struct {
     DWORD id;
     LONG researched;
@@ -918,7 +926,14 @@ struct edict_s {
     struct edictConstruction_s {
         BOOL active;
         BOOL paused;
-        LPEDICT primary_builder;
+        constructionType_t type;
+        LPEDICT primary_builder; /* Human Repair owner; only meaningful for Human construction */
+        LPEDICT worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
+        DWORD worker_spawn_time; /* validates worker pointer across remove/reuse */
+        BOOL worker_inside;
+        BOOL consumes_worker;
+        BOOL restore_invulnerable;
+        DWORD worker_release_time; /* Undead summon animation release time; 0 for other strategies */
         FLOAT progress;
         BOOL paid;
         DWORD payer;
@@ -1865,6 +1880,10 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
+BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building);
+BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building);
+BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building);
+void G_RunConstructionFrame(LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
 void G_StopConstruction(LPEDICT building);
 BOOL G_CancelStructureConstruction(LPEDICT building);

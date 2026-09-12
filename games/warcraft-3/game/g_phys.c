@@ -120,6 +120,7 @@ void G_RunEntity(LPEDICT ent) {
 //            gi.error("SV_Physics: bad movetype %d", edict->movetype);
             break;
     }
+    G_RunConstructionFrame(ent);
     SAFE_CALL(ent->think, ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;

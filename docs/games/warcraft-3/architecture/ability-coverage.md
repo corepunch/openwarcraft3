@@ -149,7 +149,7 @@ generic `Button` command path rather than by a registered ability code.
 | `Aent` | Entangle Gold Mine | TODO | Needs gold mine transform/ownership behavior and target checks. |
 | `Aegm` | Entangled Mine | TODO | Needs entangled mine simulation behavior. |
 | `Aeat` | Eat Tree | Partial | Tree target, self-heal, mana/cooldown, and tree removal exist. Needs rip/eat timing and buff art. |
-| `Ambt` | Moon Well | Partial | Friendly target life transfer from well mana exists. Needs mana transfer, autocast, and night-only regeneration. |
+| `Ambt` | Moon Well | Partial | Manual friendly replenish restores life first and then mana from the well pool using authored DataB/DataA ratios. Needs autocast, night-only regeneration, and water-level presentation. |
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |
