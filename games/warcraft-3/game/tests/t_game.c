@@ -2901,17 +2901,21 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
 
 TEST(wc3_save, construction_payment_round_trip) {
     LPCSTR filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
-    LPEDICT unit;
+    LPEDICT unit, worker;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     unit->construction.active = true;
     unit->construction.type = CONSTRUCTION_ORC;
+    unit->construction.worker = worker;
     unit->construction.worker_spawn_time = 1234;
     unit->construction.worker_inside = true;
     unit->construction.consumes_worker = true;
     unit->construction.restore_invulnerable = true;
     unit->construction.worker_release_time = 5678;
+    unit->construction.restore_paused = true;
+    unit->construction.restore_hidden = true;
     unit->construction.paid = true;
     unit->construction.payer = 3;
     unit->construction.gold = 100;
@@ -2919,10 +2923,13 @@ TEST(wc3_save, construction_payment_round_trip) {
 
     T_ASSERT(WriteGame(filename));
     unit->construction.type = CONSTRUCTION_NONE;
+    unit->construction.worker = NULL;
     unit->construction.worker_spawn_time = 0;
     unit->construction.worker_inside = false;
     unit->construction.consumes_worker = false;
     unit->construction.restore_invulnerable = false;
+    unit->construction.restore_paused = false;
+    unit->construction.restore_hidden = false;
     unit->construction.worker_release_time = 0;
     unit->construction.paid = false;
     unit->construction.payer = 0;
@@ -2930,10 +2937,13 @@ TEST(wc3_save, construction_payment_round_trip) {
     unit->construction.lumber = 0;
     T_ASSERT(ReadGame(filename));
     T_EQ(unit->construction.type, CONSTRUCTION_ORC);
+    T_ASSERT(unit->construction.worker == worker);
     T_EQ(unit->construction.worker_spawn_time, 1234);
     T_ASSERT(unit->construction.worker_inside);
     T_ASSERT(unit->construction.consumes_worker);
     T_ASSERT(unit->construction.restore_invulnerable);
+    T_ASSERT(unit->construction.restore_paused);
+    T_ASSERT(unit->construction.restore_hidden);
     T_EQ(unit->construction.worker_release_time, 5678);
     T_ASSERT(unit->construction.paid);
     T_EQ(unit->construction.payer, 3);

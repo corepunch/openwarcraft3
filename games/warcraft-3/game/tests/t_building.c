@@ -8,6 +8,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 void repair_build_legacy(LPEDICT ent, LPEDICT building);
+void build_build(LPEDICT ent);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -1285,6 +1286,37 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
     T_ASSERT(building->health.value < building->health.max_value);
 }
 
+TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
+    LPGAMECLIENT client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitProfile_t profile = { .builds = "hbar" };
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    LPEDICT worker, building = NULL;
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = STR_ORC;
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->data.UnitAbilities = &abilities;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
+    T_NOT_NULL(building);
+    T_EQ(building->construction.type, CONSTRUCTION_ORC);
+    T_ASSERT(building->construction.worker == worker);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+}
+
 TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
     LPEDICT worker;
     LPEDICT building;
@@ -1305,6 +1337,28 @@ TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
     T_ASSERT(!worker->invulnerable);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
+}
+
+TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
+    LPEDICT worker;
+    LPEDICT building;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
+    worker->paused = true;
+    worker->invulnerable = true;
+    worker->s.renderfx |= RF_HIDDEN;
+
+    T_ASSERT(G_StartOrcConstruction(worker, building));
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->invulnerable);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    G_StopConstruction(building);
+
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->invulnerable);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
 }
 
 TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) {
@@ -1338,6 +1392,23 @@ TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) 
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
     T_FEQ(building->construction.progress, (FLOAT)FRAMETIME, 0.001f);
+}
+
+TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
+    LPEDICT worker;
+    LPEDICT building;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
+    T_ASSERT(G_StartUndeadConstruction(worker, building));
+    T_ASSERT(building->construction.worker == worker);
+
+    G_StopConstruction(building);
+    T_ASSERT(!building->construction.active);
+    T_NULL(building->construction.worker);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
 }
 
 TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
@@ -1398,6 +1469,43 @@ TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
     T_ASSERT(!building->construction.active);
     T_EQ(building->construction.type, CONSTRUCTION_NONE);
     T_EQ(building_stand_calls, 1);
+}
+
+TEST(wc3_building, night_elf_non_ancient_completion_releases_wisp) {
+    LPEDICT worker;
+    LPEDICT building;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
+    building->stand = building_test_stand;
+    T_ASSERT(G_StartNightElfConstruction(worker, building));
+    T_ASSERT(!building->construction.consumes_worker);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+
+    G_CompleteConstruction(building);
+    T_ASSERT(worker->inuse);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!worker->paused);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
+}
+
+TEST(wc3_building, cancelling_night_elf_non_ancient_construction_releases_wisp) {
+    LPEDICT worker;
+    LPEDICT building;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 64, 0);
+    T_ASSERT(G_StartNightElfConstruction(worker, building));
+    G_StopConstruction(building);
+
+    T_ASSERT(worker->inuse);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!worker->paused);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
 }
 
 TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {

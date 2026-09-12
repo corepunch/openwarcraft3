@@ -851,6 +851,8 @@ static BOOL G_StartConstruction(LPEDICT builder, LPEDICT building,
     building->construction.worker_inside = false;
     building->construction.consumes_worker = false;
     building->construction.restore_invulnerable = false;
+    building->construction.restore_paused = false;
+    building->construction.restore_hidden = false;
     building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
@@ -870,6 +872,8 @@ static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL in
     building->construction.worker_spawn_time = worker->spawn_time;
     building->construction.worker_inside = inside;
     building->construction.restore_invulnerable = worker->invulnerable;
+    building->construction.restore_paused = worker->paused;
+    building->construction.restore_hidden = worker->s.renderfx & RF_HIDDEN;
     worker->build = building;
     worker->goalentity = building;
     if (!inside) return;
@@ -945,9 +949,10 @@ static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
         return;
     }
 
-    worker->paused = false;
+    worker->paused = building->construction.restore_paused;
     worker->invulnerable = building->construction.restore_invulnerable;
-    worker->s.renderfx &= ~RF_HIDDEN;
+    if (building->construction.restore_hidden) worker->s.renderfx |= RF_HIDDEN;
+    else worker->s.renderfx &= ~RF_HIDDEN;
     G_InvalidateUnitShortcutsForUnit(worker);
     if (consumes && worker->data.UnitBalance)
         G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);
@@ -1018,6 +1023,8 @@ void G_StopConstruction(LPEDICT building) {
     building->construction.worker_inside = false;
     building->construction.consumes_worker = false;
     building->construction.restore_invulnerable = false;
+    building->construction.restore_paused = false;
+    building->construction.restore_hidden = false;
     building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
@@ -1097,6 +1104,8 @@ void G_CompleteConstruction(LPEDICT building) {
     building->construction.worker_inside = false;
     building->construction.consumes_worker = false;
     building->construction.restore_invulnerable = false;
+    building->construction.restore_paused = false;
+    building->construction.restore_hidden = false;
     building->construction.worker_release_time = 0;
     building->construction.progress = 0.0f;
     building->construction.paid = false;
