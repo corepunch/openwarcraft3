@@ -87,4 +87,22 @@ typedef enum {
     RACE_COMMONER,
 } unitRace_t;
 
+typedef struct {
+    LPCSTR name;
+    unitRace_t race;
+} wc3RaceName_t;
+
+static wc3RaceName_t const wc3_race_names[] = {
+    { STR_HUMAN, RACE_HUMAN }, { STR_ORC, RACE_ORC }, { STR_UNDEAD, RACE_UNDEAD },
+    { STR_NIGHTELF, RACE_NIGHTELF },
+};
+
+/* Resolve authored WC3 race names through one shared table used by game/UI code. */
+static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
+    if (!name) return RACE_UNKNOWN;
+    FOR_LOOP(i, sizeof(wc3_race_names) / sizeof(*wc3_race_names))
+        if (!strcmp(name, wc3_race_names[i].name)) return wc3_race_names[i].race;
+    return RACE_UNKNOWN;
+}
+
 #endif

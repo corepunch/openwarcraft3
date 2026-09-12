@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 19, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 20, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -31,7 +31,7 @@ Moonstone-style override should still be active. Version 11 adds per-slot JASS g
 Version 17 accompanies the WC3 `edict_t` vertex-colour fields used by `SetUnitVertexColor`; the changed edict size and format version reject older records instead of interpreting shifted state.
 Version 17 also adds dedicated per-unit `abilitycooldowns[]` records so active ability cooldown windows survive save/load without sharing the timed buff/status array. Spell point response context in queued events and the matching JASS snapshot state are part of the same version. Version 18 adds the per-unit Polymorph restoration record (source ability/buff, selected form, original model/scale/movement speed, and active flag), paired with the already-persistent timed buff so an active morph restores correctly after load.
 Version 19 adds the ability-owned per-unit Raven Form takeoff state (`fly_height`, rise start/duration, and rise phase) so a save taken during the authored post-morph ascent cannot restore with an invalid altitude transition. `raven_fields` explicitly serializes those four scalar fields; no new edict pointers are introduced.
-Version 19 also adds race-specific construction lifecycle state and an explicit `F_EDICT` fixup for `construction.worker`; v18 saves are rejected rather than interpreting the expanded raw edict record.
+Version 20 adds race-specific construction lifecycle state and an explicit `F_EDICT` fixup for `construction.worker`; v19 saves are rejected rather than interpreting the expanded raw edict record.
 
 Groups use reusable stable ordinals in a growable pointer table: `level.num_groups` is the high-water mark while `level.group_capacity` is transient allocation capacity. Each `ggroup_t` is separately allocated so growing the pointer table never moves a live handle. `DestroyGroup` releases an ordinal for later reuse; `GroupClear` only clears membership. Live JASS group handles serialize as stable ordinal indexes. See [JASS Groups](jass-groups.md).
 

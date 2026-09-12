@@ -41,15 +41,6 @@ static LPCSTR G_ResearchField(LPCSTR field, BOOL research) {
     return buffer;
 }
 
-static unitRace_t G_RaceFromString(LPCSTR race) {
-    if (!race) return RACE_UNKNOWN;
-    if (!strcmp(race, STR_HUMAN)) return RACE_HUMAN;
-    if (!strcmp(race, STR_ORC)) return RACE_ORC;
-    if (!strcmp(race, STR_UNDEAD)) return RACE_UNDEAD;
-    if (!strcmp(race, STR_NIGHTELF)) return RACE_NIGHTELF;
-    return RACE_UNKNOWN;
-}
-
 LPCSTR GetBuildCommand(unitRace_t race) {
     switch (race) {
         case RACE_HUMAN: return STR_CmdBuildHuman;
@@ -62,7 +53,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
 
 static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
     if (!strcmp(code, STR_CmdBuild)) {
-        return GetBuildCommand(G_RaceFromString(ent->data.UnitData->race));
+        return GetBuildCommand(WC3_RaceFromString(ent->data.UnitData->race));
     }
     return code;
 }

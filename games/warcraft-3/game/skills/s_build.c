@@ -137,6 +137,8 @@ void build_build(LPEDICT ent) {
     buildCommandState_t state;
     LPEDICT building;
     DWORD building_id;
+    BOOL construction_started = false;
+    unitRace_t race;
 
     if (!ent || !ent->goalentity || !ent->build_project) {
         if (ent) ent->stand(ent);
@@ -207,8 +209,20 @@ void build_build(LPEDICT ent) {
         ent->stand(ent);
         return;
     }
-    if (G_UnitHasHumanRepair(ent)) {
-        G_StartHumanConstruction(ent, building);
+    race = WC3_RaceFromString(ent->data.UnitData ? ent->data.UnitData->race : NULL);
+    /* Repair is shared by worker data, but only Human construction uses the
+     * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
+    if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
+        construction_started = G_StartHumanConstruction(ent, building);
+    } else {
+        switch (race) {
+        case RACE_ORC: construction_started = G_StartOrcConstruction(ent, building); break;
+        case RACE_UNDEAD: construction_started = G_StartUndeadConstruction(ent, building); break;
+        case RACE_NIGHTELF: construction_started = G_StartNightElfConstruction(ent, building); break;
+        default: break;
+        }
+    }
+    if (construction_started) {
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */
@@ -218,10 +232,12 @@ void build_build(LPEDICT ent) {
             building->construction.gold = MAX(0, building->data.UnitBalance->goldCost);
             building->construction.lumber = MAX(0, building->data.UnitBalance->lumberCost);
         }
-        repair_build_primary(ent, building);
+        if (building->construction.type == CONSTRUCTION_HUMAN)
+            repair_build_primary(ent, building);
+        else if (building->construction.type == CONSTRUCTION_UNDEAD)
+            unit_setmove(ent, &build_move_summon);
     } else {
-        /* Other race lifecycles remain the legacy behavior until their
-         * worker-inside/summon construction strategies are implemented. */
+        /* Preserve the old generic fallback for custom/unknown workers. */
         repair_build_legacy(ent, building);
         G_SetHealth(building, 0);
     }
