@@ -77,16 +77,16 @@ The common commit helper is used at the existing high-confidence income sites:
 - normal lumber worker deposit (`s_harvest_lumber.c`);
 - Call to Arms' immediate carried-resource return (`s_militia.c`);
 - the currently implemented Wisp direct lumber credit;
-- the currently implemented Blighted Gold Mine direct gold credit.
+- Haunted Gold Mine direct gold credit driven by active Acolyte slots;
+- Entangled Gold Mine direct gold credit driven by occupied Wisp cargo slots.
 
-The event source is the entity that owns the current transaction. Normal worker deposits and militia conversion therefore originate at the worker. Current direct Wisp income originates at the Wisp; current Blighted Mine income originates at the mine.
+The event source is the entity that owns the current transaction. Normal worker deposits and militia conversion therefore originate at the worker. Current direct Wisp lumber income originates at the Wisp; Haunted and Entangled direct gold income originates at the racial mine overlay.
 
 ## Deliberate non-goals / remaining parity gaps
 
 This patch does **not** use floating text as a reason to redesign incomplete gameplay systems:
 
 - Wisp harvesting currently credits once and consumes the Wisp; Warsmash's persistent periodic Wisp harvesting remains a separate gameplay gap.
-- `Aegm` Entangled Mine is still only a marker in OpenRealm, so there is no correct income transaction to instrument yet.
 - Gold/lumber bounty semantics and their distinct Warsmash `Bounty` / `LumberBounty` styles remain separate work.
 - General JASS `texttag` natives (`CreateTextTag`, `SetTextTag*`, etc.) remain unimplemented. `TE_FLOATING_TEXT` is a generic one-shot presentation primitive, not a JASS handle/lifetime implementation.
 - The resource label does not modify harvesting orders, carry state, camera, fog, selection, or HUD resource accounting.

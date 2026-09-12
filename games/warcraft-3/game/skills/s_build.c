@@ -136,6 +136,7 @@ void build_build(LPEDICT ent) {
     buildPlacementResult_t placement;
     buildCommandState_t state;
     LPEDICT building;
+    LPEDICT build_on = NULL;
     DWORD building_id;
     BOOL construction_started = false;
     unitRace_t race;
@@ -196,6 +197,20 @@ void build_build(LPEDICT ent) {
      * its historical no-resource-cost behavior. */
     if (!G_BuildAllEnabled()) G_SetUnitFoodUsed(building, building->data.UnitBalance->foodUsed);
     ent->build_project = 0;
+
+    /* Build-on-mine structures retain the original Agld entity as the shared
+     * finite resource reservoir. Placement already proved the parent exists;
+     * bind before baking pathing so the hidden parent drops out as the overlay
+     * footprint becomes authoritative. */
+    if (!G_FindBuildOnTarget(building_id, &snapped, &build_on) ||
+        (build_on && (G_ActorHasSkill(building, "Agl2") || G_ActorHasSkill(building, "Abgm") ||
+                      G_ActorHasSkill(building, "Aegm")) &&
+         !S_MineOverlayBind(building, build_on))) {
+        G_FreeEdict(building);
+        G_RefundBuilding(client, building_id);
+        ent->stand(ent);
+        return;
+    }
 
     /* The structure blocks pathing as soon as construction starts. Bake its
      * authored footprint before relocating the worker so the egress search

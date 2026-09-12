@@ -669,7 +669,7 @@ static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
         return false;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        harvest_gold_start(ent, target);
+        S_AcolyteHarvestOrder(ent, target);
     }
     return true;
 }
@@ -694,13 +694,13 @@ BZ_COMMAND_PROC(AbilityReturn) {
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (S_GoldMineIsMine(target)) {
+    if (G_ActorHasSkill(target, "Abgm")) {
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+            if (G_ActorHasSkill(ent, "Aaha")) S_AcolyteHarvestOrder(ent, target);
+        }
+    } else if (S_GoldMineCanHarvest(target)) {
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_order(ent, target);
-        }
-    } else if (G_ActorHasSkill(target, "Abgm")) {
-        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-            harvest_gold_start(ent, target);
         }
     } else if (target->targtype == TARG_TREE) {
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {

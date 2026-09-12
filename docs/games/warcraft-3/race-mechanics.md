@@ -4,7 +4,7 @@
 
 The shared WC3 simulation should own common state such as construction progress, food accounting, resources, unit lifetime, and pathing, while race-specific abilities/behaviors own the different state machines used by Human, Orc, Undead, and Night Elf units.
 
-This document records the source comparison used for OpenRealm's race-specific construction work and the remaining race-mechanic gaps. It is deliberately narrower than a general unit-data reference: a mechanic is listed here when two races perform the same RTS concept through materially different simulation state.
+This document records the source comparison used for OpenRealm's race-specific construction and economy work and the remaining race-mechanic gaps. It is deliberately narrower than a general unit-data reference: a mechanic is listed here when two races perform the same RTS concept through materially different simulation state.
 
 Reference behavior was compared against the bundled Warsmash sources:
 
@@ -13,6 +13,11 @@ Reference behavior was compared against the bundled Warsmash sources:
 - `CBehaviorUndeadBuild.java`
 - `CBehaviorNightElfBuild.java`
 - `CUnit.java`
+- `CAbilityOverlayedMine.java`
+- `CAbilityBlightedGoldMine.java`
+- `CAbilityAcolyteHarvest.java` / `CBehaviorAcolyteHarvest.java`
+- `CAbilityEntangleGoldMine.java` / `CAbilityEntangledMine.java`
+- `CAbilityCargoHoldEntangledMine.java`
 
 under `core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/` in WarsmashModEngine.
 
@@ -72,7 +77,36 @@ Completed buildings continue through the ordinary Repair behavior documented in 
 
 The construction strategy, release time, worker-state flags, Food-consumption flag, and worker `spawn_time` live in the raw `edict_t` snapshot. `construction.worker`, like `construction.primary_builder`, is an edict pointer and therefore has an explicit `F_EDICT` fixup in `g_save.c`.
 
-Save format version 20 introduces this additional construction-worker reference. Older layouts are rejected rather than interpreting a shifted `edict_t` or an un-fixed raw pointer.
+Save format version 20 introduced the construction-worker reference. Version 21 adds racial gold-mine overlay/Acolyte references and their timing/slot state. Older layouts are rejected rather than interpreting a shifted `edict_t` or an un-fixed raw pointer.
+
+## Race-specific gold mining
+
+The ordinary `Agld` mine remains the finite resource owner for every race. Human/Orc workers use the established hidden-inside,
+carry, return, and deposit state machine. A mine with one or more conventional workers inside also carries the `work` animation
+property, removed when occupancy returns to zero.
+
+Haunted and Entangled mines instead use `edict.mineoverlay.parent` plus the parent's spawn generation. The overlay hides/pauses the
+ordinary mine while it exists, but never copies its `resources`; death or `RemoveUnit` restores the parent. Normal `isBuildOn`
+construction binds an Undead overlay to the exact mine found by authoritative placement. `Aent` creates the authored Night Elf
+resulting UnitID at the target mine and starts the autonomous Night Elf construction clock without attaching a Wisp.
+
+Undead Acolytes use `Aaha` rather than conventional Harvest. `Abgm` DataC and DataD define the number and radius of fixed ring slots.
+An Acolyte walks into ability range, selects the nearest free slot, snaps to its deterministic ring point, remains visible in
+`stand work`, and owns `{mine, mine_spawn_time, slot}` until retasked, killed, removed, or the mine disappears. `Abgm` DataA/DataB
+drive direct gold income from the parent. The current Warsmash source uses integer `maxMiners / activeMiners` when stretching the
+interval; OpenRealm intentionally preserves that integer behavior rather than substituting fractional scaling.
+
+Night Elf Entangled Mines reuse the existing `Aenc` cargo contract. Mining Wisps are hidden/paused cargo occupants, and the mine uses
+first-through-fifth secondary animation tags for occupancy. `Aegm` DataA/DataB advance a persistent round-robin slot index before
+each occupancy test; occupied turns pay from the parent's finite gold pool and empty turns do not. Parent depletion kills the
+Entangled overlay, whose normal death path ejects cargo and restores the original mine. Loading is rejected until Entangled
+construction completes.
+
+`mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
+and the associated scalar timing/index/slot state.
+
+Known parity gaps within this implemented model are the Haunted ring spell-effect visuals, localized full/invalid-mine command errors,
+and remaining Entangle cast/icon/effect presentation. Wisp lumber remains separate from Entangled gold cargo.
 
 ## Moon Well replenish
 
@@ -88,10 +122,7 @@ The fields are ratios, not per-cast caps. A full-health friendly target with mis
 
 The following items were reviewed but are intentionally **not** implemented by this patch because the current OpenRealm seams do not support a high-confidence isolated change without broader world/economy/pathing work:
 
-- Haunted Gold Mine overlay ownership and the fixed Acolyte mining-ring slot model;
-- Acolyte direct-income cadence driven by occupied Haunted Mine slots;
 - dynamic Blight creation/removal and Blight-dependent placement/regeneration;
-- Night Elf Entangled Gold Mine overlay lifecycle;
 - Wisp periodic lumber harvesting and per-tree Wisp reservation;
 - full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions;
 - Moon Well autocast, night-only mana regeneration, and water-level presentation. Manual replenish now restores life first and then mana using the authored DataB/DataA ratios.
@@ -105,6 +136,8 @@ After building, focused automated coverage should include:
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'
+make test-wc3-engine WC3_PATTERN='wc3_movement.*mine*'
+make test-wc3-engine WC3_PATTERN='wc3_save.racial_gold_mine*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.moon_well_*'
 make test
 ```
@@ -120,3 +153,6 @@ Runtime checks should cover at least:
 7. Human construction still pauses when its primary builder stops and still supports Power Build; Repair does not accelerate autonomous race construction.
 8. Save/load during each worker-owned construction state preserves the correct worker relationship and release/consumption behavior.
 9. Moon Well replenish heals before restoring mana and accepts a full-health friendly unit that is missing mana.
+10. Haunted construction hides the original mine; Acolytes occupy distinct visible ring slots, scale direct income, and free slots when retasked.
+11. Entangled Mine Wisps board through cargo, income follows occupied round-robin slots, and depletion ejects Wisps/restores the parent mine.
+12. Save/load during Haunted/Entangled mining preserves parent references, income timing/index state, and Acolyte slot ownership.

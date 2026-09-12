@@ -646,7 +646,7 @@ static BOOL G_PathCellUsed(pathTex_t const *pathtex, DWORD x, DWORD y) {
     return pathtex->map[x + y * pathtex->width].b != 0;
 }
 
-static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
+BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
@@ -836,11 +836,10 @@ static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
     return false;
 }
 
-static BOOL G_StartConstruction(LPEDICT builder, LPEDICT building,
-                                constructionType_t type, BOOL paused) {
+static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL paused) {
     edictStat_s *hp;
 
-    if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
+    if (!building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
     building->construction.paused = paused;
@@ -885,26 +884,26 @@ static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL in
 }
 
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
     building->construction.primary_builder = builder;
     return true;
 }
 
 BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_ORC, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
 BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
 BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
         building->construction.consumes_worker = true;
@@ -913,6 +912,12 @@ BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
         G_SetUnitFoodUsed(builder, 0);
     }
     return true;
+}
+
+/* Entangle Gold Mine creates a Night Elf building without consuming/owning a
+ * Wisp. It still uses the same authoritative autonomous construction clock. */
+BOOL G_StartNightElfOverlayConstruction(LPEDICT building) {
+    return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
 }
 
 static LPEDICT G_ConstructionWorker(LPEDICT building) {

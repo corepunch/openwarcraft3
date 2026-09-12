@@ -166,6 +166,18 @@ LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
     return NULL;
 }
 
+void S_CargoReleaseUnit(LPEDICT unit) {
+    LPEDICT transport;
+
+    if (!unit || !(transport = S_CargoTransportForUnit(unit))) return;
+    FOR_LOOP(i, transport->cargo.count) {
+        if (transport->cargo.units[i] == unit) {
+            cargo_drop_unit(transport, i);
+            return;
+        }
+    }
+}
+
 /* ---- Load (Aloa): load a unit into a transport -------------------------- */
 
 static BOOL cargo_load_type_allowed(LPEDICT transport, LPEDICT target) {

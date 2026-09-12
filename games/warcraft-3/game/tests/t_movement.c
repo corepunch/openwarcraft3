@@ -264,6 +264,45 @@ static UnitAbilities_t const test_goldmine_stock = { .abilList = "Agld" };
 static UnitAbilities_t const test_goldmine_cap1 = { .abilList = "A001" };
 static UnitAbilities_t const test_goldmine_cap2 = { .abilList = "A002" };
 
+static const char slk_racial_goldmine_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"Rng1\"\n"
+    "C;Y1;X4;K\"DataA1\"\n"
+    "C;Y1;X5;K\"DataB1\"\n"
+    "C;Y1;X6;K\"DataC1\"\n"
+    "C;Y1;X7;K\"DataD1\"\n"
+    "C;Y2;X1;K\"Agld\"\n"
+    "C;Y2;X2;K\"Agld\"\n"
+    "C;Y3;X1;K\"Aaha\"\n"
+    "C;Y3;X2;K\"Aaha\"\n"
+    "C;Y3;X3;K64\n"
+    "C;Y4;X1;K\"Abgm\"\n"
+    "C;Y4;X2;K\"Abgm\"\n"
+    "C;Y4;X4;K10\n"
+    "C;Y4;X5;K1\n"
+    "C;Y4;X6;K5\n"
+    "C;Y4;X7;K200\n"
+    "C;Y5;X1;K\"Aegm\"\n"
+    "C;Y5;X2;K\"Aegm\"\n"
+    "C;Y5;X4;K10\n"
+    "C;Y5;X5;K1\n"
+    "C;Y6;X1;K\"Aenc\"\n"
+    "C;Y6;X2;K\"Aenc\"\n"
+    "C;Y6;X4;K5\n"
+    "E\n";
+
+static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
+static UnitAbilities_t const test_acolyte_harvest = { .abilList = "Aaha" };
+static UnitAbilities_t const test_entangled_mine = { .abilList = "Aegm,Aenc" };
+
+static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(slk_racial_goldmine_test_data);
+    *rows_out = rows;
+    return G_SetSLKRows("AbilityData", rows);
+}
+
 static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_goldmine_test_data);
     *rows_out = rows;
@@ -3319,6 +3358,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
 
     harvestgold_minegold(worker);
     T_EQ(mine->peonsinside, 1);
+    T_ASSERT(strstr(mine->animation_props, "work") != NULL);
     T_ASSERT(worker->invulnerable);
     T_ASSERT(S_GoldMineWorkerIsInside(worker));
     harvestgold_minegold(worker);
@@ -3330,6 +3370,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
 
     harvestgold_walkback(worker);
     T_EQ(mine->peonsinside, 0);
+    T_ASSERT(strstr(mine->animation_props, "work") == NULL);
     T_ASSERT(!S_GoldMineWorkerIsInside(worker));
     T_ASSERT(!worker->invulnerable);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
@@ -3375,6 +3416,125 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     T_ASSERT(!S_GoldMineWorkerIsInside(waiter));
     T_ASSERT(!(waiter->s.renderfx & RF_HIDDEN));
     T_STREQ(waiter->currentmove->animation, "stand");
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Haunted mining keeps the underlying Agld unit as the sole resource pool.
+ * Acolytes take deterministic external ring slots and the mine grants income
+ * directly according to Warsmash's integer worker-count interval scaling. */
+TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
+    slkTestData_t *rows, *old_abilities;
+    LPGAMECLIENT client;
+    LPEDICT parent, haunted, first, second;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    client = &game.clients[0];
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    haunted = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    setup_test_goldmine(parent, &test_goldmine_stock, 100);
+    haunted->data.UnitAbilities = &test_haunted_mine;
+    haunted->health.value = haunted->health.max_value = 1000.0f;
+    first->data.UnitAbilities = second->data.UnitAbilities = &test_acolyte_harvest;
+    haunted->s.player = first->s.player = second->s.player = client->ps.number;
+    first->stand = second->stand = unit_stand;
+    first->collision = second->collision = 16.0f;
+    first->unitinfo.MoveSpeed = second->unitinfo.MoveSpeed = 100.0f;
+    unit_stand(first); unit_stand(second);
+
+    T_ASSERT(S_MineOverlayBind(haunted, parent));
+    T_ASSERT(parent->s.renderfx & RF_HIDDEN);
+    T_ASSERT(parent->paused);
+    T_ASSERT(S_AcolyteHarvestOrder(first, haunted));
+    T_ASSERT(S_AcolyteHarvestOrder(second, haunted));
+    first->currentmove->think(first);
+    second->currentmove->think(second);
+    T_ASSERT(S_AcolyteHarvestIsActive(first));
+    T_ASSERT(S_AcolyteHarvestIsActive(second));
+    T_ASSERT(first->acolyte_mine.slot != second->acolyte_mine.slot);
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
+    T_STREQ(first->currentmove->animation, "stand work");
+
+    /* Five authored slots with two active Acolytes use integer multiplier 2. */
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    level.time = 1999;
+    blight_mine_think(haunted);
+    T_EQ(parent->resources, 100);
+    level.time = 2000;
+    blight_mine_think(haunted);
+    T_EQ(parent->resources, 90);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+
+    unit_stand(first);
+    T_ASSERT(!S_AcolyteHarvestIsActive(first));
+    T_ASSERT(S_AcolyteHarvestIsActive(second));
+    G_FreeEdict(haunted);
+    T_ASSERT(!haunted->inuse);
+    T_ASSERT(!S_AcolyteHarvestIsActive(second));
+    T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent->paused);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Entangled gold income reuses generic cargo occupancy. The periodic slot
+ * cursor advances before testing occupancy, skips empty slots, and depletion
+ * kills the overlay, unloads Wisps, and restores the original mine. */
+TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads_wisps) {
+    slkTestData_t *rows, *old_abilities;
+    LPGAMECLIENT client;
+    LPEDICT parent, mine, first, second;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    client = &game.clients[0];
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    first = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    setup_test_goldmine(parent, &test_goldmine_stock, 25);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    mine->s.player = first->s.player = second->s.player = client->ps.number;
+    first->stand = second->stand = unit_stand;
+    first->s.renderfx |= RF_HIDDEN; second->s.renderfx |= RF_HIDDEN;
+    first->paused = second->paused = true;
+    mine->cargo.units[0] = first; mine->cargo.units[1] = second; mine->cargo.count = 2;
+
+    T_ASSERT(S_MineOverlayBind(mine, parent));
+    S_CargoInitUnit(mine);
+    T_ASSERT(strstr(mine->animation_props, "second") != NULL);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+
+    level.time = 0;
+    S_EntangledMineTick(mine); /* index 1: occupied */
+    T_EQ(parent->resources, 15);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+    T_EQ(mine->mineoverlay.active_interval_index, 1);
+    level.time = 1000; S_EntangledMineTick(mine); /* index 2: empty */
+    level.time = 2000; S_EntangledMineTick(mine); /* index 3: empty */
+    level.time = 3000; S_EntangledMineTick(mine); /* index 4: empty */
+    T_EQ(parent->resources, 15);
+    level.time = 4000; S_EntangledMineTick(mine); /* index 0: occupied */
+    T_EQ(parent->resources, 5);
+    level.time = 5000; S_EntangledMineTick(mine); /* index 1: final 5 */
+
+    T_EQ(parent->resources, 0);
+    T_ASSERT(M_IsDead(mine));
+    T_EQ(mine->cargo.count, 0);
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!(second->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!first->paused && !second->paused);
+    T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent->paused);
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
@@ -3458,6 +3618,24 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     T_ASSERT(burrow->currentmove->proc != CAbilityAttack);
     T_NULL(burrow->combatentity);
     T_NULL(burrow->goalentity);
+}
+
+TEST(wc3_movement, removing_loaded_unit_releases_transport_slot) {
+    LPEDICT transport, passenger;
+
+    reset_entities();
+    setup_test_world();
+    transport = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    transport->cargo.units[0] = passenger;
+    transport->cargo.count = 1;
+    passenger->s.renderfx |= RF_HIDDEN;
+    passenger->paused = true;
+
+    G_FreeEdict(passenger);
+    T_EQ(transport->cargo.count, 0);
+    T_NULL(transport->cargo.units[0]);
+    T_ASSERT(!passenger->inuse);
 }
 
 TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaining_order) {

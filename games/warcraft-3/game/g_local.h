@@ -1031,6 +1031,21 @@ struct edict_s {
         DWORD mine_spawn_time;
         BOOL restore_invulnerable;
     } goldmine;
+    /* Racial mine overlays keep the original Agld unit as the sole finite
+     * gold reservoir. Haunted/Entangled mines own presentation/income only. */
+    struct edictMineOverlay_s {
+        LPEDICT parent;
+        DWORD parent_spawn_time;
+        DWORD income_time;
+        DWORD active_interval_index;
+    } mineoverlay;
+    /* Acolyte harvesting is a visible fixed-slot relationship rather than the
+     * conventional hidden-inside/carry/return Gold Mine state above. */
+    struct edictAcolyteMine_s {
+        LPEDICT mine;
+        DWORD mine_spawn_time;
+        LONG slot;
+    } acolyte_mine;
     LPEDICT inventory[MAX_INVENTORY];
     struct edictItem_s {
         LPEDICT carrier;
@@ -1199,6 +1214,8 @@ typedef struct edictRally_s edictRally_s;
 typedef struct edictRevival_s edictRevival_s;
 typedef struct edictMilitia_s edictMilitia_s;
 typedef struct edictGoldMine_s edictGoldMine_s;
+typedef struct edictMineOverlay_s edictMineOverlay_s;
+typedef struct edictAcolyteMine_s edictAcolyteMine_s;
 typedef struct edictItem_s edictItem_s;
 typedef struct edictDestructable_s edictDestructable_s;
 typedef struct edictCargo_s edictCargo_s;
@@ -1893,11 +1910,13 @@ void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
 BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
 BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
+BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building);
 BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building);
 BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building);
+BOOL G_StartNightElfOverlayConstruction(LPEDICT building);
 void G_RunConstructionFrame(LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
 void G_StopConstruction(LPEDICT building);
@@ -2250,6 +2269,12 @@ void S_CancelMilitiaPairing(LPEDICT);
 void S_MilitiaExpire(LPEDICT);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
+BOOL S_MineOverlayBind(LPEDICT, LPEDICT);
+void S_MineOverlayRelease(LPEDICT);
+BOOL S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
+void S_AcolyteHarvestRelease(LPEDICT);
+BOOL S_AcolyteHarvestIsActive(LPCEDICT);
+void S_EntangledMineTick(LPEDICT);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
 BOOL harvest_gold_order(LPEDICT, LPEDICT);
@@ -2263,6 +2288,7 @@ BOOL S_CargoTryLoad(LPEDICT, LPEDICT);
 BOOL S_CargoOrderBoard(LPEDICT, LPEDICT);
 BOOL S_CargoAttacksEnabled(LPCEDICT);
 LPEDICT S_CargoTransportForUnit(LPCEDICT);
+void S_CargoReleaseUnit(LPEDICT);
 BOOL S_CargoIsBurrow(LPEDICT);
 DWORD S_CargoCapacity(LPEDICT);
 LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);

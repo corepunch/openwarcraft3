@@ -26,8 +26,8 @@ worker+mine collision+step formula remains a fallback when no path texture is av
 Gold-mine tuning is no longer copied into process-wide globals. `s_goldmine.c` resolves the mine entity's own `UnitAbilities.slk`
 list, follows `AbilityData.slk:code` to the `Agld` base ability, and reads Data1/Data2/Data3 as maximum gold, mining duration, and
 internal mining capacity. This is required for custom maps where two `Agld`-derived abilities can configure different capacities or
-durations in the same simulation. `Agl2` remains a separate marker until its overlay behavior is implemented; it cannot overwrite
-`Agld` mining data.
+durations in the same simulation. Racial mine overlays do not copy those values: the hidden original `Agld` entity remains the sole
+finite resource reservoir and `Agl2` records only the overlay/parent relationship.
 
 ### Gold Mine Capacity And Occupancy
 
@@ -48,6 +48,37 @@ ability's maximum-gold field; map/JASS `SetResourceAmount` can then override tha
 `min(mine->resources, HARVEST_GOLD_CAPACITY)` to the worker and subtracts exactly that amount from the mine. A partial final trip is
 therefore possible. When the remaining amount reaches zero, the mine enters its death/depleted state before waiting workers are
 woken, so none can enter an empty mine. A worker that deposits the final trip does not resume walking back to the depleted mine.
+
+### Race-Specific Gold Mining
+
+Human and Orc workers use the conventional carry/return state machine above. Entering the mine increments `peonsinside`, hides and
+temporarily protects the worker, and now adds the mine's `work` animation property while at least one worker is inside. The last exit
+removes that property.
+
+Undead and Night Elf gold mining deliberately do **not** reuse that state machine. `edict.mineoverlay` points from a Haunted or
+Entangled Mine to the original live `Agld` entity and stores the parent's spawn generation. Binding an overlay hides and pauses the
+parent; destroying/removing the overlay restores and relinks it. The parent `resources` value remains authoritative for JASS resource
+amounts and for both racial income paths. Build-on-mine Undead structures acquire this parent from the same placement lookup that
+validated `UnitData.isBuildOn`. Save format 21 persists the parent relationship.
+
+`Aaha` Acolytes target completed same-owner `Abgm` mines. `Abgm` DataC supplies the maximum miner count and DataD the mining-ring
+radius. Slots are evenly distributed at `(2*pi/N)*slot + pi/2`; an arriving Acolyte claims the nearest free slot, snaps to it, remains
+visible in `stand work`, and stores the mine pointer/spawn generation plus slot on the worker. Replacing the harvest behavior, worker
+death/removal, or mine teardown releases that relationship. The Haunted Mine scans those active relationships for income. DataA is
+gold per interval and DataB is the base interval; to match current Warsmash source the interval multiplier uses integer division
+`maxMiners / activeMiners`. Income is credited directly by the mine and deducted from the parent's finite `resources`; zero miners
+produce nothing, and exhausting the parent stops Haunted income without automatically killing the Haunted structure.
+
+`Aent` now creates the authored resulting UnitID as a distinct overlay instead of transferring ownership of the neutral mine. The
+original mine is hidden/paused, the new structure begins the existing autonomous Night Elf construction clock without a construction
+Wisp, and `Aegm` becomes active after completion. Entangled mining reuses generic `Aenc` cargo: Smart boarding hides/pauses Wisps and
+cargo teardown restores them. DataA is gold per payout and DataB the interval. Each interval advances
+`active_interval_index = (index + 1) % capacity` before testing occupancy; a payout occurs only when that index is below the current
+cargo count. This reproduces Warsmash's proportional five-slot cadence without a second worker list. Parent depletion kills the
+Entangled overlay; ordinary death teardown unloads its Wisps and restores the original depleted mine.
+
+The current implementation intentionally leaves Haunted ring spell-effect emitters, exact localized invalid/full-mine command errors,
+and the remaining Entangle cast/presentation polish outside this economy state machine. Wisp lumber (`Awha`) is still a separate gap.
 
 ### Resource Return Drop-Offs
 

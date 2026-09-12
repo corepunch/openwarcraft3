@@ -141,6 +141,35 @@ static BOOL gold_find_nearest_footprint_approach(LPEDICT worker, LPEDICT target,
         target, &worker->s.origin2, route_band, worker->collision, out);
 }
 
+
+static DWORD goldmine_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
+    char token_code[5] = {0};
+
+    if (!ent) return 0;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            DWORD alias = 0;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&alias, token, 4);
+            if (G_AbilityCode(alias) == base_code || alias == base_code) return alias;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        DWORD const alias = ent->abilities.added[i];
+        if (!alias) continue;
+        memcpy(token_code, &alias, 4);
+        token_code[4] = '\0';
+        if (G_ActorHasSkill(ent, token_code) &&
+            (G_AbilityCode(alias) == base_code || alias == base_code)) return alias;
+    }
+    return 0;
+}
+
+static BOOL goldmine_is_overlay_type(LPCEDICT mine) {
+    return mine && (mine->mineoverlay.parent || G_ActorHasSkill(mine, "Agl2") ||
+                    G_ActorHasSkill(mine, "Abgm") || G_ActorHasSkill(mine, "Aegm"));
+}
+
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
@@ -178,7 +207,8 @@ DWORD S_GoldMineCapacity(LPCEDICT mine) {
 }
 
 BOOL S_GoldMineCanHarvest(LPCEDICT mine) {
-    return mine && mine->inuse && mine->health.value > 0 && S_GoldMineIsMine(mine) && mine->resources > 0;
+    return mine && mine->inuse && mine->health.value > 0 && S_GoldMineIsMine(mine) &&
+           !goldmine_is_overlay_type(mine) && mine->resources > 0;
 }
 
 BOOL S_GoldMineWorkerIsInside(LPCEDICT worker) {
@@ -188,7 +218,7 @@ BOOL S_GoldMineWorkerIsInside(LPCEDICT worker) {
 void S_GoldMineInitUnit(LPEDICT mine) {
     DWORD maximum;
 
-    if (!S_GoldMineIsMine(mine))
+    if (!S_GoldMineIsMine(mine) || goldmine_is_overlay_type(mine))
         return;
     maximum = S_GoldMineMaximumGold(mine);
     if (mine->resources == 0 && maximum > 0)
@@ -208,6 +238,7 @@ static void goldmine_register_miner(LPEDICT worker, LPEDICT mine) {
     worker->invulnerable = true;
     worker->s.renderfx |= RF_HIDDEN;
     mine->peonsinside++;
+    if (mine->peonsinside == 1) G_AddUnitAnimationProperties(mine, "work", true);
 }
 
 static LPEDICT goldmine_unregister_miner(LPEDICT worker) {
@@ -215,8 +246,10 @@ static LPEDICT goldmine_unregister_miner(LPEDICT worker) {
 
     if (!worker || !(mine = worker->goldmine.mine))
         return NULL;
-    if (goldmine_membership_valid(worker, mine) && mine->peonsinside > 0)
+    if (goldmine_membership_valid(worker, mine) && mine->peonsinside > 0) {
         mine->peonsinside--;
+        if (mine->peonsinside == 0) G_AddUnitAnimationProperties(mine, "work", false);
+    }
     worker->goldmine.mine = NULL;
     worker->goldmine.mine_spawn_time = 0;
     worker->invulnerable = worker->goldmine.restore_invulnerable;
@@ -255,6 +288,7 @@ void S_GoldMineReleaseWorker(LPEDICT worker) {
     mine = goldmine_unregister_miner(worker);
     goldmine_wake_waiters(mine);
 }
+
 
 static void ai_walkmine(LPEDICT ent) {
     LPEDICT mine = ent ? ent->goalentity : NULL;
@@ -567,49 +601,369 @@ BZ_ABILITY_PROC(CAbilityGoldMine) {
     return CAbilityNoop(ent, msg, call);
 }
 
-/* ---- Entangle Gold Mine (Aent): NE transforms ownership of a mine ------- */
-static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (!target || !S_GoldMineIsMine(target)) {
+/* ---- Racial Gold Mine overlays ------------------------------------------ */
+
+static LPEDICT mineoverlay_parent(LPEDICT overlay) {
+    LPEDICT parent;
+
+    if (!overlay || !(parent = overlay->mineoverlay.parent)) return NULL;
+    if (!parent->inuse || parent->spawn_time != overlay->mineoverlay.parent_spawn_time ||
+        M_IsDead(parent) || !S_GoldMineIsMine(parent)) {
+        overlay->mineoverlay.parent = NULL;
+        overlay->mineoverlay.parent_spawn_time = 0;
+        return NULL;
+    }
+    return parent;
+}
+
+static BOOL mineoverlay_parent_in_use(LPEDICT parent, LPEDICT except) {
+    if (!parent) return false;
+    FILTER_EDICTS(ent, ent != except && ent->inuse && ent->mineoverlay.parent == parent &&
+                  ent->mineoverlay.parent_spawn_time == parent->spawn_time) {
+        return true;
+    }
+    return false;
+}
+
+BOOL S_MineOverlayBind(LPEDICT overlay, LPEDICT parent) {
+    if (!overlay || !parent || overlay == parent || !overlay->inuse || !parent->inuse ||
+        M_IsDead(overlay) || M_IsDead(parent) || !S_GoldMineIsMine(parent) ||
+        goldmine_is_overlay_type(parent) || mineoverlay_parent_in_use(parent, overlay)) {
         return false;
     }
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster) {
-        return false;
-    }
-    /* Transfer mine ownership to the caster's player. */
-    G_SetUnitPlayer(target, caster->s.player);
+
+    if (overlay->mineoverlay.parent) S_MineOverlayRelease(overlay);
+    overlay->mineoverlay.parent = parent;
+    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay.income_time = 0;
+    overlay->mineoverlay.active_interval_index = 0;
+    parent->s.renderfx |= RF_HIDDEN;
+    parent->paused = true;
+    G_InvalidateUnitShortcutsForUnit(parent);
+    if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    gi.LinkEntity(parent);
     return true;
 }
 
-BZ_COMMAND_PROC(AbilityEntangle) {
+BOOL S_AcolyteHarvestIsActive(LPCEDICT worker) {
+    LPCEDICT mine;
+    if (!worker || !(mine = worker->acolyte_mine.mine)) return false;
+    return mine->inuse && mine->spawn_time == worker->acolyte_mine.mine_spawn_time &&
+           worker->acolyte_mine.slot >= 0;
+}
+
+void S_AcolyteHarvestRelease(LPEDICT worker) {
+    LPEDICT mine;
+    if (!worker) return;
+    mine = worker->acolyte_mine.mine;
+    worker->acolyte_mine.mine = NULL;
+    worker->acolyte_mine.mine_spawn_time = 0;
+    worker->acolyte_mine.slot = -1;
+    if (worker->goalentity == mine) worker->goalentity = NULL;
+    if (worker->secondarygoal == mine) worker->secondarygoal = NULL;
+}
+
+void S_MineOverlayRelease(LPEDICT overlay) {
+    LPEDICT parent;
+
+    if (!overlay) return;
+    /* A Haunted Mine owns fixed Acolyte relationships. Retiring the mine must
+     * free those slots before its edict can be reused. */
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == overlay &&
+                  worker->acolyte_mine.mine_spawn_time == overlay->spawn_time) {
+        S_AcolyteHarvestRelease(worker);
+        if (worker->currentmove && worker->currentmove->proc == CAbilityAcolyteHarvest)
+            unit_stand(worker);
+    }
+
+    parent = mineoverlay_parent(overlay);
+    overlay->mineoverlay.parent = NULL;
+    overlay->mineoverlay.parent_spawn_time = 0;
+    overlay->mineoverlay.income_time = 0;
+    overlay->mineoverlay.active_interval_index = 0;
+    if (!parent) return;
+    parent->s.renderfx &= ~RF_HIDDEN;
+    parent->paused = false;
+    G_InvalidateUnitShortcutsForUnit(parent);
+    if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    gi.LinkEntity(parent);
+}
+
+/* Agl2 owns only the shared overlay relationship. The racial mine abilities
+ * below own their worker and income state. */
+/* ---- Haunted Gold Mine / Acolyte Harvest -------------------------------- */
+
+static DWORD haunted_mine_alias(LPEDICT mine) {
+    return goldmine_actor_ability_alias(mine, MAKEFOURCC('A','b','g','m'));
+}
+
+static DWORD haunted_mine_max_miners(LPEDICT mine) {
+    DWORD alias = haunted_mine_alias(mine);
+    FLOAT value = alias ? G_AbilityLevel(alias, 1)->data[2].number : 0.0f;
+    if (value <= 0.0f) return 0;
+    return (DWORD)value;
+}
+
+static FLOAT haunted_mine_ring_radius(LPEDICT mine) {
+    DWORD alias = haunted_mine_alias(mine);
+    return alias ? MAX(0.0f, G_AbilityLevel(alias, 1)->data[3].number) : 0.0f;
+}
+
+static void haunted_mine_slot_position(LPEDICT mine, DWORD slot, DWORD capacity, LPVECTOR2 out) {
+    double angle;
+    FLOAT radius;
+    if (!out || !mine || !capacity) return;
+    angle = ((M_PI * 2.0) / (double)capacity) * (double)slot + (M_PI / 2.0);
+    radius = haunted_mine_ring_radius(mine);
+    out->x = mine->s.origin2.x + (FLOAT)cos(angle) * radius;
+    out->y = mine->s.origin2.y + (FLOAT)sin(angle) * radius;
+}
+
+static BOOL haunted_slot_occupied(LPEDICT mine, LONG slot) {
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == mine &&
+                  worker->acolyte_mine.mine_spawn_time == mine->spawn_time &&
+                  worker->acolyte_mine.slot == slot) {
+        return true;
+    }
+    return false;
+}
+
+static DWORD haunted_active_miners(LPEDICT mine) {
+    DWORD count = 0;
+    if (!mine) return 0;
+    FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == mine &&
+                  worker->acolyte_mine.mine_spawn_time == mine->spawn_time &&
+                  worker->acolyte_mine.slot >= 0) {
+        count++;
+    }
+    return count;
+}
+
+static BOOL haunted_mine_valid_for(LPEDICT worker, LPEDICT mine) {
+    LPEDICT parent;
+    if (!worker || !mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
+        worker->s.player != mine->s.player || !haunted_mine_alias(mine)) return false;
+    parent = mineoverlay_parent(mine);
+    return parent && parent->resources > 0;
+}
+
+static BOOL acolyte_in_harvest_range(LPEDICT worker, LPEDICT mine) {
+    DWORD alias = goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a'));
+    FLOAT const range = alias ? MAX(0.0f, G_AbilityLevel(alias, 1)->range) : 0.0f;
+    FLOAT footprint;
+    if (!worker || !mine) return false;
+    footprint = CM_DistanceToPathingFootprint(mine, &worker->s.origin2);
+    if (footprint < FLT_MAX) return footprint <= worker->collision + range;
+    return Vector2_distance(&worker->s.origin2, &mine->s.origin2) <=
+           worker->collision + mine->collision + range;
+}
+
+static BOOL acolyte_claim_slot(LPEDICT worker, LPEDICT mine) {
+    DWORD const capacity = haunted_mine_max_miners(mine);
+    LONG best = -1;
+    FLOAT best_distance = FLT_MAX;
+
+    if (!capacity) return false;
+    FOR_LOOP(i, capacity) {
+        VECTOR2 point;
+        FLOAT dx, dy, distance;
+        if (haunted_slot_occupied(mine, (LONG)i)) continue;
+        haunted_mine_slot_position(mine, i, capacity, &point);
+        dx = point.x - worker->s.origin2.x;
+        dy = point.y - worker->s.origin2.y;
+        distance = dx * dx + dy * dy;
+        if (distance < best_distance) {
+            best_distance = distance;
+            best = (LONG)i;
+        }
+    }
+    if (best < 0) return false;
+
+    worker->acolyte_mine.mine = mine;
+    worker->acolyte_mine.mine_spawn_time = mine->spawn_time;
+    worker->acolyte_mine.slot = best;
+    return true;
+}
+
+static void acolyte_snap_to_slot(LPEDICT worker) {
+    LPEDICT mine;
+    DWORD capacity;
+    VECTOR2 point;
+    if (!S_AcolyteHarvestIsActive(worker) || !(mine = worker->acolyte_mine.mine)) return;
+    capacity = haunted_mine_max_miners(mine);
+    if (!capacity || worker->acolyte_mine.slot < 0 || (DWORD)worker->acolyte_mine.slot >= capacity) return;
+    haunted_mine_slot_position(mine, (DWORD)worker->acolyte_mine.slot, capacity, &point);
+    worker->s.origin2 = point;
+    worker->s.origin.x = point.x;
+    worker->s.origin.y = point.y;
+    worker->s.origin.z = CM_GetHeightAtPoint(point.x, point.y);
+    gi.LinkEntity(worker);
+}
+
+static void ai_acolyte_harvest_walk(LPEDICT worker);
+static void ai_acolyte_harvest_work(LPEDICT worker);
+static umove_t acolyte_harvest_move_walk = { "walk", ai_acolyte_harvest_walk, NULL, CAbilityAcolyteHarvest };
+static umove_t acolyte_harvest_move_work = { "stand work", ai_acolyte_harvest_work, NULL, CAbilityAcolyteHarvest };
+
+static void ai_acolyte_harvest_walk(LPEDICT worker) {
+    LPEDICT mine = worker ? worker->goalentity : NULL;
+    if (!haunted_mine_valid_for(worker, mine)) {
+        if (worker) unit_stand(worker);
+        return;
+    }
+    if (acolyte_in_harvest_range(worker, mine)) {
+        if (!acolyte_claim_slot(worker, mine)) {
+            unit_stand(worker);
+            return;
+        }
+        acolyte_snap_to_slot(worker);
+        unit_setmove(worker, &acolyte_harvest_move_work);
+        return;
+    }
+    unit_changeangle_interaction_ignore_units(worker);
+    if (worker->movement.flow_unreachable) {
+        unit_stand(worker);
+        return;
+    }
+    unit_moveindirection_ignore_units(worker);
+}
+
+static void ai_acolyte_harvest_work(LPEDICT worker) {
+    LPEDICT mine = worker ? worker->acolyte_mine.mine : NULL;
+    if (!haunted_mine_valid_for(worker, mine) || !S_AcolyteHarvestIsActive(worker)) {
+        if (worker) unit_stand(worker);
+        return;
+    }
+    acolyte_snap_to_slot(worker);
+}
+
+BOOL S_AcolyteHarvestOrder(LPEDICT worker, LPEDICT mine) {
+    if (!worker || !mine || !goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a')) ||
+        !haunted_mine_valid_for(worker, mine)) return false;
+    if (S_GoldMineWorkerIsInside(worker) || S_CargoTransportForUnit(worker)) return false;
+
+    G_ClearUnitOrderQueue(worker);
+    S_AcolyteHarvestRelease(worker);
+    worker->movement.follow_target = NULL;
+    worker->movement.attackmove_waypoint = NULL;
+    worker->movement.patrol_a = NULL;
+    worker->movement.patrol_b = NULL;
+    worker->movement.patrol_target = NULL;
+    worker->movement.holding_position = false;
+    worker->goalentity = mine;
+    worker->secondarygoal = mine;
+    move_reset_progress(worker);
+    unit_setmove(worker, &acolyte_harvest_move_walk);
+    return true;
+}
+
+void blight_mine_think(LPEDICT mine) {
+    DWORD alias, maximum, active, multiplier, interval_ms, now;
+    LONG gold_per_interval, gold;
+    LPEDICT parent;
+    LPPLAYER player;
+
+    monster_think(mine);
+    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
+        !(alias = haunted_mine_alias(mine))) return;
+    parent = mineoverlay_parent(mine);
+    player = G_GetPlayerByNumber(mine->s.player);
+    maximum = haunted_mine_max_miners(mine);
+    active = haunted_active_miners(mine);
+    if (!parent || !player || !maximum || !active || parent->resources == 0) return;
+
+    /* Match Warsmash's Java integer division here: 5/4 and 5/3 both produce
+     * multiplier 1, 5/2 produces 2, and one Acolyte produces 5. */
+    active = MIN(active, maximum);
+    multiplier = MAX(1u, maximum / active);
+    interval_ms = (DWORD)(MAX(0.0f, G_AbilityLevel(alias, 1)->data[1].number) * 1000.0f);
+    interval_ms = MAX(1u, interval_ms * multiplier);
+    now = G_Time();
+    if (now < mine->mineoverlay.income_time + interval_ms) return;
+
+    gold_per_interval = (LONG)MAX(0.0f, G_AbilityLevel(alias, 1)->data[0].number);
+    gold = MIN((LONG)parent->resources, gold_per_interval);
+    mine->mineoverlay.income_time = now;
+    if (gold <= 0) return;
+    parent->resources -= (DWORD)gold;
+    G_CreditResourceIncome(player, mine, PLAYERSTATE_RESOURCE_GOLD, gold);
+}
+
+BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
+    return CAbilityPassive(ent, msg, call);
+}
+
+/* ---- Entangle Gold Mine / Entangled Mine -------------------------------- */
+
+static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
+    LPEDICT caster, entangled;
+    DWORD alias, resulting_type;
+
+    if (!clent || !clent->client || !target || !target->inuse || M_IsDead(target) ||
+        !S_GoldMineIsMine(target) || goldmine_is_overlay_type(target) ||
+        (target->s.renderfx & RF_HIDDEN) || mineoverlay_parent_in_use(target, NULL)) return false;
+    caster = G_GetMainSelectedUnit(clent->client);
+    if (!caster || !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+    resulting_type = G_AbilityLevel(alias, 1)->unitID;
+    if (!resulting_type || !G_UnitIsBuilding(resulting_type)) return false;
+
+    entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
+    if (!entangled) return false;
+    if (!S_MineOverlayBind(entangled, target) || !G_StartNightElfOverlayConstruction(entangled)) {
+        S_MineOverlayRelease(entangled);
+        G_FreeEdict(entangled);
+        return false;
+    }
+    G_SetUnitFoodUsed(entangled, entangled->data.UnitBalance ? entangled->data.UnitBalance->foodUsed : 0);
+    entangled->build = entangled;
+    CM_BakeStaticObstacles();
+    G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    return true;
+}
+
+static void entangle_goldmine_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = entangle_goldmine_selecttarget;
 }
 
-/* ---- Blighted Gold Mine (Abgm): interval-based income for Undead -------- */
-static FLOAT blight_gold_per_interval;
-static FLOAT blight_interval_duration;
-
-void blight_mine_think(LPEDICT ent) {
-    monster_think(ent);
-    DWORD now = G_Time();
-    if (ent->freetime && now < ent->freetime)
-        return;
-    LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
-
-    if (!player || ent->health.value <= 0) {
-        return;
-    }
-    /* Apply the same player income rate used by worker deposits. */
-    G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_GOLD,
-                           (LONG)blight_gold_per_interval);
-    ent->freetime = now + (DWORD)(blight_interval_duration * 1000.0f);
+BZ_ABILITY_PROC(CAbilityEntangle) {
+    if (msg != A_COMMAND) return false;
+    entangle_goldmine_command(call && call->client ? call->client : ent);
+    return true;
 }
 
-BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
-    (void)ent;
-    if (msg != A_INIT || !call || !call->classname) return false;
-    blight_gold_per_interval = G_AbilityDataName(call->classname)->level[0].data[0].number;
-    blight_interval_duration = G_AbilityDataName(call->classname)->level[0].data[1].number;
-    return true;
+void S_EntangledMineTick(LPEDICT mine) {
+    DWORD alias, capacity, interval_ms, now, index;
+    LONG gold_per_interval, gold;
+    LPEDICT parent;
+    LPPLAYER player;
+
+    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
+        !(alias = goldmine_actor_ability_alias(mine, MAKEFOURCC('A','e','g','m')))) return;
+    parent = mineoverlay_parent(mine);
+    player = G_GetPlayerByNumber(mine->s.player);
+    capacity = S_CargoCapacity(mine);
+    if (!parent || !player || !capacity) return;
+
+    now = G_Time();
+    if (now < mine->mineoverlay.income_time) return;
+    interval_ms = (DWORD)(MAX(0.0f, G_AbilityLevel(alias, 1)->data[1].number) * 1000.0f);
+    mine->mineoverlay.income_time = now + MAX(1u, interval_ms);
+
+    index = (mine->mineoverlay.active_interval_index + 1) % capacity;
+    mine->mineoverlay.active_interval_index = index;
+    if (index >= mine->cargo.count) return;
+    if (parent->resources == 0) {
+        unit_die(mine, NULL);
+        return;
+    }
+
+    gold_per_interval = (LONG)MAX(0.0f, G_AbilityLevel(alias, 1)->data[0].number);
+    gold = MIN((LONG)parent->resources, gold_per_interval);
+    if (gold > 0) {
+        parent->resources -= (DWORD)gold;
+        G_CreditResourceIncome(player, mine, PLAYERSTATE_RESOURCE_GOLD, gold);
+    }
+    if (parent->resources == 0 && mine->inuse && !M_IsDead(mine))
+        unit_die(mine, NULL);
 }

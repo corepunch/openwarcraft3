@@ -140,6 +140,9 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup. */
     if (self->construction.active) G_StopConstruction(self);
+    if (self->mineoverlay.parent) S_MineOverlayRelease(self);
+    if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
+    S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
@@ -488,8 +491,11 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
         }
+        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
+            return S_AcolyteHarvestOrder(self, target);
+        }
         if (G_ActorHasSkill(self, "Ahar")) {
-            if (S_GoldMineIsMine(target)) {
+            if (S_GoldMineCanHarvest(target)) {
                 return harvest_gold_order(self, target);
             }
             if (target->targtype == TARG_TREE) {
