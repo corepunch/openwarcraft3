@@ -103,10 +103,13 @@ Do not force passive, attack, aura, or autocast abilities into a visible cast ha
 just because their object-data class is named `CAbility*`. The runtime contract owns
 where the effect is evaluated.
 
-Ability variables must contain the ability name in snake_case. Use descriptive names
-such as `a_storm_bolt` or `a_war_stomp_campaign`; do not derive variable names from
-rawcode abbreviations such as `a_nsb` or `a_ow2`. Rawcodes remain explicit in the
-registry and in the `spell_info_t` code field.
+Ability globals use TFT `CAbility*` class names. Look up the FourCC in
+`tft-ability-classes.txt` and name the global after its class: `CAbilityDoom`,
+`CAbilityWarStomp`, `CAbilityFrostArmor`. Do not invent names or derive them
+from rawcode abbreviations. The `SPELL`, `HUMAN_SPELL`, and `CAMPAIGN_SPELL`
+macros prepend `C` to a PascalCase argument — `SPELL(AbilityDoom, ...)` produces
+`ability_t CAbilityDoom`. Rawcodes remain explicit in the registry and in the
+`spell_info_t` code field.
 
 The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated
 from the `*AbilityStrings.txt` files in `data/strings`. It is grouped by source file,
@@ -122,6 +125,102 @@ The generator uses the first sorted text file when a rawcode is defined more tha
 once. Entries without a text definition remain in the final `No AbilityStrings source
 file` group. The commented TODO entries are also generated, remain disabled, and are
 delimited by their own generated markers.
+
+## Adding a New Ability
+
+### 1. Identify the ability
+
+Look up the FourCC in `tft-ability-classes.txt` to find its TFT class name and parent:
+
+```
+{ "ANdo", "CAbilityDoom" },  /* parent="AAsm" */
+```
+
+Run the audit tool to see where this ability stands:
+
+```sh
+python3 tools/wc3_ability_class_audit.py --format=todo | grep ANdo
+```
+
+### 2. Choose the parent class
+
+The parent tells you what category the ability belongs to and which shared behavior it
+inherits. Common parent chains:
+
+| Parent | Category | Shared behavior |
+| --- | --- | --- |
+| `CAbilitySimpleSpell` (AAsm) | Most hero/unit spells | mana cost, cooldown, targeting, `spell_cmd` pipeline |
+| `CAbilityAutoTargetSpell` (AAat) | Autocast spells (Heal, Slow) | autocast hooks + spell pipeline |
+| `CAbilityRangerArrow` (AHRa) | Toggle attack arrows | autocast + toggle status |
+| `CAbilityPassive` (APas) | Passive abilities | no command handler; consumed by combat/movement |
+| `CAbilityMorph` (Amor) | Morph abilities | unit-type rebinding |
+| `CAbilityAura` (aura) | Aura abilities | persistent nearby-unit effects |
+| `CAbilitySpell` (AAsp) | Channel/toggle/complex spells | mana + cooldown but not simple-spell targeting |
+| `CAbilityPersistentBonus` (APbo) | Item stat bonuses | passive bonus applied/removed on equip |
+| `CPower` (powr) | Fundamental abilities (Move, Attack) | always present on units |
+
+### 3. Define the ability
+
+For a spell that uses the unified pipeline, use the `SPELL` macro in
+`s_requested_abilities.c` (or `HUMAN_SPELL` / `CAMPAIGN_SPELL` in the appropriate file):
+
+```c
+/* Name=Doom
+ * Ubertip="Curses a target enemy unit, dealing damage over time."
+ */
+SPELL(AbilityDoom, ('A','N','d','o'), SPELL_TARGET_UNIT, 0, doom_execute);
+```
+
+This generates `ability_t CAbilityDoom` with `.cmd = spell_cmd`. For abilities that
+don't use the spell pipeline, define the global directly:
+
+```c
+ability_t CAbilityMyPassive = { .flags = ABILITY_PASSIVE };
+```
+
+### 4. Declare and register
+
+Add an extern declaration to `s_skills.h`:
+
+```c
+extern ability_t CAbilityDoom;
+```
+
+Uncomment or add the entry in the abilitylist in `s_skills.c`:
+
+```c
+{ "ANdo", &CAbilityDoom },  /* Doom */
+```
+
+### 5. Wire the parent
+
+In `S_WireAbilityParents()` in `s_ability_classes.c`, set the parent pointer:
+
+```c
+CAbilityDoom.parent = &CAbilitySimpleSpell; /* ANdo → AAsm */
+```
+
+If the TFT hierarchy says the ability inherits from a concrete ability rather than an
+abstract base class, wire it to that concrete ability:
+
+```c
+CAbilityFireBolt.parent = &CAbilityThunderBolt; /* ANfb → AHtb */
+```
+
+### 6. Write tests
+
+Write focused tests before launching the game. See [Testing](#testing) for the required
+coverage: registration lookup, authored data mapping, positive path, nearest negative
+path, duration/expiry, and save/load.
+
+### 7. Verify coverage
+
+```sh
+python3 tools/wc3_ability_class_audit.py --format=coverage
+python3 tools/wc3_ability_class_audit.py --format=hierarchy | grep -A2 ANdo
+```
+
+The audit tool should show the ability as implemented (not TODO or missing).
 
 ## Behavior Record
 
@@ -292,7 +391,7 @@ The remaining questions should be handled independently:
 - Does stun replace, refresh, or combine with an existing stun?
 
 Use a focused test or retail observation for each question. Do not block the gameplay
-implementation while waiting to recover the original `CAbilityWarStomp` hierarchy.
+implementation on unrelated questions.
 
 ## Disassembly: Optional Evidence
 
