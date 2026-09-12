@@ -144,9 +144,9 @@ void G_RunEntity(LPEDICT ent) {
                     (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
         if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
     }
-    /* Keep aura TargetArt active only while the recipient still needs the
-     * corresponding resource; full health/mana removes the visual immediately. */
-    if (ent->data.UnitBalance && ((level.framenum + ent->s.number) & 7) == 0)
+    /* Retail refreshes aura recipients on a two-second cadence; keep the first
+     * update immediate while avoiding a full recipient scan every simulation tick. */
+    if (ent->data.UnitBalance && S_RegenerationAuraUpdateDue(ent))
         S_UpdateRegenerationAuraEffects(ent);
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);

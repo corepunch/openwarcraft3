@@ -3,6 +3,8 @@
 
 #include "../g_local.h"
 
+#define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
+
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \
@@ -225,6 +227,7 @@ FLOAT S_MilitiaPairSearchRadius(DWORD ability);
 FLOAT S_RegenerationHealthAura(LPEDICT unit);
 FLOAT S_RegenerationManaAura(LPEDICT unit);
 void S_UpdateRegenerationAuraEffects(LPEDICT unit);
+BOOL S_RegenerationAuraUpdateDue(LPEDICT unit);
 FLOAT S_BrillianceManaRegen(LPEDICT unit);
 FLOAT S_UnholyHealthRegen(LPEDICT unit);
 FLOAT S_UnholyMoveBonus(LPEDICT unit);

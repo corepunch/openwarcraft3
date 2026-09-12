@@ -86,8 +86,8 @@ resolves that buff through `AbilityBuffData.TargetArt` and maintains one persist
 for that family.  The effect follows the target, loops its `stand` sequence, and is
 destroyed through the ordinary effect lifecycle when the recipient leaves range, the
 source disappears, targeting changes, or another strongest source selects different art.
-Presentation reconciliation is staggered across units every eight simulation frames so
-the visual scan does not multiply the already-hot regeneration query on every frame.
+Aura values and presentation reconciliation refresh once every two seconds per recipient,
+matching the retail aura refresh cadence and keeping aura scans off the per-frame hot path.
 
 This intentionally mirrors Warsmash's display-buff behavior: aura `TargetArt` is present
 while the aura affects the unit, not spawned again on every HP/mana regeneration tick.
