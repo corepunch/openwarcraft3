@@ -743,6 +743,55 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 50, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+
+    well->s.player = target->s.player = 0;
+    target->health.max_value = 100.0f; target->health.value = 80.0f;
+    target->mana.max_value = 100.0f; target->mana.value = 50.0f;
+    T_NOT_NULL(item.ability);
+    T_ASSERT(test_ability_message(well, A_VALIDATE, &item, &st));
+    T_ASSERT(test_ability_message(well, A_EXECUTE, &item, &st));
+    T_FEQ(target->health.value, 100.0f, 0.001f);
+    T_FEQ(target->mana.value, 70.0f, 0.001f);
+    T_FEQ(well->mana.value, 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    LPEDICT well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 10, 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+
+    well->s.player = target->s.player = 0;
+    target->health.max_value = target->health.value = 100.0f;
+    target->mana.max_value = 100.0f; target->mana.value = 50.0f;
+    T_ASSERT(test_ability_message(well, A_VALIDATE, &item, &st));
+    T_ASSERT(test_ability_message(well, A_EXECUTE, &item, &st));
+    T_FEQ(target->health.value, 100.0f, 0.001f);
+    T_FEQ(target->mana.value, 70.0f, 0.001f);
+    T_FEQ(well->mana.value, 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* ---- ability_t registration ---- */
 
 TEST(wc3_spell, spell_fields_belong_to_ability) {

@@ -209,6 +209,10 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
     if (target->s.player != ent->s.player) return false;
 
     if (target->construction.active) {
+        /* Power Build is a Human construction rule. Orc, Undead, and Night
+         * Elf structures progress autonomously and ordinary Repair must not
+         * become an accidental second construction clock for them. */
+        if (target->construction.type != CONSTRUCTION_HUMAN) return false;
         /* DataD is the extra-worker power-build ratio. The primary Human
          * builder always contributes at 1.0 and must not be rejected merely
          * because DataD is zero/missing for additional workers. */

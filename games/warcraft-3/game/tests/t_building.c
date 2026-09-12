@@ -1218,6 +1218,7 @@ TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) 
     T_ASSERT(G_StartHumanConstruction(builder, building));
     T_ASSERT(building->construction.active);
     T_ASSERT(building->construction.paused);
+    T_EQ(building->construction.type, CONSTRUCTION_HUMAN);
     T_ASSERT(building->construction.primary_builder == builder);
     T_FEQ(building->construction.progress, 0.0f, 0.001f);
     T_ASSERT(!building->construction.paid);
@@ -1248,6 +1249,155 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
     G_FreeEdict(building);
     T_NULL(builder->build);
     T_EQ(builder->buildwork.ability, 0);
+}
+
+TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitBalance_t balance;
+    FLOAT hp_before;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 10;
+    building->data.UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+
+    T_ASSERT(G_StartOrcConstruction(worker, building));
+    T_EQ(building->construction.type, CONSTRUCTION_ORC);
+    T_ASSERT(building->construction.active);
+    T_ASSERT(!building->construction.paused);
+    T_ASSERT(building->construction.worker == worker);
+    T_ASSERT(building->construction.worker_inside);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->invulnerable);
+    T_ASSERT(worker->build == building);
+    T_FEQ(building->health.value, 100.0f, 0.001f);
+
+    hp_before = building->health.value;
+    G_RunConstructionFrame(building);
+    T_FEQ(building->construction.progress, (FLOAT)FRAMETIME, 0.001f);
+    T_ASSERT(building->health.value > hp_before);
+    T_ASSERT(building->health.value < building->health.max_value);
+}
+
+TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
+    LPEDICT worker;
+    LPEDICT building;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->stand = unit_stand;
+
+    T_ASSERT(G_StartOrcConstruction(worker, building));
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    G_FreeEdict(building);
+
+    T_ASSERT(!building->inuse);
+    T_ASSERT(worker->inuse);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!worker->paused);
+    T_ASSERT(!worker->invulnerable);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
+}
+
+TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitBalance_t balance;
+    DWORD release_time;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 60;
+    building->data.UnitBalance = &balance;
+    level.time = 1000;
+
+    T_ASSERT(G_StartUndeadConstruction(worker, building));
+    release_time = building->construction.worker_release_time;
+    T_EQ(building->construction.type, CONSTRUCTION_UNDEAD);
+    T_ASSERT(building->construction.worker == worker);
+    T_ASSERT(!building->construction.worker_inside);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!worker->paused);
+    T_ASSERT(!worker->invulnerable);
+    T_ASSERT(release_time > level.time);
+
+    level.time = release_time;
+    G_RunConstructionFrame(building);
+    T_ASSERT(building->construction.active);
+    T_NULL(building->construction.worker);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
+    T_FEQ(building->construction.progress, (FLOAT)FRAMETIME, 0.001f);
+}
+
+TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitBalance_t worker_balance;
+    UnitBalance_t building_balance;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker_balance = *worker->data.UnitBalance;
+    worker_balance.foodUsed = 2;
+    worker->data.UnitBalance = &worker_balance;
+    building_balance = *building->data.UnitBalance;
+    building_balance.type = "ancient";
+    building_balance.buildTime = 60;
+    building->data.UnitBalance = &building_balance;
+    G_SetUnitFoodUsed(worker, worker_balance.foodUsed);
+
+    T_ASSERT(G_StartNightElfConstruction(worker, building));
+    T_EQ(building->construction.type, CONSTRUCTION_NIGHTELF);
+    T_ASSERT(building->construction.consumes_worker);
+    T_EQ(worker->food.used, 0);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+
+    G_StopConstruction(building);
+    T_ASSERT(worker->inuse);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!worker->paused);
+    T_EQ(worker->food.used, worker_balance.foodUsed);
+    T_EQ(building->construction.type, CONSTRUCTION_NONE);
+}
+
+TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
+    LPGAMECLIENT saved_client;
+    LPEDICT worker;
+    LPEDICT building;
+    UnitBalance_t building_balance;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    building_balance = *building->data.UnitBalance;
+    building_balance.type = "ancient";
+    building->data.UnitBalance = &building_balance;
+    building->stand = building_test_stand;
+    building_stand_calls = 0;
+
+    T_ASSERT(G_StartNightElfConstruction(worker, building));
+    T_ASSERT(building->construction.consumes_worker);
+    saved_client = g_edicts[0].client;
+    g_edicts[0].client = NULL;
+    G_CompleteConstruction(building);
+    g_edicts[0].client = saved_client;
+
+    T_ASSERT(!worker->inuse);
+    T_ASSERT(!building->construction.active);
+    T_EQ(building->construction.type, CONSTRUCTION_NONE);
+    T_EQ(building_stand_calls, 1);
 }
 
 TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {
@@ -1492,6 +1642,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building->health.value = 400.0f;
     building->construction.active = true;
     building->construction.paused = true;
+    building->construction.type = CONSTRUCTION_HUMAN;
     building->construction.primary_builder = builder;
     building->construction.progress = 500.0f;
     building->construction.paid = true;
@@ -1517,6 +1668,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
 
     T_ASSERT(!building->construction.active);
     T_ASSERT(!building->construction.paused);
+    T_EQ(building->construction.type, CONSTRUCTION_NONE);
     T_NULL(building->construction.primary_builder);
     T_FEQ(building->construction.progress, 0.0f, 0.001f);
     T_ASSERT(!building->construction.paid);
@@ -2129,8 +2281,11 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
     building->svflags |= SVF_MONSTER;
     building->construction.active = true;
     building->construction.paused = true;
+    building->construction.type = CONSTRUCTION_ORC;
 
     T_ASSERT(!S_OrderRepair(standard, building, MAKEFOURCC('A','r','e','n')));
+    T_ASSERT(!S_OrderRepair(human, building, MAKEFOURCC('A','r','e','p')));
+    building->construction.type = CONSTRUCTION_HUMAN;
     building->construction.paused = false;
     T_ASSERT(!S_OrderRepair(human, building, MAKEFOURCC('A','r','e','p')));
 
@@ -2337,7 +2492,7 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
     M_MoveFrame(building);
     T_EQ(building->s.frame, 2500);
 
-    /* No progress means no visual drift while Human construction is paused. */
+    /* No progress means no visual drift while construction is paused. */
     M_MoveFrame(building);
     T_EQ(building->s.frame, 2500);
 }

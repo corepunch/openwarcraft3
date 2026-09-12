@@ -2,7 +2,7 @@
 
 ## Contract
 
-Human construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. Training follows the same authority rule through `UnitProfile.Trains`: command-card visibility and the eventual `button <rawcode>` request both re-evaluate the producer list, per-player technology maximum, normal requirements, and hero-count tier requirements before a unit can enter the queue. `games/warcraft-3/game/g_building.c` owns the shared technology/requirement checks as well as building resource availability and placement validation.
+Construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. Training follows the same authority rule through `UnitProfile.Trains`: command-card visibility and the eventual `button <rawcode>` request both re-evaluate the producer list, per-player technology maximum, normal requirements, and hero-count tier requirements before a unit can enter the queue. `games/warcraft-3/game/g_building.c` owns the shared technology/requirement checks as well as building resource availability and placement validation.
 
 Command-card activation is independent of JASS `EnableUserUI`. `button CmdBuild`, `button <unit rawcode>`, and other gameplay button commands must continue through `CMD_Button()` when `EnableUserUI(false)` is recorded; that native suppresses presentation affordances, not gameplay command authorization. A rebase briefly special-cased `client->no_ui` inside `CMD_Button()`, which made the button animate client-side while silently discarding both the Peasant Build submenu and Town Hall training requests.
 
@@ -186,9 +186,9 @@ The placement building itself is rendered as a white-tinted MDX instance at full
 
 Build-on-target structures (`UnitData.isBuildOn`) are intentionally excluded from the coloured grid for now. Their authoritative validity depends on finding an eligible `canBuildOn` parent, and that parent-eligibility state is not yet part of the client cursor contract. The ghost still uses authored dimensions for snapping; suppressing the grid is preferable to showing a misleading all-green plan.
 
-### Spawned Human construction cancellation
+### Spawned construction cancellation
 
-Once a Human structure has spawned, cancellation is owned by the unfinished structure rather than by the Peasant's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `construction.active` is true, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
+Once a race-specific structure has spawned, cancellation is owned by the unfinished structure rather than by the worker's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `construction.active` is true, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
 
 The authoritative lifecycle is:
 
@@ -198,7 +198,7 @@ validate live controlled construction
     -> publish EVENT_UNIT_CONSTRUCT_CANCEL
     -> refund 75% of the recorded base gold/lumber payment
     -> unit_die()
-       -> release every Human Repair/power-build worker
+       -> release Human Repair/power-build workers or the race-owned construction worker
        -> clear construction/self-linked queue state
        -> clear food and selection through normal death cleanup
        -> publish ordinary death events
@@ -208,9 +208,17 @@ validate live controlled construction
 
 The construction record stores the payer and exact base gold/lumber charge at spawn time. This avoids refunding later Human power-build Repair spending and keeps ownership changes from redirecting the refund to the structure's current owner. `wc3_build_all` constructions record no payment and therefore receive no cancellation refund. The refund calculation is isolated in `G_ConstructionCancelRefund()` so integer-rounding parity can be refined independently if retail observation shows a different edge case.
 
-`G_StopConstruction()` is also called when an unfinished Human structure dies to combat. That path releases builders and the construction HUD self-link but does **not** publish construct-cancel events or refund resources. Cancellation therefore remains distinct from enemy destruction while still sharing the normal death, food, selection, and pathing lifecycle.
+`G_StopConstruction()` is also called when any race-specific unfinished structure dies to combat or is directly removed. That path releases builders and the construction HUD self-link but does **not** publish construct-cancel events or refund resources. Cancellation therefore remains distinct from enemy destruction while still sharing the normal death, food, selection, and pathing lifecycle.
 
 Static building footprints are rebuilt after building death. `common/routing.c` excludes dead `SVF_MONSTER` entities from static footprint baking even when their authored `pathtex` remains attached for presentation/save state; dead destructables retain their separate death-path-texture behavior. This prevents cancelled or destroyed buildings from leaving invisible route blockers.
+
+## Race-specific construction lifecycles
+
+The spawned building now records an explicit construction strategy. Human remains Repair-driven and paused; Orc, Undead, and Night Elf buildings use the shared autonomous construction clock in `G_RunConstructionFrame()`. Orc Peons and Night Elf Wisps are hidden/paused/invulnerable while inside construction. Undead Acolytes remain visible for the short summon-work window and are then released while the structure continues. Night Elf structures classified `ancient` consume their Wisp on successful completion; cancellation/destruction releases the Wisp and restores its authored Food Used.
+
+The building owns temporary-worker state (`construction.worker` plus `spawn_time`) separately from Human `construction.primary_builder`. Completion, cancellation, combat death, and direct `G_FreeEdict()` all use the same worker-release path. Human Repair rejects active autonomous construction, so it cannot become a second construction clock.
+
+See [Race Mechanics](race-mechanics.md) for the clean-room comparison, state ownership, save/load requirements, and deferred race-specific economy/terrain mechanics.
 
 ## Human construction and power building
 
@@ -286,8 +294,8 @@ Construction and owned-building Repair now share the behavior described above. T
 - training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
-- spawned Human construction cancellation now has the base 75% gold/lumber refund, worker release, cancel/death events, command/UI wiring, and footprint teardown; retail damage-adjusted cancellation refund behavior is not yet modeled because the exact damage/repair interaction still needs observation;
-- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior, so their spawned-construction cancellation lifecycles are not yet enabled. Their legacy health-driven completion path now converges on `G_CompleteConstruction()`: the self-linked `building->build == building` sentinel is cleared, authored Food Made is activated, the owner completion feedback is emitted, and the player-unit/unit `CONSTRUCT_FINISH` event pair is published exactly once. This is required by campaign triggers such as Prologue02's Orc Burrow objective;
+- spawned construction cancellation records the base payment for each implemented race strategy and has the base 75% gold/lumber refund, worker release/consumption teardown, cancel/death events, command/UI wiring, and footprint teardown; retail damage-adjusted cancellation refund behavior is not yet modeled because the exact damage/repair interaction still needs observation;
+- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies are implemented; Haunted/Entangled Mine overlays, Blight, Wisp lumber, and full Root/Uproot remain tracked in [Race Mechanics](race-mechanics.md);
 - string-form `IssueBuildOrder` remains a stub. `IssueBuildOrderById` and building rawcodes passed to the numeric point-order natives reuse `G_IssueBuildOrder()`; canonical movement/spell numeric IDs continue through the existing order table;
 - Repair target masks are not yet complete enough to safely enable allied structures, repairable mechanical non-buildings, or destructibles; the current implementation keeps the pre-existing owned-building boundary;
 - Repair `DataE` naval-range behavior is not implemented;
@@ -344,12 +352,18 @@ Runtime checks should cover at least:
 31. Move a live unit into the footprint and verify the cells overlapped by its gameplay collision circle turn red while the selected builder itself does not.
 32. Kill the blocking unit and verify its non-selectable corpse no longer paints placement cells red.
 33. Verify a build-on-target structure keeps normal ghost snapping but does not display the coloured grid until parent-target preview metadata is implemented.
+34. Start Orc construction and verify the Peon is hidden, paused, invulnerable, and returned outside the completed/cancelled structure.
+35. Start Undead construction and verify the Acolyte remains visible for the summon-work window, is released before completion, and the building continues autonomously.
+36. Start Night Elf Ancient construction and verify the Wisp leaves Food Used while inside, is consumed on completion, and is restored with Food Used on cancellation/destruction.
+37. Attempt standard or Human Repair on autonomous Orc/Undead/Night Elf construction and verify it is rejected rather than adding a second construction clock.
+38. Save/load while a race-owned construction worker is attached and verify the `construction.worker` edict reference and lifecycle flags round-trip.
 
 ## See Also
 
 - [Building Damage Rendering](building-damage-rendering.md) — health-driven fire overlays are renderer presentation; construction Birth suppresses them even though construction starts at low HP.
 - [Pathfinding](pathfinding.md) — static footprint baking and dynamic-unit obstacle handling used by construction placement and teardown.
-- [Save / Load](save-load.md) — raw `edict_t` scalar persistence and `F_EDICT` fixups for `construction.primary_builder`.
+- [Race Mechanics](race-mechanics.md) — Human/Orc/Undead/Night Elf construction state machines and remaining racial mechanic gaps.
+- [Save / Load](save-load.md) — raw `edict_t` scalar persistence and `F_EDICT` fixups for `construction.primary_builder` and `construction.worker`.
 
 ### Campaign construction diagnostics
 

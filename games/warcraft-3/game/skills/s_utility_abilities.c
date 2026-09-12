@@ -44,35 +44,46 @@ static void eat_tree_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     G_FreeEdict(target);
 }
 
-/* ---- Moon Well (Ambt): transfer mana to health for a friendly unit -------- */
+/* ---- Moon Well (Ambt): spend the well's mana on friendly life, then mana -- */
 
 static BOOL moon_well_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT target = st.entity;
-    LPEDICT well = caster;
-    DWORD level = S_SpellLevel(well, spell->code);
-    FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT health_gain = MAX(0.0f, S_SpellData(spell->code, level, 2));
-    FLOAT missing, offered;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT mana_ratio = S_SpellData(spell->code, level, 1); /* DataA: well mana / target mana */
+    FLOAT life_ratio = S_SpellData(spell->code, level, 2); /* DataB: well mana / target HP */
 
-    if (!S_SpellIsFriend(caster, target)) return false;
-    missing = MAX(0.0f, target->health.max_value - target->health.value);
-    offered = MIN(missing, caster->mana.value / mana_cost_per_point);
-    offered = MIN(offered, health_gain > 0 ? health_gain : offered);
-    return offered > 0;
+    if (!caster || !target || !S_SpellIsFriend(caster, target) || caster->mana.value <= 0.0f) return false;
+    if (life_ratio > 0.0f && target->health.value < target->health.max_value) return true;
+    return mana_ratio > 0.0f && target->mana.value < target->mana.max_value;
 }
 
 static void moon_well_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT health_gain = MAX(0.0f, S_SpellData(spell->code, level, 2));
-    FLOAT missing, offered;
+    FLOAT mana_ratio = S_SpellData(spell->code, level, 1);
+    FLOAT life_ratio = S_SpellData(spell->code, level, 2);
+    FLOAT available = MAX(0.0f, caster->mana.value);
 
-    missing = MAX(0.0f, target->health.max_value - target->health.value);
-    offered = MIN(missing, caster->mana.value / mana_cost_per_point);
-    offered = MIN(offered, health_gain > 0 ? health_gain : offered);
-    caster->mana.value -= offered * mana_cost_per_point;
-    S_SpellHeal(target, offered);
+    /* Warsmash/Warcraft spends the same Moon Well pool sequentially: restore
+     * missing life first with DataB, then spend what remains on missing mana
+     * with DataA. These values are ratios, not per-cast restoration caps. */
+    if (life_ratio > 0.0f && available > 0.0f) {
+        FLOAT wanted = MAX(0.0f, target->health.max_value - target->health.value);
+        FLOAT gained = MIN(wanted, available / life_ratio);
+        if (gained > 0.0f) {
+            S_SpellHeal(target, gained);
+            available -= gained * life_ratio;
+        }
+    }
+    if (mana_ratio > 0.0f && available > 0.0f) {
+        FLOAT wanted = MAX(0.0f, target->mana.max_value - target->mana.value);
+        FLOAT gained = MIN(wanted, available / mana_ratio);
+        if (gained > 0.0f) {
+            target->mana.value = MIN(target->mana.max_value, target->mana.value + gained);
+            available -= gained * mana_ratio;
+        }
+    }
+    caster->mana.value = MAX(0.0f, available);
 }
 
 /* ---- Registration -------------------------------------------------------- */
