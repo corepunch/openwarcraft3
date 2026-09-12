@@ -429,7 +429,7 @@ void ai_train_build(LPEDICT ent) {
     }
 }
 
-static umove_t train_move_train = { "stand", ai_train_build, NULL, &CAbilityTrain };
+static umove_t train_move_train = { "stand", ai_train_build, NULL, CAbilityTrain };
 
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     LPEDICT last;
@@ -631,6 +631,6 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     return false;
 }
 
-ability_t CAbilityTrain = {
-    
-};
+intptr_t CAbilityTrain(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    return CAbilityNoop(ent, msg, call);
+}

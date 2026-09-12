@@ -97,11 +97,13 @@ static void onfire_level_changed(LPEDICT ent, DWORD level) {
 
 static void onfire_enabled(LPEDICT ent) { onfire_level_changed(ent, onfire_level(ent)); }
 
-    /* Retail synthesizes one race-specific CAbilityOnFire for buildings instead of listing it in UnitAbilities.slk. */
-    ability_t CAbilityOnFireHuman = {
-        .flags = AB_PASSIVE,
-        .enabled = onfire_enabled,
-        .disabled = onfire_disabled,
-        .level = onfire_level,
-        .level_changed = onfire_level_changed,
-    };
+/* Retail synthesizes one race-specific CAbilityOnFire for buildings instead of listing it in UnitAbilities.slk. */
+intptr_t CAbilityOnFireHuman(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    switch (msg) {
+    case A_ENABLE: onfire_enabled(ent); return true;
+    case A_DISABLE: onfire_disabled(ent); return true;
+    case A_LEVEL: return onfire_level(ent);
+    case A_LEVEL_CHANGED: onfire_level_changed(ent, call ? call->level : 0); return true;
+    default: return CAbilityPassive(ent, msg, call);
+    }
+}

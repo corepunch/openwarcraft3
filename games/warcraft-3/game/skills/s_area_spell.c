@@ -1,9 +1,5 @@
 #include "s_skills.h"
 
-#define ID_BLIZZARD MAKEFOURCC('A', 'H', 'b', 'z')
-#define ID_STARFALL MAKEFOURCC('A', 'E', 's', 'f')
-#define ID_TRANQUILITY MAKEFOURCC('A', 'E', 't', 'q')
-#define ID_DEATH_AND_DECAY MAKEFOURCC('A', 'U', 'd', 'd')
 
 typedef struct {
     LPEDICT caster;
@@ -49,9 +45,9 @@ void blizzard_think(LPEDICT ent) {
         ent->resources--;
     if (ent->resources == 0 || (ent->spawn_time && now >= ent->spawn_time)) {
         LPEDICT caster = ent->owner;
-        G_FreeEdict(ent);
-        if (caster && caster->channel.code == ID_BLIZZARD)
+        if (caster && caster->channel.code == ent->class_id)
             S_SpellCancelChannel(caster);
+        G_FreeEdict(ent);
         return;
     }
     ent->freetime = now + 1000;
@@ -60,7 +56,7 @@ void blizzard_think(LPEDICT ent) {
 /* Blizzard: channeled point-target AoE.  AB_CHANNEL flag causes the unified
  * pipeline to lock the caster via channel_code/cast_origin; spell_run_frame()
  * enforces movement-cancel.  The thinker entity runs the per-wave damage. */
-static void blizzard_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void blizzard_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD waves = (DWORD)S_SpellData(spell->code, level, 1);
     DWORD damage = (DWORD)S_SpellData(spell->code, level, 2);
@@ -69,6 +65,7 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, ability_t const *
 
     thinker = G_Spawn();
     thinker->owner = caster;
+    thinker->class_id = spell->code;
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -82,7 +79,7 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, ability_t const *
 }
 
 /* Carrion Swarm: instant point-target AoE blast. */
-static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT blast;
 
@@ -109,7 +106,7 @@ static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
 
 /* Shockwave uses the authored damage, cap, travel distance, and corridor width
  * rather than treating the line spell as a circular point-target burst. */
-static void shockwave_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void shockwave_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
     VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
@@ -140,11 +137,12 @@ static void rain_of_fire_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
     thinker->owner = caster;
+    thinker->class_id = spell->code;
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -167,19 +165,20 @@ static void starfall_think(LPEDICT ent) {
     area_spell_damage(ent, 0.0f);
     if (ent->spawn_time && now >= ent->spawn_time) {
         LPEDICT caster = ent->owner;
-        G_FreeEdict(ent);
-        if (caster && caster->channel.code == ID_STARFALL)
+        if (caster && caster->channel.code == ent->class_id)
             S_SpellCancelChannel(caster);
+        G_FreeEdict(ent);
         return;
     }
     ent->freetime = now + (DWORD)MAX(1.0f, ent->velocity * 1000.0f);
 }
 
-static void starfall_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void starfall_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
     thinker->owner = caster;
+    thinker->class_id = spell->code;
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
@@ -194,42 +193,22 @@ static void starfall_execute(LPEDICT caster, spellTarget_t st, ability_t const *
 /* Name=Blizzard
  * Ubertip="Calls down an icy storm that damages enemy units in a target area."
  */
-ability_t CAbilityBlizzard = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Blizzard",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = blizzard_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityBlizzard, blizzard_execute)
 
 /* Name=Carrion Swarm
  * Ubertip="Sends a wave of bats that damages enemy units in a line."
  */
-ability_t CAbilityCarrionSwarm = {
-    .flags = AB_SPELL,
-    .name = "Carrion Swarm",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = carrion_swarm_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm, carrion_swarm_execute)
 
 /* Name=Shockwave
  * Ubertip="A wave of force that ripples outward, causing <AOsh,DataA1> damage to land units in a line."
  */
-ability_t CAbilityShockwave = {
-    .flags = AB_SPELL,
-    .name = "Shockwave",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = shockwave_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityShockwave, shockwave_execute)
 
 /* Name=Rain of Fire
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
-ability_t CAbilityRainOfFire = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Rain of Fire",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = rain_of_fire_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire, rain_of_fire_execute)
 
 /* Death and Decay deals the authored percentage of each enemy's maximum life
  * on every pulse; unlike Rain of Fire, DataA is not a fixed damage amount. */
@@ -244,19 +223,20 @@ static void death_and_decay_think(LPEDICT ent) {
         S_SpellDamage(target, caster, (DWORD)MAX(1.0f, target->health.max_value * ent->wait));
     }
     if (ent->spawn_time && now >= ent->spawn_time) {
-        G_FreeEdict(ent);
-        if (caster && caster->channel.code == ID_DEATH_AND_DECAY)
+        if (caster && caster->channel.code == ent->class_id)
             S_SpellCancelChannel(caster);
+        G_FreeEdict(ent);
         return;
     }
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
     thinker->owner = caster;
+    thinker->class_id = spell->code;
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -271,14 +251,9 @@ static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, ability_t 
 /* Name=Death and Decay
  * Ubertip="Damages enemy units in a target area over time."
  */
-ability_t CAbilityDeathAndDecay = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Death and Decay",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = death_and_decay_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay, death_and_decay_execute)
 
-static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -297,21 +272,11 @@ static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, ability
 /* Name=Thunder Clap
  * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
  */
-ability_t CAbilityThunderClap = {
-    .flags = AB_SPELL,
-    .name = "Thunder Clap",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = area_damage_status_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityThunderClap, area_damage_status_execute)
 /* Name=Frost Nova
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
-ability_t CAbilityFrostNova = {
-    .flags = AB_SPELL,
-    .name = "Frost Nova",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = area_damage_status_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityFrostNova, area_damage_status_execute)
 
 static void tranquility_think(LPEDICT ent) {
     DWORD now = G_Time();
@@ -323,19 +288,20 @@ static void tranquility_think(LPEDICT ent) {
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision)
         S_SpellHeal(target, ent->damage);
     if (ent->spawn_time && now >= ent->spawn_time) {
-        G_FreeEdict(ent);
-        if (caster && caster->channel.code == ID_TRANQUILITY)
+        if (caster && caster->channel.code == ent->class_id)
             S_SpellCancelChannel(caster);
+        G_FreeEdict(ent);
         return;
     }
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void tranquility_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void tranquility_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
     thinker->owner = caster;
+    thinker->class_id = spell->code;
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
@@ -350,22 +316,12 @@ static void tranquility_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 /* Name=Tranquility
  * Ubertip="Heals nearby friendly units over time."
  */
-ability_t CAbilityTranquility = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Tranquility",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = tranquility_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityTranquility, tranquility_execute)
 
 /* Name=Starfall
  * Ubertip="Calls down falling stars that damage nearby enemy units over time."
  */
-ability_t CAbilityStarfall = {
-    .flags = AB_SPELL | AB_CHANNEL,
-    .name = "Starfall",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = starfall_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityStarfall, starfall_execute)
 
 static void channel_test_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
@@ -373,6 +329,4 @@ static void channel_test_command(LPEDICT clent) {
 }
 
 /* CAbilityChannel remains a non-spell ability for ad-hoc testing. */
-ability_t CAbilityChannel = {
-    .cmd = channel_test_command,
-};
+BZ_COMMAND_PROC(AbilityChannel, channel_test_command)

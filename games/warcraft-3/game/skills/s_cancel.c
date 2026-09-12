@@ -4,6 +4,4 @@ void cancel_command(LPEDICT ent) {
     CMD_CancelCommand(ent);
 }
 
-ability_t CAbilityCancel = {
-    .cmd = cancel_command,
-};
+BZ_COMMAND_PROC(AbilityCancel, cancel_command)

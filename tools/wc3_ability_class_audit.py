@@ -31,12 +31,12 @@ TFT_RE = re.compile(
 # Also handle entries with NULL fourcc (unregistered helpers at the end)
 TFT_NULL_RE = re.compile(r'^\{\s*NULL\s*,\s*"([^"]+)"\s*\}')
 
-# Active: { "AHhb", &a_holylight },  /* Holy Light */
-ACTIVE_RE = re.compile(r'^\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*&(\w+)\s*(?:,\s*\.alias\s*=\s*true\s*)?\}')
-# TODO:   // TODO: { "Ablo", &a_bloodlust },  /* Bloodlust */
-TODO_RE = re.compile(r'^\s*//\s*TODO:\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*&(\w+)\s*\}')
+# Active: { "AHhb", CAbilityHolyBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Holy Light */
+ACTIVE_RE = re.compile(r'^\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*(\w+)\s*,')
+# Inactive coverage inventory: // TODO: Ablo a_bloodlust  /* Bloodlust */
+TODO_RE = re.compile(r'^\s*//\s*TODO:\s*([A-Za-z0-9+\-]{2,5})\s+(\w+)')
 # Engine commands use STR_Cmd* instead of string literals
-ENGINE_RE = re.compile(r'^\s*\{\s*STR_Cmd\w+\s*,\s*&(\w+)\s*\}')
+ENGINE_RE = re.compile(r'^\s*\{\s*STR_Cmd\w+\s*,\s*(\w+)\s*,')
 
 
 def load_tft_classes(path: Path) -> dict[str, tuple[str, str]]:
@@ -113,12 +113,12 @@ def format_coverage(classes, active, todo):
     missing = all_ability_fourccs - active_fourccs - todo_fourccs
 
     print(f"TFT ability classes: {len(all_ability_fourccs)}")
-    print(f"Implemented:         {len(implemented)}")
+    print(f"Registered class IDs:         {len(implemented)}")
     print(f"TODO (registered):   {len(todo_known)}")
-    print(f"Missing (not in registry): {len(missing)}")
+    print(f"Unregistered retail IDs (includes abstract classes): {len(missing)}")
     print()
     if missing:
-        print("Missing from registry:")
+        print("Unregistered retail reference IDs; abstract types do not belong in gameplay:")
         for fc in sorted(missing):
             cn, par = classes[fc]
             print(f"  {fc:5s} {cn:45s} parent={par}")
@@ -154,7 +154,7 @@ def format_parents(classes, active, todo):
         if varname not in var_fourcc and fourcc in classes:
             var_fourcc[varname] = fourcc
 
-    print("TFT retail parents (reference only; runtime abilities use flags/callbacks)")
+    print("TFT retail parents (reference only; runtime abilities use procedures and registry flags)")
     for varname in sorted(var_fourcc):
         fourcc = var_fourcc[varname]
         cn, parent_fc = classes[fourcc]

@@ -95,7 +95,7 @@ static BOOL can_attack(LPCEDICT ent) {
     if (!S_CargoAttacksEnabled(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
         return false;
-    if (!ent->currentmove || ent->currentmove->ability != &CAbilityAttack)
+    if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
         return true;
     return false;
 }
@@ -398,11 +398,11 @@ static void ai_attack_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, &CAbilityAttack };
-static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, &CAbilityAttack };
-static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, &CAbilityAttack };
-static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, &CAbilityAttack };
-static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, &CAbilityAttack };
+static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, CAbilityAttack };
+static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, CAbilityAttack };
+static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, CAbilityAttack };
+static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
+static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, CAbilityAttack };
 
 void attack_walk(LPEDICT self) {
     unit_setmove(self, &attack_move_walk);
@@ -521,7 +521,7 @@ static void ai_attackmove_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &CAbilityAttack };
+static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, CAbilityAttack };
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(LPEDICT self, LPEDICT waypoint) {
@@ -564,6 +564,4 @@ void attack_command(LPEDICT ent) {
     ent->client->menu.supports_order_queue = true;
 }
 
-ability_t CAbilityAttack = {
-    .cmd = attack_command,
-};
+BZ_COMMAND_PROC(AbilityAttack, attack_command)

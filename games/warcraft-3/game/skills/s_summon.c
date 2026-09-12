@@ -34,7 +34,7 @@ void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
 }
 
 /* Replace only the caster's prior Feral Spirit summons before spawning the new cast. */
-static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void feral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level, unit_id, count;
     FLOAT duration, distance;
     VECTOR2 loc;
@@ -78,7 +78,7 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
     return summon;
 }
 
-static void summon_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD unit_id = S_SpellUnitId(spell->code, level);
     DWORD count = (DWORD)S_SpellData(spell->code, level, 2);
@@ -91,57 +91,27 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, ability_t const *sp
 /* Name=Summon Water Elemental
  * Ubertip="Summons a Water Elemental to fight for the caster."
  */
-ability_t CAbilityWaterElemental = {
-    .flags = AB_SPELL,
-    .name = "Water Elemental",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental, summon_execute)
 
 /* Name=Feral Spirit
  * Ubertip="Summons Spirit Wolf companions."
  */
-ability_t CAbilitySpiritWolf = {
-    .flags = AB_SPELL,
-    .name = "Feral Spirit",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = feral_spirit_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf, feral_spirit_execute)
 
 /* Name=Force of Nature
  * Ubertip="Summons treants from a target area to fight for the caster."
  */
-ability_t CAbilityForceOfNature = {
-    .flags = AB_SPELL,
-    .name = "Force of Nature",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilityForceOfNature, summon_execute)
 
 /* Name=Summon Bear
  * Ubertip="Summons Misha, a powerful bear, to attack your enemies."
  */
-ability_t CAbilitySummonGrizzly = {
-    .flags = AB_SPELL,
-    .name = "Summon Bear",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilitySummonGrizzly, summon_execute)
 /* Name=Summon Quilbeast
  * Ubertip="Summons an angry quilbeast to fling spines at your enemies."
  */
-ability_t CAbilitySummonQuillbeast = {
-    .flags = AB_SPELL,
-    .name = "Summon Quilbeast",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilitySummonQuillbeast, summon_execute)
 /* Name=Summon Hawk
  * Ubertip="Summons a hawk to fight for the caster."
  */
-ability_t CAbilitySummonWarEagle = {
-    .flags = AB_SPELL,
-    .name = "Summon Hawk",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = summon_execute,
-};
+BZ_SIMPLE_SPELL_PROC(AbilitySummonWarEagle, summon_execute)

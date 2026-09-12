@@ -45,7 +45,8 @@ TEST(wc3_rally, capability_is_train_or_revive_driven) {
 TEST(wc3_rally, command_handler_is_registered) {
     ability_t const *ability = FindAbilityByClassname(STR_CmdRally);
     T_NOT_NULL(ability);
-    T_NOT_NULL(ability->cmd);
+    T_ASSERT(ability->flags & AB_COMMAND);
+    T_EQ(ability->proc, CAbilityRally);
 }
 
 TEST(wc3_rally, default_target_is_producer_itself) {

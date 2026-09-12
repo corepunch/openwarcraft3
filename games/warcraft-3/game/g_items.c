@@ -321,7 +321,7 @@ static void G_PickupItemThink(LPEDICT unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, &CAbilityInventory };
+static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, CAbilityInventory };
 
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
     if (!G_CanPickupItem(unit, item) || (unit->aiflags & AI_IMMOBILE)) {
@@ -425,7 +425,7 @@ static void G_DropItemThink(LPEDICT unit) {
 }
 
 static umove_t item_move_drop = {
-    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .ability = &CAbilityInventory
+    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
 };
 
 BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
@@ -497,12 +497,14 @@ void G_UseItem(LPEDICT unit, DWORD slot) {
 
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
+        abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
         BOOL succeeded = false;
 
         if (!ability) continue;
         clent->client->menu.ability_code = *((DWORD const *)ability_name);
-        if (ability->item_use) {
-            succeeded = ability->item_use(clent);
+        if (ability->flags & AB_ITEM) {
+            succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
         } else if (S_AbilityHasCommand(ability)) {
             S_AbilityCommand(clent, ability);
             return;

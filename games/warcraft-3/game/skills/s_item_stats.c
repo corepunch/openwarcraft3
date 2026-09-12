@@ -106,23 +106,23 @@ void item_stat_remove(LPEDICT unit, DWORD item_code) {
 
 /* Init functions — read bonus values from AbilityData.slk at startup. */
 
-void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self) {
+void SP_ability_item_attack_bonus(LPCSTR classname) {
     item_attack_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
-void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self) {
+void SP_ability_item_defense_bonus(LPCSTR classname) {
     item_defense_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
-void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self) {
+void SP_ability_item_life_bonus(LPCSTR classname) {
     item_life_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
-void SP_ability_item_mana_bonus(LPCSTR classname, ability_t *self) {
+void SP_ability_item_mana_bonus(LPCSTR classname) {
     item_mana_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
 }
 
-void SP_ability_item_stat_bonus(LPCSTR classname, ability_t *self) {
+void SP_ability_item_stat_bonus(LPCSTR classname) {
     item_stat_str_val = G_AbilityDataName(classname)->level[0].data[0].number;
     item_stat_agi_val = G_AbilityDataName(classname)->level[0].data[1].number;
     item_stat_int_val = G_AbilityDataName(classname)->level[0].data[2].number;

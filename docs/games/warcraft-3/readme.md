@@ -133,3 +133,5 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Research And Upgrades](research-and-upgrades.md)
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
+
+- [Ability message procedure proposal](ability-procedure-plan.md): coverage, payload/result contracts, default delegation, and migration scope.

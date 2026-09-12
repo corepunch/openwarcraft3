@@ -47,7 +47,7 @@ BOOL G_UnitIsIdleWorker(LPCEDICT ent) {
         !ent->data.UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
         S_GoldMineWorkerIsInside(ent) || ent->movement.holding_position ||
-        !ent->currentmove || ent->currentmove->ability || !ent->currentmove->animation ||
+        !ent->currentmove || ent->currentmove->proc || !ent->currentmove->animation ||
         strcmp(ent->currentmove->animation, "stand")) {
         return false;
     }

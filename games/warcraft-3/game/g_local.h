@@ -481,13 +481,6 @@ struct client_s {
     DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
 
-typedef struct {
-    LPCSTR animation;
-    void (*think)(LPEDICT);
-    void (*endfunc)(LPEDICT);
-    struct ability_s *ability;
-} umove_t;
-
 /* Player-issued WC3 Shift orders are simulation state, separate from the
  * training/research queue. Targets are retained by edict number + spawn_time
  * so a recycled slot cannot silently retarget an old queued command. */
@@ -523,6 +516,9 @@ typedef struct {
 #define AB_AUTOCAST     (1u << 3)  // bit 3; independent automatic activation policy; used in ability flags
 #define AB_SPELL        (1u << 4)  // bit 4; shared casting path; selects generic command and effect dispatch
 #define AB_NO_SMART     (1u << 5)  // bit 5; excludes Smart target acquisition; used in ability flags
+#define AB_COMMAND      (1u << 6)  // bit 6; bespoke command procedure; exposes a command-card action
+#define AB_UPDATE       (1u << 7)  // bit 7; persistent behavior procedure; receives per-unit update messages
+#define AB_ITEM         (1u << 8)  // bit 8; inventory behavior procedure; receives item-use messages
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -562,36 +558,61 @@ typedef enum {
     WC3_EFFECT_LIGHTNING = 6,
 } wc3EffectType_t;
 
-typedef struct ability_s {
-    void (*init)(LPCSTR, struct ability_s *);
-    void (*cmd)(LPEDICT);
-    BOOL (*is_toggle_on)(LPEDICT); /* selects Un* command-card fields when true */
+typedef struct ability_s ability_t;
+typedef struct ability_call_s abilityCall_t;
+
+/* A resolved use of a shared procedure. Rawcode belongs to the authored ability, not its behavior. */
+typedef struct {
+    DWORD code;
+    ability_t const *ability;
+} abilityitem_t;
+
+typedef enum {
+    A_INIT,             /* InitAbilities: initialize shared data from call->classname. */
+    A_COMMAND,          /* Command card: begin the ability through call->client; return handled. */
+    A_TOGGLE_ON,        /* Command card: return whether ent currently uses its alternate/off button. */
+    A_VALIDATE,         /* Spell pipeline: validate call->target before spending resources; return allowed. */
+    A_EXECUTE,          /* Spell pipeline: apply the effect to call->target; return whether it executed. */
+    A_ITEM_USE,         /* Inventory click: apply an immediate item effect; return success for charge use. */
+    A_AUTOCAST_ON,      /* Autocast/UI query: return whether autocast is enabled on ent. */
+    A_AUTOCAST_SET,     /* Autocast command: set ent's state from call->enabled. */
+    A_AUTOCAST_ACQUIRE, /* Unit scheduler: acquire a target and issue an autocast; return whether issued. */
+    A_ENABLE,           /* UnitAddAbility: notify the procedure that this ability was added to ent. */
+    A_DISABLE,          /* UnitRemoveAbility: notify the procedure that this ability was removed from ent. */
+    A_LEVEL,            /* Level refresh: return ent's current behavior-specific ability level. */
+    A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
+    A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
+    A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
+} abilityMsg_t;
+
+typedef intptr_t (*abilityProc_t)(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call);
+
+struct ability_call_s {
+    abilityitem_t const *item;
+    union {
+        spellTarget_t const *target;
+        LPEDICT client;
+        LPCSTR order;
+        LPCSTR classname;
+        DWORD level;
+        BOOL enabled;
+    };
+};
+
+struct ability_s {
+    LPCSTR classname;
+    abilityProc_t proc;
     DWORD flags;
-    DWORD code; /* canonical FourCC; aliases do not overwrite this identity */
-    LPCSTR name; /* debug / log identifier */
     spellTargetType_t target_type;
-    BOOL (*validate)(LPEDICT caster, spellTarget_t target); /* extra checks before resource spend */
-    void (*execute)(LPEDICT caster, spellTarget_t target, struct ability_s const *ability);
+    LPCSTR const *orders;
+};
 
-    BOOL (*item_use)(LPEDICT); /* synchronous inventory activation; true only when gameplay effect applies */
-
-    /* The unit scheduler owns when to try autocast;
-     * each ability owns its toggle state and target acquisition policy. */
-    BOOL (*autocast_is_on)(LPEDICT);
-    void (*autocast_set)(LPEDICT, BOOL);
-    BOOL (*autocast_acquire)(LPEDICT);
-
-    /* Ability membership and owning-entity state transitions are event-driven. */
-    void (*enabled)(LPEDICT);
-    void (*disabled)(LPEDICT);
-    DWORD (*level)(LPCEDICT);
-    void (*level_changed)(LPEDICT, DWORD);
-
-    /* Optional immediate orders and persistent updates; each ability owns eligibility and pause policy. */
-    LPCSTR const *orders; /* NULL-terminated order names */
-    BOOL (*order)(LPEDICT, LPCSTR);
-    void (*update)(LPEDICT);
-} ability_t;
+typedef struct {
+    LPCSTR animation;
+    void (*think)(LPEDICT);
+    void (*endfunc)(LPEDICT);
+    abilityProc_t proc;
+} umove_t;
 
 typedef struct {
     attackType_t type;
@@ -1779,7 +1800,7 @@ void S_EnableAbility(LPEDICT, DWORD);
 void S_DisableAbility(LPEDICT, DWORD);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
 BOOL S_UnitPolymorphed(LPCEDICT unit);
-extern ability_t CAbilityOnFireHuman;
+intptr_t CAbilityOnFireHuman(LPEDICT, abilityMsg_t, abilityCall_t const *);
 void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
@@ -1791,12 +1812,12 @@ void S_RunAbilityUpdates(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
+abilityitem_t S_AbilityItem(DWORD code);
 BOOL S_AbilityHasCommand(ability_t const *ability);
 void S_AbilityCommand(LPEDICT clent, ability_t const *ability);
 ability_t const *GetAbilityByIndex(DWORD);
 DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);
-void SetAbilityNames(void);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
@@ -2072,7 +2093,7 @@ void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
 FLOAT AB_Data(LPCSTR, DWORD, DWORD);
-DWORD GetAbilityIndex(ability_t const *);
+DWORD GetAbilityIndex(abilityProc_t);
 
 // g_combat.c
 int G_AttackDamage(LPEDICT, LPEDICT, int);

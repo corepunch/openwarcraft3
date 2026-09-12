@@ -3446,7 +3446,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
 
     order_attack(burrow, target);
     T_NOT_NULL(burrow->currentmove);
-    T_ASSERT(burrow->currentmove->ability == &CAbilityAttack);
+    T_ASSERT(burrow->currentmove->proc == CAbilityAttack);
     T_ASSERT(burrow->combatentity == target);
 
     S_CargoStandDown(burrow);
@@ -3455,7 +3455,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     T_ASSERT(!(peon->s.renderfx & RF_HIDDEN));
     T_ASSERT(!peon->paused);
     T_NOT_NULL(burrow->currentmove);
-    T_ASSERT(burrow->currentmove->ability != &CAbilityAttack);
+    T_ASSERT(burrow->currentmove->proc != CAbilityAttack);
     T_NULL(burrow->combatentity);
     T_NULL(burrow->goalentity);
 }

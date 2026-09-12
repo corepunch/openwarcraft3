@@ -3,7 +3,7 @@
 This project implements Warcraft III abilities from the authoritative game data and
 observable gameplay contract. The goal is useful, testable compatibility. TFT's extracted
 class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-inheritance-plan.md)
-uses Quake 2-style flags, enums, shared processors and explicit callbacks without runtime inheritance.
+uses Quake 2-style flags, enums, shared processors and message procedures without runtime object inheritance.
 
 `AbilityStrings.txt` is the starting point because it states what the player is
 supposed to observe. It is not a complete specification, so every implementation
@@ -93,8 +93,8 @@ Start with abilities whose behavior maps directly to an existing runtime contrac
 | timed buff/debuff | `unit_addtimedstatus` | add and expire the status through normal lifecycle code |
 | toggle | `AB_TOGGLE` plus status | execute the same command to add/remove the state |
 | passive aura | ability modifier hooks consumed by movement/combat | calculate from active nearby owners; avoid stale recipient state |
-| attack proc | ability callback at attack resolution | evaluate chance and effect in the owning ability at damage time |
-| autocast | existing autocast hooks | acquire targets, then issue the ordinary spell order |
+| attack proc | ability procedure at attack resolution | evaluate chance and effect in the owning ability at damage time |
+| autocast | autocast messages | acquire targets, then issue the ordinary spell order |
 | channel/wave | `AB_CHANNEL` and thinker | schedule ticks and cancellation explicitly |
 | summon | summon helpers and unit rawcode | use authored `UnitID`/`Data` values and duration |
 | morph/transform | unit-type rebinding contract | preserve the edict and restore all affected unit state |
@@ -104,24 +104,22 @@ Do not force passive, attack, aura, or autocast abilities into a visible cast ha
 just because their object-data class is named `CAbility*`. The runtime contract owns
 where the effect is evaluated.
 
-Ability globals use TFT `CAbility*` class names. Look up the FourCC in
-`tft-ability-classes.txt` and name the global after its class: `CAbilityDoom`,
+Ability procedures use TFT `CAbility*` class names. Look up the FourCC in
+`tft-ability-classes.txt` and name the function after its class: `CAbilityDoom`,
 `CAbilityWarStomp`, `CAbilityFrostArmor`. Do not invent names or derive them
-from rawcode abbreviations. The `SPELL`, `HUMAN_SPELL`, and `CAMPAIGN_SPELL`
-macros prepend `C` to a PascalCase argument — `SPELL(AbilityDoom, ...)` produces
-`ability_t CAbilityDoom`. The rawcode-to-handler mapping lives only in `abilitylist`
-in `s_skills.c`; spell macros and direct `ability_t` initializers describe behavior
-without a code. `InitAbilities()` assigns `ability_t.code` from the registry before
-calling the entry's init hook, including on subsequent game initialization.
+from rawcode abbreviations. Procedure macros prepend `C` to a PascalCase argument;
+`BZ_SIMPLE_SPELL_PROC(AbilityDoom, doom_execute)` defines the `CAbilityDoom` function.
+The rawcode-to-procedure mapping and all static flags/target/order data live only in
+`abilitylist` in `s_skills.c`. `S_AbilityItem(actual_code)` produces an `abilityitem_t` with the requested
+rawcode and resolved registry row. Validation and execution receive this item, so two aliases can share a
+procedure while reading different authored data. There is no canonical code assignment or `.alias = true` rule.
+Display text is fetched through authored ability profiles/strings and map overrides; gameplay values use
+`G_AbilityData` / `G_AbilityLevel` by the actual rawcode.
 
-When several rows share a spell handler, mark the additional rows `.alias = true`.
-They participate in lookup without overwriting the canonical spell code. For example,
-Charm keeps `ANch` while accepting `AIco`. This preserves the existing execution/data
-contract independently of registry ordering. The registry generator preserves these
-alias designators. The test
-`wc3_spell.registry_initializes_spell_codes_and_preserves_aliases` covers initialization,
-canonical codes, and alias lookup; run it in ROC and TFT with
-`make test-wc3-engine WC3_PATTERN=wc3_spell.registry_initializes_spell_codes_and_preserves_aliases`.
+Register concrete `AbilityData.alias` row IDs and `AbilityData.code` implementation IDs, plus necessary internal
+commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-inheritance-plan.md#behavior-and-identity)
+and [data-backed registry](ability-inheritance-plan.md#data-backed-registry) for lookup and verification details.
+
 
 The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated
 from the `*AbilityStrings.txt` files in `data/strings`. It is grouped by source file,
@@ -156,7 +154,7 @@ python3 tools/wc3_ability_class_audit.py --format=todo | grep ANdo
 
 ### 2. Identify shared behavior
 
-The retail parent is evidence for behavior to reproduce through flags and explicit callbacks.
+The retail parent is evidence for behavior to reproduce through flags and explicit procedure delegation.
 It does not determine our runtime memory layout. Common retail families:
 
 | Parent | Category | Shared behavior |
@@ -173,21 +171,26 @@ It does not determine our runtime memory layout. Common retail families:
 
 ### 3. Define the ability
 
-For a spell that uses the unified pipeline, use the `SPELL` macro in
-`s_requested_abilities.c` (or `HUMAN_SPELL` / `CAMPAIGN_SPELL` in the appropriate file):
+For a spell that uses the unified pipeline, define its procedure with the smallest applicable procedure macro:
 
 ```c
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, dealing damage over time."
  */
-SPELL(AbilityDoom, SPELL_TARGET_UNIT, 0, doom_execute);
+BZ_SIMPLE_SPELL_PROC(AbilityDoom, doom_execute)
 ```
 
-This generates one `ability_t CAbilityDoom` with `AB_SPELL` and direct effect metadata. For abilities that
-don't use the spell pipeline, define the global directly:
+This generates the `CAbilityDoom` function. Flags and target shape belong in its registry row. For behavior that
+needs more messages, write the switch directly and delegate unhandled messages to the TFT parent procedure:
 
 ```c
-ability_t CAbilityMyPassive = { .flags = AB_PASSIVE };
+intptr_t CAbilityDoom(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+    switch (msg) {
+    case A_VALIDATE: return doom_validate(ent, call->target, call->item);
+    case A_EXECUTE: doom_execute(ent, call->target, call->item); return true;
+    default: return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
 ```
 
 ### 4. Declare and register
@@ -195,24 +198,24 @@ ability_t CAbilityMyPassive = { .flags = AB_PASSIVE };
 Add an extern declaration to `s_skills.h`:
 
 ```c
-extern ability_t CAbilityDoom;
+BZ_ABILITY_PROC(CAbilityDoom);
 ```
 
 Uncomment or add the entry in the abilitylist in `s_skills.c`:
 
 ```c
-{ "ANdo", &CAbilityDoom },  /* Doom */
+{ "ANdo", CAbilityDoom, AB_SPELL, SPELL_TARGET_UNIT },  /* Doom */
 ```
 
 ### 5. Select command policy
 
-Use `AB_SPELL` for the shared cast processor and supply `.execute` plus optional `.validate` directly
-on the ability. Combine independent policies (`AB_CHANNEL`, `AB_TOGGLE`, `AB_AUTOCAST`) as needed. Leave `.cmd`
-unset for shared casts. Bespoke orders continue to use explicit command/order/lifecycle callbacks.
+Use `AB_SPELL` for the shared cast processor and handle `A_EXECUTE` plus optional `A_VALIDATE` in the procedure.
+Combine independent policies (`AB_CHANNEL`, `AB_TOGGLE`, `AB_AUTOCAST`) in the registry row. Bespoke orders use
+`AB_COMMAND`/`A_COMMAND`; lifecycle and persistent behavior use their corresponding messages.
 `S_AbilityHasCommand` and `S_AbilityCommand` provide the common HUD, player and item entry contract.
 
-Concrete relatives can name the same callback: Fire Bolt and Thunder Bolt share their effect implementation
-while retaining distinct canonical rawcodes. There is no runtime parent wiring.
+Concrete relatives can call the same helper or parent procedure: Fire Bolt and Thunder Bolt share effect code
+while the per-use `abilityitem_t` carries the actual rawcode. There is no runtime parent wiring.
 
 ### 6. Write tests
 

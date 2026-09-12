@@ -3,187 +3,138 @@
 
 #include "../g_local.h"
 
-/* Inert TFT registry definitions (s_ability_classes.c); no runtime inheritance. */
-extern ability_t CAbility;               /* abil  — root */
-extern ability_t CAbilityInterfaced;     /* AAin */
-extern ability_t CBonusBase;             /* ABon */
-extern ability_t CPower;                 /* powr */
-extern ability_t CAbilityButton;         /* AAbt */
-extern ability_t CAbilitySpell;          /* AAsp */
-extern ability_t CAbilitySimpleSpell;    /* AAsm */
-extern ability_t CAbilityModalSpell;     /* AAms */
-extern ability_t CAbilityAutoTargetSpell;/* AAat */
-extern ability_t CAbilityRangerArrow;    /* AHRa */
-extern ability_t CAbilityPassive;        /* APas */
-extern ability_t CAbilityNeutralSpell;   /* AAns */
-extern ability_t CAbilityMorph;          /* Amor */
-extern ability_t CAbilityPersistentBonus;/* APbo */
-extern ability_t CAbilityRegenBase;      /* AREB */
-extern ability_t CAbilityAura;           /* aura */
-extern ability_t CAbilityBaseBuild;      /* ABbs */
-extern ability_t CAbilityClosestTargetSpell; /* AAcs */
-extern ability_t CAbilityBuildQueue;     /* ABqu */
-extern ability_t CAbilityBuildInProgress;/* ABnP */
-extern ability_t CAbilityInProgress;     /* AInP */
-extern ability_t CAbilityUpgradeInProgress; /* AUnP */
-extern ability_t CAbilitySacrificeInProgress; /* ASnP */
-extern ability_t CAbilityResearch;       /* ARes */
-extern ability_t CAbilityBaseSell;       /* ASbs */
-extern ability_t CAbilitySellItem;       /* Asei */
-extern ability_t CAbilitySellUnit;       /* Asel */
-extern ability_t CAbilityMakeItem;       /* Amai */
-extern ability_t CAbilityQueue;          /* Aque */
-extern ability_t CAbilityUpgrade;        /* Aupg */
-extern ability_t CAbilityRegenMana;      /* Arem */
-extern ability_t CAbilityStarfallDrain;  /* AEsd */
-extern ability_t CAbilityTranquilityRegen; /* AEtr */
-extern ability_t CAbilityDamageBonusBase;/* AIDB */
-extern ability_t CAbilityDamageBonusBaseEx; /* AIDE */
-extern ability_t CAbilityItemCureAoe;    /* AIca */
-extern ability_t CAbilityItemFlyingCarpet; /* AIfc */
-extern ability_t CAbilityMaxManaMod;     /* AImn */
-extern ability_t CAbilityItemPermInvis;  /* AIpi */
-extern ability_t CAbilityItemTeleport;   /* AIte */
-extern ability_t CAbilityNeutralG2L;     /* ANgl */
-extern ability_t CAbilityNeutralL2G;     /* ANlg */
-extern ability_t CAbilityMonsoonDrain;   /* ANmd */
-extern ability_t CAbilityNeutralRegenLife; /* ANrl */
-extern ability_t CAbilityNeutralRegenMana; /* ANrm */
-extern ability_t CAbilityNeutralSpies;   /* ANsp */
-extern ability_t CAbilityBarkskin;       /* Abar */
-extern ability_t CAbilityBlightRegen;    /* Ablr */
-extern ability_t CAbilityBounce;         /* Abou */
-extern ability_t CAbilityCallToArms;     /* Acal */
-extern ability_t CAbilityChaosBase;      /* Achb */
-extern ability_t CAbilityNotifyDamage;   /* Admg */
-extern ability_t CAbilityDetectAoe;      /* Adta */
-extern ability_t CAbilityGoldMineBase;   /* Agmb */
-extern ability_t CAbilityGraveyardCorpse;/* Agyc */
-extern ability_t CAbilityHarvestBase;    /* Ahrb */
-extern ability_t CAbilityHarvestReturn;  /* Ahrr */
-extern ability_t CAbilityLeash;          /* Alea */
-extern ability_t CAbilityMount;          /* Amou */
-extern ability_t CAbilityNeutralInteract;/* Anei */
-extern ability_t CAbilityNightVision;    /* Anit */
-extern ability_t CAbilityPossessedGoldMine; /* Apgm */
-extern ability_t CAbilityRescuable;      /* Arsc */
-extern ability_t CAbilityTankPilot;      /* Atpi */
-extern ability_t CAbilityTarget;         /* Atrg */
-extern ability_t CAbilityCouple;         /* Acou */
-extern ability_t CAbilityCargo;          /* Acrg */
+#define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT, abilityMsg_t, abilityCall_t const *)
+#define BZ_SIMPLE_SPELL_PROC(NAME, EXECUTE) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        if (msg == A_EXECUTE) { \
+            spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+            EXECUTE(ent, target, call ? call->item : NULL); \
+            return true; \
+        } \
+        return CAbilitySimpleSpell(ent, msg, call); \
+    }
+#define BZ_VALIDATED_SPELL_PROC(NAME, VALIDATE, EXECUTE) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        switch (msg) { \
+        case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
+        case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
+        default: return CAbilitySimpleSpell(ent, msg, call); \
+        } \
+    }
+#define BZ_COMMAND_PROC(NAME, COMMAND) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        if (msg != A_COMMAND) return false; \
+        COMMAND(call && call->client ? call->client : ent); \
+        return true; \
+    }
+#define BZ_ITEM_PROC(NAME, ITEM_USE) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        (void)call; \
+        return msg == A_ITEM_USE && ITEM_USE(ent); \
+    }
 
-extern ability_t CAbilityHarvest;
-extern ability_t CAbilityMove;
-extern ability_t CAbilityRavenForm;
-extern ability_t CAbilityAttack;
-extern ability_t CAbilityBuild;
-extern ability_t CAbilityTrain;
-extern ability_t CAbilityGoldMine;
-extern ability_t CAbilityCancel;
-extern ability_t CAbilityRepair;
-extern ability_t CAbilityStop;
-extern ability_t CAbilityHoldPosition;
+/* Concrete AbilityData implementations. */
+
+BZ_ABILITY_PROC(CAbilityHarvest);
+BZ_ABILITY_PROC(CAbilityMove);
+BZ_ABILITY_PROC(CAbilityRavenForm);
+extern LPCSTR const raven_orders[];
+BZ_ABILITY_PROC(CAbilityAttack);
+BZ_ABILITY_PROC(CAbilityBuild);
+BZ_ABILITY_PROC(CAbilityTrain);
+BZ_ABILITY_PROC(CAbilityGoldMine);
+BZ_ABILITY_PROC(CAbilityCancel);
+BZ_ABILITY_PROC(CAbilityRepair);
+BZ_ABILITY_PROC(CAbilityStop);
+BZ_ABILITY_PROC(CAbilityHoldPosition);
 BOOL S_HoldPosition(LPEDICT unit);
-extern ability_t CAbilityPatrol;
-extern ability_t CAbilityRally;
-extern ability_t CAbilityMilitiaConvert;
-extern ability_t CAbilityMilitia;
+BZ_ABILITY_PROC(CAbilityPatrol);
+BZ_ABILITY_PROC(CAbilityRally);
+BZ_ABILITY_PROC(CAbilityMilitiaConvert);
+BZ_ABILITY_PROC(CAbilityMilitia);
 BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
 FLOAT S_MilitiaPairSearchRadius(DWORD ability);
-extern ability_t CAbilitySelectSkill;
-extern ability_t CAbilityAuraDevotion;
-extern ability_t CAbilityHolyBolt;
-extern ability_t CAbilityThunderBolt;
-extern ability_t CAbilityFireBolt;
-extern ability_t CAbilityWaterElemental;
-extern ability_t CAbilitySpiritWolf;
-extern ability_t CAbilityForceOfNature;
-extern ability_t CAbilitySummonGrizzly;
-extern ability_t CAbilitySummonQuillbeast;
-extern ability_t CAbilitySummonWarEagle;
-extern ability_t CAbilityMirrorImage;
-extern ability_t CAbilityBlizzard;
-extern ability_t CAbilityStarfall;
-extern ability_t CAbilityCarrionSwarm;
-extern ability_t CAbilityShockwave;
-extern ability_t CAbilityRainOfFire;
-extern ability_t CAbilityDeathAndDecay;
-extern ability_t CAbilityThunderClap;
-extern ability_t CAbilityFrostNova;
-extern ability_t CAbilityTranquility;
-extern ability_t CAbilityChannel;
-extern ability_t CAbilityImmolation;
-extern ability_t CAbilityPhoenixFire;
-extern ability_t CAbilityColdArrows;
-extern ability_t CAbilityCharm;
-extern ability_t CAbilityEatTree;
-extern ability_t CAbilityManaBattery;
-extern ability_t CAbilityInvulnerable;
-extern ability_t CAbilityGoldMineOverlayed;
-extern ability_t CAbilityBlightedGoldMine;
-extern ability_t CAbilityBlightGrowth;
-extern ability_t CAbilityAcolyteHarvest;
-extern ability_t CAbilityReturn;
-extern ability_t CAbilityWispHarvest;
-extern ability_t CAbilityHarvestLumber;
-extern ability_t CAbilityRepairGeneric;
-extern ability_t CAbilityRoot;
-extern ability_t CAbilityBlink;
-extern ability_t CAbilityFanOfKnives;
-extern ability_t CAbilityShadowStrike;
-extern ability_t CAbilityEntangle;
-extern ability_t CAbilityEntangledGoldMine;
-extern ability_t CAbilityCargoHold;
-extern ability_t CAbilityBunker;
-extern ability_t CAbilityEntangleCargo;
-extern ability_t CAbilityBattlestations;
-extern ability_t CAbilityStandDown;
-extern ability_t CAbilityCargoLoad;
-extern ability_t CAbilityCargoDrop;
-extern ability_t CAbilityCargoDropInstant;
-extern ability_t CAbilityInventory;
-extern ability_t CAbilityPurchaseItem;
-extern ability_t CAbilityNeutral;
-extern ability_t CAbilityAllied;
-extern ability_t CAbilityCoupleInstant;
-extern ability_t CAbilityItemHeal;
-extern ability_t CAbilityItemManaRestore;
-extern ability_t CAbilityAttackBonus;
-extern ability_t CAbilityAttributeBonus;
-extern ability_t CAbilityStrengthMod;
-extern ability_t CAbilityDefenseBonus;
-extern ability_t CAbilityMaxLifeBonus;
-extern ability_t CAbilityMaxManaBonus;
-extern ability_t CAbilityFigurineSkeleton;
-extern ability_t CAbilityMaxLifeMod;
-extern ability_t CAbilityExperienceMod;
-extern ability_t CAbilityLevelMod;
-extern ability_t CAbilityItemDefenseAoe;
-extern ability_t CAbilityItemChangeTOD;
-extern ability_t CAbilityFlameStrikeNeutral;
-extern ability_t CAbilityDrainNeutral;
-extern ability_t CAbilityFlameStrike;
-extern ability_t CAbilityDrain;
-extern ability_t CAbilityManaBurn;
-extern ability_t CAbilityStomp;
-extern ability_t CAbilityAuraEndurance;
-extern ability_t CAbilityWindWalk;
-extern ability_t CAbilityBash;
-extern ability_t CAbilityEntanglingRoots;
-extern ability_t CAbilityDarkRitual;
-extern ability_t CAbilityFrostArmor;
-extern ability_t CAbilityFrostArmorAuto;
-extern ability_t CAbilityDivineShield;
-extern ability_t CAbilityAuraBrilliance;
-extern ability_t CAbilityCriticalStrike;
-extern ability_t CAbilityThornyShield;
-extern ability_t CAbilityAuraUnholy;
-extern ability_t CAbilityEvasion;
-extern ability_t CAbilityAuraVampiric;
-extern ability_t CAbilityAuraSpell;
-extern ability_t CAbilityManaShield;
-extern ability_t CAbilityDrunkenBrawler;
-extern ability_t CAbilityCleavingAttack;
+BZ_ABILITY_PROC(CAbilitySelectSkill);
+BZ_ABILITY_PROC(CAbilityAuraDevotion);
+BZ_ABILITY_PROC(CAbilityHolyBolt);
+BZ_ABILITY_PROC(CAbilitySimpleSpell);
+BZ_ABILITY_PROC(S_AbilityMessage);
+BZ_ABILITY_PROC(CAbilityNoop);
+BZ_ABILITY_PROC(CAbilityPassive);
+BZ_ABILITY_PROC(CAbilityThunderBolt);
+BZ_ABILITY_PROC(CAbilityFireBolt);
+BZ_ABILITY_PROC(CAbilityWaterElemental);
+BZ_ABILITY_PROC(CAbilitySpiritWolf);
+BZ_ABILITY_PROC(CAbilityForceOfNature);
+BZ_ABILITY_PROC(CAbilitySummonGrizzly);
+BZ_ABILITY_PROC(CAbilitySummonQuillbeast);
+BZ_ABILITY_PROC(CAbilitySummonWarEagle);
+BZ_ABILITY_PROC(CAbilityMirrorImage);
+BZ_ABILITY_PROC(CAbilityBlizzard);
+BZ_ABILITY_PROC(CAbilityStarfall);
+BZ_ABILITY_PROC(CAbilityCarrionSwarm);
+BZ_ABILITY_PROC(CAbilityShockwave);
+BZ_ABILITY_PROC(CAbilityRainOfFire);
+BZ_ABILITY_PROC(CAbilityDeathAndDecay);
+BZ_ABILITY_PROC(CAbilityThunderClap);
+BZ_ABILITY_PROC(CAbilityFrostNova);
+BZ_ABILITY_PROC(CAbilityTranquility);
+BZ_ABILITY_PROC(CAbilityChannel);
+BZ_ABILITY_PROC(CAbilityImmolation);
+BZ_ABILITY_PROC(CAbilityColdArrows);
+BZ_ABILITY_PROC(CAbilityCharm);
+BZ_ABILITY_PROC(CAbilityEatTree);
+BZ_ABILITY_PROC(CAbilityManaBattery);
+BZ_ABILITY_PROC(CAbilityBlightedGoldMine);
+BZ_ABILITY_PROC(CAbilityBlightGrowth);
+BZ_ABILITY_PROC(CAbilityAcolyteHarvest);
+BZ_ABILITY_PROC(CAbilityReturn);
+BZ_ABILITY_PROC(CAbilityWispHarvest);
+BZ_ABILITY_PROC(CAbilityHarvestLumber);
+BZ_ABILITY_PROC(CAbilityRepairGeneric);
+BZ_ABILITY_PROC(CAbilityRoot);
+BZ_ABILITY_PROC(CAbilityBlink);
+BZ_ABILITY_PROC(CAbilityFanOfKnives);
+BZ_ABILITY_PROC(CAbilityShadowStrike);
+BZ_ABILITY_PROC(CAbilityEntangle);
+BZ_ABILITY_PROC(CAbilityCargoHold);
+BZ_ABILITY_PROC(CAbilityBattlestations);
+BZ_ABILITY_PROC(CAbilityStandDown);
+BZ_ABILITY_PROC(CAbilityCargoLoad);
+BZ_ABILITY_PROC(CAbilityCargoDrop);
+BZ_ABILITY_PROC(CAbilityCargoDropInstant);
+BZ_ABILITY_PROC(CAbilityInventory);
+BZ_ABILITY_PROC(CAbilityPurchaseItem);
+BZ_ABILITY_PROC(CAbilityCoupleInstant);
+BZ_ABILITY_PROC(CAbilityItemHeal);
+BZ_ABILITY_PROC(CAbilityItemManaRestore);
+BZ_ABILITY_PROC(CAbilityAttackBonus);
+BZ_ABILITY_PROC(CAbilityAttributeBonus);
+BZ_ABILITY_PROC(CAbilityStrengthMod);
+BZ_ABILITY_PROC(CAbilityDefenseBonus);
+BZ_ABILITY_PROC(CAbilityMaxLifeBonus);
+BZ_ABILITY_PROC(CAbilityMaxManaBonus);
+BZ_ABILITY_PROC(CAbilityFigurineSkeleton);
+BZ_ABILITY_PROC(CAbilityMaxLifeMod);
+BZ_ABILITY_PROC(CAbilityExperienceMod);
+BZ_ABILITY_PROC(CAbilityLevelMod);
+BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
+BZ_ABILITY_PROC(CAbilityItemChangeTOD);
+BZ_ABILITY_PROC(CAbilityFlameStrikeNeutral);
+BZ_ABILITY_PROC(CAbilityDrainNeutral);
+BZ_ABILITY_PROC(CAbilityFlameStrike);
+BZ_ABILITY_PROC(CAbilityDrain);
+BZ_ABILITY_PROC(CAbilityManaBurn);
+BZ_ABILITY_PROC(CAbilityStomp);
+BZ_ABILITY_PROC(CAbilityWindWalk);
+BZ_ABILITY_PROC(CAbilityEntanglingRoots);
+BZ_ABILITY_PROC(CAbilityDarkRitual);
+BZ_ABILITY_PROC(CAbilityFrostArmor);
+BZ_ABILITY_PROC(CAbilityFrostArmorAuto);
+BZ_ABILITY_PROC(CAbilityDivineShield);
+BZ_ABILITY_PROC(CAbilityCriticalStrike);
+BZ_ABILITY_PROC(CAbilityEvasion);
 FLOAT S_BrillianceManaRegen(LPEDICT unit);
 FLOAT S_UnholyHealthRegen(LPEDICT unit);
 FLOAT S_UnholyMoveBonus(LPEDICT unit);
@@ -206,56 +157,87 @@ void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
 void S_ReincarnationOnDeath(LPEDICT unit);
 
-extern ability_t CAbilityMassTeleport;
-extern ability_t CAbilityStampede;
-extern ability_t CAbilityWhirlwind;
-extern ability_t CAbilityTornado;
-extern ability_t CAbilityBanish;
-extern ability_t CAbilitySummonPhoenix;
-extern ability_t CAbilityCarrionScarabs;
-extern ability_t CAbilityImpale;
-extern ability_t CAbilityLocustSwarm;
-extern ability_t CAbilityBlackArrow;
-extern ability_t CAbilitySilence;
-extern ability_t CAbilityAnimateDead;
-extern ability_t CAbilityDeathCoil;
-extern ability_t CAbilityDeathPact;
-extern ability_t CAbilityMetamorphosis;
-extern ability_t CAbilitySleep;
-extern ability_t CAbilityDreadLordInferno;
-extern ability_t CAbilityChainLightning;
-extern ability_t CAbilityForkedLightning;
-extern ability_t CAbilityEarthquake;
-extern ability_t CAbilityFarSight;
-extern ability_t CAbilityResurrection;
-extern ability_t CAbilityBreathOfFire;
-extern ability_t CAbilityHowlOfTerror;
-extern ability_t CAbilityFlamingArrows;
-extern ability_t CAbilityAuraTrueshot;
-extern ability_t CAbilityReincarnation;
-extern ability_t CAbilityHealingWave;
-extern ability_t CAbilityHex;
-extern ability_t CAbilitySpiritOfVengeance;
-extern ability_t CAbilityVoodoo;
-extern ability_t CAbilityAcidBomb;
-extern ability_t a_unimplemented;
-extern ability_t CAbilityPoisonArrows;
-extern ability_t CAbilityBurrowDetector, CAbilityRevive, CAbilityAwaken, CAbilityDetector, CAbilityHero, CAbilityAlarm;
-extern ability_t CAbilityOnFireHuman;
-extern ability_t CAbilityLocust, CAbilityTankTurret;
-extern ability_t CAbilityAttributeModSkill, CAbilitySpawnTentacle, CAbilityAvatarCampaign, CAbilityShockwaveCampaign, CAbilityWarStompCampaign;
-extern ability_t CAbilityFeralSpiritCampaign, CAbilitySpiritBeast, CAbilityReincarnationCampaign, CAbilityFeedbackCampaign, CAbilityAbolishMagic;
-extern ability_t CAbilitySubmergeMyrmidon, CAbilitySubmergeRoyalGuard, CAbilitySubmergeSnapDragon, CAbilityEnsnare, CAbilityFrostArmorCampaign;
-extern ability_t CAbilityParasiteCampaign, CAbilityCycloneCampaign, CAbilitySummoningRitual, CAbilitySummonQuilbeastCampaign, CAbilitySummonMisha;
-extern ability_t CAbilityStampedeCampaign, CAbilityBattleRoar, CAbilityStormBoltCampaign, CAbilityBreathOfFireCampaign;
-extern ability_t CAbilityDrunkenHazeCampaign, CAbilityStormEarthFire, CAbilityHealingWaveCampaign, CAbilityHexCampaign, CAbilitySerpentWard;
-extern ability_t CAbilityShockwaveCairne, CAbilityEnduranceAuraCampaign, CAbilityReincarnationCairne, CAbilityVoodooSpirits;
-extern ability_t CAbilityMagicLeash, CAbilityFeedback, CAbilityControlMagic, CAbilityFlakCannon, CAbilityFragShards, CAbilityBarrage;
-extern ability_t CAbilityMagicDefense, CAbilitySphere, CAbilitySpellSteal, CAbilityCloudOfFog, CAbilityPhoenix, CAbilityGyroBombs;
-extern ability_t CAbilityStormHammers, CAbilityGyroVision, CAbilityDefend, CAbilityFlare, CAbilityMagicSentry, CAbilityInnerFire;
-extern ability_t CAbilityDispelMagic, CAbilityHeal, CAbilitySlow, CAbilityInvisibility, CAbilityPolymorph, CAbilityAvatar;
-extern ability_t CAbilityDoom, CAbilityDrunkenHaze;
-void S_InitHumanAbilities(void);
+BZ_ABILITY_PROC(CAbilityMassTeleport);
+BZ_ABILITY_PROC(CAbilityStampede);
+BZ_ABILITY_PROC(CAbilityWhirlwind);
+BZ_ABILITY_PROC(CAbilityTornado);
+BZ_ABILITY_PROC(CAbilityBanish);
+BZ_ABILITY_PROC(CAbilitySummonPhoenix);
+BZ_ABILITY_PROC(CAbilityCarrionScarabs);
+BZ_ABILITY_PROC(CAbilityImpale);
+BZ_ABILITY_PROC(CAbilityLocustSwarm);
+BZ_ABILITY_PROC(CAbilityBlackArrow);
+BZ_ABILITY_PROC(CAbilitySilence);
+BZ_ABILITY_PROC(CAbilityAnimateDead);
+BZ_ABILITY_PROC(CAbilityDeathCoil);
+BZ_ABILITY_PROC(CAbilityDeathPact);
+BZ_ABILITY_PROC(CAbilityMetamorphosis);
+BZ_ABILITY_PROC(CAbilitySleep);
+BZ_ABILITY_PROC(CAbilityDreadLordInferno);
+BZ_ABILITY_PROC(CAbilityChainLightning);
+BZ_ABILITY_PROC(CAbilityForkedLightning);
+BZ_ABILITY_PROC(CAbilityEarthquake);
+BZ_ABILITY_PROC(CAbilityFarSight);
+BZ_ABILITY_PROC(CAbilityResurrection);
+BZ_ABILITY_PROC(CAbilityBreathOfFire);
+BZ_ABILITY_PROC(CAbilityHowlOfTerror);
+BZ_ABILITY_PROC(CAbilityFlamingArrows);
+BZ_ABILITY_PROC(CAbilityHealingWave);
+BZ_ABILITY_PROC(CAbilityHex);
+BZ_ABILITY_PROC(CAbilitySpiritOfVengeance);
+BZ_ABILITY_PROC(CAbilityVoodoo);
+BZ_ABILITY_PROC(CAbilityAcidBomb);
+BZ_ABILITY_PROC(CAbilityPoisonArrows);
+BZ_ABILITY_PROC(CAbilityOnFireHuman);
+BZ_ABILITY_PROC(CAbilityAttributeModSkill);
+BZ_ABILITY_PROC(CAbilitySpawnTentacle);
+BZ_ABILITY_PROC(CAbilityAvatarCampaign);
+BZ_ABILITY_PROC(CAbilityShockwaveCampaign);
+BZ_ABILITY_PROC(CAbilityWarStompCampaign);
+BZ_ABILITY_PROC(CAbilityFeralSpiritCampaign);
+BZ_ABILITY_PROC(CAbilitySpiritBeast);
+BZ_ABILITY_PROC(CAbilityReincarnationCampaign);
+BZ_ABILITY_PROC(CAbilityFeedbackCampaign);
+BZ_ABILITY_PROC(CAbilityAbolishMagic);
+BZ_ABILITY_PROC(CAbilitySubmergeMyrmidon);
+BZ_ABILITY_PROC(CAbilitySubmergeRoyalGuard);
+BZ_ABILITY_PROC(CAbilitySubmergeSnapDragon);
+BZ_ABILITY_PROC(CAbilityEnsnare);
+BZ_ABILITY_PROC(CAbilityFrostArmorCampaign);
+BZ_ABILITY_PROC(CAbilityParasiteCampaign);
+BZ_ABILITY_PROC(CAbilityCycloneCampaign);
+BZ_ABILITY_PROC(CAbilitySummoningRitual);
+BZ_ABILITY_PROC(CAbilitySummonQuilbeastCampaign);
+BZ_ABILITY_PROC(CAbilitySummonMisha);
+BZ_ABILITY_PROC(CAbilityStampedeCampaign);
+BZ_ABILITY_PROC(CAbilityBattleRoar);
+BZ_ABILITY_PROC(CAbilityStormBoltCampaign);
+BZ_ABILITY_PROC(CAbilityBreathOfFireCampaign);
+BZ_ABILITY_PROC(CAbilityDrunkenHazeCampaign);
+BZ_ABILITY_PROC(CAbilityStormEarthFire);
+BZ_ABILITY_PROC(CAbilityHealingWaveCampaign);
+BZ_ABILITY_PROC(CAbilityHexCampaign);
+BZ_ABILITY_PROC(CAbilitySerpentWard);
+BZ_ABILITY_PROC(CAbilityShockwaveCairne);
+BZ_ABILITY_PROC(CAbilityEnduranceAuraCampaign);
+BZ_ABILITY_PROC(CAbilityReincarnationCairne);
+BZ_ABILITY_PROC(CAbilityVoodooSpirits);
+BZ_ABILITY_PROC(CAbilityMagicLeash);
+BZ_ABILITY_PROC(CAbilityControlMagic);
+BZ_ABILITY_PROC(CAbilityMagicDefense);
+BZ_ABILITY_PROC(CAbilitySpellSteal);
+BZ_ABILITY_PROC(CAbilityCloudOfFog);
+BZ_ABILITY_PROC(CAbilityDefend);
+BZ_ABILITY_PROC(CAbilityFlare);
+BZ_ABILITY_PROC(CAbilityInnerFire);
+BZ_ABILITY_PROC(CAbilityDispelMagic);
+BZ_ABILITY_PROC(CAbilityHeal);
+BZ_ABILITY_PROC(CAbilitySlow);
+BZ_ABILITY_PROC(CAbilityInvisibility);
+BZ_ABILITY_PROC(CAbilityPolymorph);
+BZ_ABILITY_PROC(CAbilityAvatar);
+BZ_ABILITY_PROC(CAbilityDoom);
+BZ_ABILITY_PROC(CAbilityDrunkenHaze);
 void human_ability_think(LPEDICT thinker);
 BOOL S_HumanCanAttack(LPCEDICT unit);
 FLOAT S_HumanMoveFactor(LPCEDICT unit);
@@ -325,15 +307,14 @@ void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);
 void S_SpellCancelChannel(LPEDICT caster);
 
-/* Unified spell pipeline — replaces per-spell command boilerplate.
- * Single entry point for all spell abilities; handles target setup,
- * validation, and execution via callbacks directly on ability_t. */
+/* Unified spell pipeline owns targeting and cast lifecycle; concrete procedures
+ * receive validation and execution messages through the registry row. */
 void spell_cmd(LPEDICT clent);
 void spell_run_frame(LPEDICT ent);
-void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self);
-void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self);
-void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self);
-void SP_ability_item_mana_bonus(LPCSTR classname, ability_t *self);
-void SP_ability_item_stat_bonus(LPCSTR classname, ability_t *self);
+void SP_ability_item_attack_bonus(LPCSTR classname);
+void SP_ability_item_defense_bonus(LPCSTR classname);
+void SP_ability_item_life_bonus(LPCSTR classname);
+void SP_ability_item_mana_bonus(LPCSTR classname);
+void SP_ability_item_stat_bonus(LPCSTR classname);
 
 #endif

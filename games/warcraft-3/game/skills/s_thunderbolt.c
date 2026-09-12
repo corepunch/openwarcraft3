@@ -10,9 +10,9 @@ static FLOAT ConfigNumber(LPCSTR classname, LPCSTR field) { LPCSTR value = FindC
 
 static void thunderbolt_projectile_hit(LPEDICT missile);
 
-static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &CAbilityThunderBolt };
-static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &CAbilityFireBolt };
-static umove_t spell_cast_move = { "spell", ai_idle, NULL, &CAbilityThunderBolt };
+static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityThunderBolt };
+static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityFireBolt };
+static umove_t spell_cast_move = { "spell", ai_idle, NULL, CAbilityThunderBolt };
 
 static FLOAT bolt_missile_speed(DWORD code) {
     FLOAT speed = code == ID_FIRE_BOLT ? firebolt_missile_speed : thunderbolt_missile_speed;
@@ -32,7 +32,7 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     G_FreeEdict(missile);
 }
 
-static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
+static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT target = st.entity;
     DWORD code = spell->code;
     DWORD level = S_SpellLevel(caster, code);
@@ -55,28 +55,15 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, ability_t cons
     missile->currentmove = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
 }
 
-static void SP_ability_thunderbolt(LPCSTR classname, ability_t *self) {
-    (void)self;
-    thunderbolt_missile_speed = ConfigNumber(classname, "Missilespeed");
-}
+#define BZ_BOLT_PROC(NAME, SPEED) \
+    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        switch (msg) { \
+        case A_INIT: if (call && call->classname) SPEED = ConfigNumber(call->classname, "Missilespeed"); return true; \
+        case A_EXECUTE: thunderbolt_execute(ent, target, call ? call->item : NULL); return true; \
+        default: return CAbilitySimpleSpell(ent, msg, call); \
+        } \
+    }
 
-static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
-    (void)self;
-    firebolt_missile_speed = ConfigNumber(classname, "Missilespeed");
-}
-
-ability_t CAbilityThunderBolt = {
-    .flags = AB_SPELL,
-    .name = "Thunder Bolt",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = thunderbolt_execute,
-    .init = SP_ability_thunderbolt,
-};
-
-ability_t CAbilityFireBolt = {
-    .flags = AB_SPELL,
-    .name = "Fire Bolt",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = thunderbolt_execute,
-    .init = SP_ability_firebolt,
-};
+BZ_BOLT_PROC(AbilityThunderBolt, thunderbolt_missile_speed)
+BZ_BOLT_PROC(AbilityFireBolt, firebolt_missile_speed)

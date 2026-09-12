@@ -26,8 +26,8 @@ BOOL G_BotUnitAlive(LPEDICT unit) {
 void G_BotStopGathering(LPPLAYER player) {
     if (!player) return;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == PLAYER_NUM(player) && unit->currentmove &&
-        (unit->currentmove->ability == &CAbilityHarvest || unit->currentmove->ability == &CAbilityGoldMine ||
-         unit->currentmove->ability == &CAbilityWispHarvest)) {
+        (unit->currentmove->proc == CAbilityHarvest || unit->currentmove->proc == CAbilityGoldMine ||
+         unit->currentmove->proc == CAbilityWispHarvest)) {
         S_GoldMineReleaseWorker(unit);
         order_stop(unit);
     }
@@ -140,7 +140,7 @@ static BOOL G_BotBuildNearTown(LPPLAYER player, DWORD class_id, LONG town_id) {
         return false;
     FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
         !worker->construction.active && !worker->training && !worker->build_project &&
-        (!worker->currentmove || worker->currentmove->ability != &CAbilityRepair) && G_WorkerCanBuild(worker, class_id)) {
+        (!worker->currentmove || worker->currentmove->proc != CAbilityRepair) && G_WorkerCanBuild(worker, class_id)) {
         for (LONG ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
             for (LONG x = -ring; x <= ring; x++) for (LONG y = -ring; y <= ring; y++) {
                 VECTOR2 point;
@@ -185,8 +185,8 @@ BOOL G_BotProduce(LPPLAYER player, LONG qty, DWORD class_id, LONG town_id) {
 }
 
 static BOOL G_BotHarvesting(LPEDICT unit, returnResource_t resource) {
-    ability_t *ability = resource == RETURN_RESOURCE_GOLD ? &CAbilityGoldMine : &CAbilityHarvest;
-    return unit->currentmove && unit->currentmove->ability == ability;
+    abilityProc_t proc = resource == RETURN_RESOURCE_GOLD ? CAbilityGoldMine : CAbilityHarvest;
+    return unit->currentmove && unit->currentmove->proc == proc;
 }
 
 /* A ClearHarvestAI pass preserves active jobs, then assigns each remaining worker once. */
@@ -206,8 +206,8 @@ void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
         /* Preserve accepted construction orders; harvest reassignment used to strand their pending footprints. */
         FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !unit->training &&
             !unit->construction.active && !unit->build_project &&
-            (!unit->currentmove || (unit->currentmove->ability != &CAbilityGoldMine &&
-             unit->currentmove->ability != &CAbilityHarvest && unit->currentmove->ability != &CAbilityRepair)) && unit->data.UnitAbilities &&
+            (!unit->currentmove || (unit->currentmove->proc != CAbilityGoldMine &&
+             unit->currentmove->proc != CAbilityHarvest && unit->currentmove->proc != CAbilityRepair)) && unit->data.UnitAbilities &&
             G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
             FLOAT dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
             if (!best || dist < best_dist) { best = unit; best_dist = dist; }

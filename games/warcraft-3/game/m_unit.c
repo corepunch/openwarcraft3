@@ -119,7 +119,8 @@ void unit_stand(LPEDICT self) {
 void G_SetHealth(LPEDICT ent, FLOAT value) {
     BYTE const old = compress_stat(&ent->health);
     ent->health.value = value;
-    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health)) S_RefreshAbilityLevel(ent, &CAbilityOnFireHuman);
+    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health))
+        S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }
 
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
@@ -417,7 +418,7 @@ static void unit_publish_target_order(LPEDICT self, LPCSTR order,
 }
 
 static BOOL unit_has_active_order(LPCEDICT self) {
-    return self && self->currentmove && self->currentmove->ability != NULL &&
+    return self && self->currentmove && self->currentmove->proc != NULL &&
            !move_is_terminal_hold(self);
 }
 
@@ -764,7 +765,11 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         if (spell_code) return S_CastNoTargetSpell(self, spell_code);
     }
     ability_t const *ability = FindAbilityByOrder(order);
-    if (ability) return ability->order(self, order);
+    if (ability) {
+        abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item, .order = order);
+        return S_AbilityMessage(self, A_ORDER, &call);
+    }
     if (!strcmp(order, "repairon"))
         return S_SetRepairAutocast(self, true);
     if (!strcmp(order, "repairoff"))

@@ -381,7 +381,7 @@ TEST(wc3_unit, smart_on_passive_ally_starts_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(follower, "smart", leader));
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
+    T_ASSERT(follower->currentmove && follower->currentmove->proc == CAbilityMove);
 }
 
 TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
@@ -395,7 +395,7 @@ TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(follower, "move", leader));
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
+    T_ASSERT(follower->currentmove && follower->currentmove->proc == CAbilityMove);
 }
 
 TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
@@ -599,7 +599,7 @@ TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->goalentity == target);
     T_ASSERT(unit->movement.follow_target == NULL);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityAttack);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
 }
 
 TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
@@ -618,7 +618,7 @@ TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->movement.follow_target == target);
     T_ASSERT(unit->goalentity == target);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityMove);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
 }
 
 TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
@@ -634,7 +634,7 @@ TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->movement.follow_target == target);
     T_ASSERT(unit->goalentity == target);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityMove);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityMove);
 }
 
 TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
@@ -653,7 +653,7 @@ TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->goalentity == target);
     T_ASSERT(unit->movement.follow_target == NULL);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityAttack);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
 }
 
 TEST(wc3_unit, die_publishes_death_event) {
@@ -847,7 +847,7 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     T_ASSERT(G_IssueUnitTargetOrder(worker, "militia", hall, false, worker->s.player));
     T_ASSERT(worker->militia.partner == hall);
     T_NOT_NULL(worker->currentmove);
-    T_ASSERT(worker->currentmove->ability == &CAbilityMilitia);
+    T_ASSERT(worker->currentmove->proc == CAbilityMilitia);
     T_STREQ(worker->currentmove->animation, "walk");
 }
 
@@ -1086,24 +1086,28 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
 TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     ability_t const *ability = FindAbilityByOrder("ravenform");
+    abilityitem_t item;
+    abilityCall_t call;
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    item = MAKE(abilityitem_t, .ability = ability);
+    call = MAKE(abilityCall_t, .item = &item);
     T_NOT_NULL(ability);
-    T_ASSERT(ability == FindAbilityByOrder("unravenform"));
-    T_ASSERT(ability == FindAbilityByClassname("Amrf"));
-    T_ASSERT(ability == FindAbilityByClassname("Arav"));
-    T_NOT_NULL(ability->cmd);
+    T_EQ(ability->proc, FindAbilityByOrder("unravenform")->proc);
+    T_EQ(ability->proc, FindAbilityByClassname("Amrf")->proc);
+    T_EQ(ability->proc, FindAbilityByClassname("Arav")->proc);
+    T_ASSERT(ability->flags & AB_COMMAND);
     T_NULL(FindAbilityByOrder("unrecognized"));
     T_NULL(FindAbilityByOrder(NULL));
-    T_ASSERT(!ability->is_toggle_on(ent));
+    T_ASSERT(!S_AbilityMessage(ent, A_TOGGLE_ON, &call));
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
-    T_ASSERT(ability->is_toggle_on(ent));
-    T_ASSERT(ent->currentmove->ability == ability);
+    T_ASSERT(S_AbilityMessage(ent, A_TOGGLE_ON, &call));
+    T_ASSERT(ent->currentmove->proc == ability->proc);
     T_NULL(ent->currentmove->think); /* Morph cannot acquire enemies and replace itself with Attack. */
     T_ASSERT(unit_issueimmediateorder(ent, "ravenform")); /* Already in this form. */
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
-    T_ASSERT(!ability->is_toggle_on(ent));
+    T_ASSERT(!S_AbilityMessage(ent, A_TOGGLE_ON, &call));
     T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
     ent->class_id = MAKEFOURCC('o','g','r','u');
     T_ASSERT(!unit_issueimmediateorder(ent, "ravenform"));
