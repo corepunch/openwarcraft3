@@ -681,6 +681,34 @@ TEST(wc3_combat, runentity_hp_regen_none_does_not_heal) {
     T_FEQ(ent->health.value, 1000.0f, 0.0001f);
 }
 
+TEST(wc3_combat, regeneration_aura_heals_when_natural_regen_type_is_none) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"ACnr\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic,vuln,invu\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+
+    reset_entities();
+    setup_test_world();
+    LPEDICT fountain = make_combat_unit(MAKEFOURCC('h','p','e','a'), 220.0f, 0.0f, 0.0f);
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 100.0f, 0.0f);
+    fountain->s.player = ent->s.player = 0;
+    fountain->targtype = ent->targtype = TARG_GROUND;
+    fountain->abilities.added[0] = MAKEFOURCC('A','C','n','r');
+    ARRAY_COUNT(fountain->abilities.added) = 1;
+    ent->health.max_value = 1500.0f;
+    ent->health.value = 1000.0f;
+    ent->movetype = MOVETYPE_NONE;
+
+    G_RunEntity(ent);
+
+    T_FEQ(ent->health.value, 1000.0f + 15.0f * (FRAMETIME / 1000.0f), 0.001f);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Hero attribute -> derived-stat scaling (G_RecomputeHeroStats).  Test hero
  * "Hpal" (test_harness.c) has real Paladin bases: realHP 650, realM 255,
  * realdef 3.9, STR 22 / INT 17 / AGI 13.  Per WC3: +25 HP/STR, +15 mana/INT,

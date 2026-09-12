@@ -893,6 +893,11 @@ static ability_t abilitylist[] = {
     // TODO: Stpr a_unknown  /* PIlot Tank (Rifleman) */
     // TODO: Suhf a_unknown  /* Unholy Frenzy (Warlock) */
     /* END GENERATED TODO ABILITIES */
+
+    /* Passive regeneration base codes remain explicit outside generated TODOs. */
+    { "Aarm", CAbilityPassive, AB_PASSIVE, SPELL_TARGET_NONE },  /* Mana Regeneration Aura */
+    { "Aoar", CAbilityPassive, AB_PASSIVE, SPELL_TARGET_NONE },  /* Healing Ward Aura */
+    { "Aabr", CAbilityPassive, AB_PASSIVE, SPELL_TARGET_NONE },  /* Aura of Blight */
 };
 
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */

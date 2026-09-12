@@ -126,7 +126,8 @@ void G_RunEntity(LPEDICT ent) {
      * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
         FLOAT const rate = ent->data.UnitBalance->manaRegen + ent->mana_regen_bonus
-                 + (FLOAT)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent);
+                 + (FLOAT)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent)
+                 + S_RegenerationManaAura(ent);
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
     }
     /* Hit-point regeneration (WC3 'uhpr', HP/second), plus a hero's Strength
@@ -134,11 +135,14 @@ void G_RunEntity(LPEDICT ent) {
      * the unit's 'uhrt' regenType: "always" any time, "night" only at night
      * (night elves), "blight" only on blight (no blight system yet -> off-blight
      * = no regen), "none" never.  Living, wounded units only. */
-    if (ent->health.max_value > 0 && ent->health.value > 0 &&
-        ent->health.value < ent->health.max_value && G_UnitRegeneratesHP(ent)) {
-        FLOAT const rate = ent->data.UnitBalance->healthRegen
-                 + (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
-        G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
+    if (ent->health.max_value > 0 && ent->health.value > 0 && ent->health.value < ent->health.max_value) {
+        FLOAT const aura = S_RegenerationHealthAura(ent);
+        FLOAT rate = aura;
+        BOOL const natural = G_UnitRegeneratesHP(ent);
+        if (natural)
+            rate += ent->data.UnitBalance->healthRegen +
+                    (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
+        if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
     }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);

@@ -101,6 +101,8 @@ Start with abilities whose behavior maps directly to an existing runtime contrac
 | morph/transform | unit-type rebinding contract | preserve the edict and restore all affected unit state |
 | cargo/inventory | cargo or item lifecycle | use the existing handle and ownership rules |
 
+Regeneration auras follow this model: `Aoar`/`Aabr`/`Aarm` are passive base handlers, while custom/stock aliases retain their own `Area`, `targs`, `DataA`, and `DataB` through `AbilityData.code` normalization. See [Regeneration Auras And Fountains](regeneration-auras.md).
+
 Do not force passive, attack, aura, or autocast abilities into a visible cast handler
 just because their object-data class is named `CAbility*`. The runtime contract owns
 where the effect is evaluated.
