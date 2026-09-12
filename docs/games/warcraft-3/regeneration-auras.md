@@ -76,12 +76,28 @@ Mana regeneration remains the existing per-second path plus the new `Aarm` contr
 All values are multiplied by `FRAMETIME / 1000.0f`, so the authored rates remain per-second
 rather than per-frame.
 
+## Presentation
+
+Regeneration aura presentation follows the same independent-effect-edict path as other
+Warcraft ability/buff art.  The strongest live source in each regeneration family also
+retains its authored `buffID`.  While a recipient remains eligible, OpenRealm resolves
+that buff through `AbilityBuffData.TargetArt` and maintains one persistent target effect
+for that family.  The effect follows the target, loops its `stand` sequence, and is
+destroyed through the ordinary effect lifecycle when the recipient leaves range, the
+source disappears, targeting changes, or another strongest source selects different art.
+Presentation reconciliation is staggered across units every eight simulation frames so
+the visual scan does not multiply the already-hot regeneration query on every frame.
+
+This intentionally mirrors Warsmash's display-buff behavior: aura `TargetArt` is present
+while the aura affects the unit, not spawned again on every HP/mana regeneration tick.
+`Aoar`, `Aabr`, and `Aarm` own independent presentation slots, while duplicate sources
+of one family still collapse to the strongest source selected by gameplay.
+
 ## Known Gaps
 
-This change implements simulation behavior only. It does not yet add:
+This change still does not add:
 
-- recipient aura-buff handles or buff icons;
-- Fountain of Health/Mana restoration particles;
+- recipient buff icons or general persistent buff handles;
 - restoration looping sound ownership/lifetime;
 - a generic engine-wide non-stacking stat-modifier system;
 - full Warcraft target-classification parity beyond the categories above.

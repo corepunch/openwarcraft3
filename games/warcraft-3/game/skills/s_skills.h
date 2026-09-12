@@ -224,6 +224,7 @@ BOOL S_MilitiaEnsureHallAbility(LPEDICT hall);
 FLOAT S_MilitiaPairSearchRadius(DWORD ability);
 FLOAT S_RegenerationHealthAura(LPEDICT unit);
 FLOAT S_RegenerationManaAura(LPEDICT unit);
+void S_UpdateRegenerationAuraEffects(LPEDICT unit);
 FLOAT S_BrillianceManaRegen(LPEDICT unit);
 FLOAT S_UnholyHealthRegen(LPEDICT unit);
 FLOAT S_UnholyMoveBonus(LPEDICT unit);
