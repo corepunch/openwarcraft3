@@ -318,6 +318,7 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT source = make_hero(MAKEFOURCC('H','a','m','g'), 500, 300, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	level.time = 0;
 	source->s.player = target->s.player = 0;
 	source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','b'), .level = 1);
 	source->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','U','a','u'), .level = 1);
@@ -326,7 +327,10 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
 	T_FEQ(S_UnholyHealthRegen(target), 0.5f, 0.001f);
 	T_FEQ(S_VampiricLifeSteal(target), 0.2f, 0.001f);
+	level.time = 1000;
 	target->s.origin2.x = 901.0f;
+	T_FEQ(S_BrillianceManaRegen(target), 0.75f, 0.001f);
+	level.time = 2000;
 	T_FEQ(S_BrillianceManaRegen(target), 0.0f, 0.001f);
 	T_FEQ(S_UnholyMoveBonus(target), 0.0f, 0.001f);
 
@@ -364,6 +368,7 @@ TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) 
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	reset_entities();
 	setup_test_world();
+	level.time = 0;
 	LPEDICT health_source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	LPEDICT mana_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT blight_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -382,7 +387,10 @@ TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) 
 
 	T_FEQ(S_RegenerationHealthAura(target), 13.0f, 0.001f);
 	T_FEQ(S_RegenerationManaAura(target), 8.0f, 0.001f);
+	level.time = 1000;
 	target->s.origin2.x = 501.0f;
+	T_FEQ(S_RegenerationHealthAura(target), 13.0f, 0.001f);
+	level.time = 2000;
 	T_FEQ(S_RegenerationHealthAura(target), 0.0f, 0.001f);
 	T_FEQ(S_RegenerationManaAura(target), 0.0f, 0.001f);
 
