@@ -457,7 +457,7 @@ ability_t CAbilityAvatar = { .cmd = spell_cmd, .spell = &spell_avatar, .disabled
 #define HUMAN_PASSIVE(NAME) ability_t C##NAME = { .flags = ABILITY_PASSIVE }
 
 /* Attack and detection consumers resolve these passive contracts from AbilityData. */
-HUMAN_PASSIVE(AbilityFeedbackHuman);
+HUMAN_PASSIVE(AbilityFeedback);
 HUMAN_PASSIVE(AbilityFlakCannon);
 HUMAN_PASSIVE(AbilityFragShards);
 HUMAN_PASSIVE(AbilityBarrage);

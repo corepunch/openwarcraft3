@@ -245,7 +245,7 @@ extern ability_t CAbilityBurrowDetector, CAbilityRevive, CAbilityAwaken, CAbilit
 extern ability_t CAbilityOnFireHuman;
 extern ability_t CAbilityLocust, CAbilityTankTurret;
 extern ability_t CAbilityAttributeModSkill, CAbilitySpawnTentacle, CAbilityAvatarCampaign, CAbilityShockwaveCampaign, CAbilityWarStompCampaign;
-extern ability_t CAbilityFeralSpiritCampaign, CAbilitySpiritBeast, CAbilityReincarnationCampaign, CAbilityFeedback, CAbilityAbolishMagic;
+extern ability_t CAbilityFeralSpiritCampaign, CAbilitySpiritBeast, CAbilityReincarnationCampaign, CAbilityFeedbackCampaign, CAbilityAbolishMagic;
 extern ability_t CAbilitySubmergeMyrmidon, CAbilitySubmergeRoyalGuard, CAbilitySubmergeSnapDragon, CAbilityEnsnare, CAbilityFrostArmorCampaign;
 extern ability_t CAbilityParasiteCampaign, CAbilityCycloneCampaign, CAbilitySummoningRitual, CAbilitySummonQuilbeastCampaign, CAbilitySummonMisha;
 extern ability_t CAbilityStampedeCampaign, CAbilityBattleRoar, CAbilityStormBoltCampaign, CAbilityBreathOfFireCampaign;
