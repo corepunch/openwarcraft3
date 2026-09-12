@@ -80,8 +80,9 @@ rather than per-frame.
 
 Regeneration aura presentation follows the same independent-effect-edict path as other
 Warcraft ability/buff art.  The strongest live source in each regeneration family also
-retains its authored `buffID`.  While a recipient remains eligible, OpenRealm resolves
-that buff through `AbilityBuffData.TargetArt` and maintains one persistent target effect
+retains its authored `buffID`.  If an alias leaves `BuffID` empty, its base regeneration
+ability supplies the authored buff.  While a recipient remains eligible, OpenRealm
+resolves that buff through `AbilityBuffData.TargetArt` and maintains one persistent target effect
 for that family.  The effect follows the target, loops its `stand` sequence, and is
 destroyed through the ordinary effect lifecycle when the recipient leaves range, the
 source disappears, targeting changes, or another strongest source selects different art.

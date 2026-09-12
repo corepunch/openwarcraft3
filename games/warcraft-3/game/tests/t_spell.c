@@ -350,7 +350,7 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 
 TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y4;X7\n"
+		"ID;PWXL;N;EBB;Y6;X7\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
 		"C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"levels\"\n"
 		"C;Y2;X1;K\"ACnr\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
@@ -358,13 +358,19 @@ TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) 
 		"C;Y3;X1;K\"ANre\"\nC;Y3;X2;K\"Aarm\"\nC;Y3;X3;K\"ground,friend,organic\"\n"
 		"C;Y3;X4;K\"500\"\nC;Y3;X5;K\"0.02\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\n"
 		"C;Y4;X1;K\"Aabr\"\nC;Y4;X2;K\"Aabr\"\nC;Y4;X3;K\"ground,friend,organic\"\n"
-		"C;Y4;X4;K\"500\"\nC;Y4;X5;K\"3\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"1\"\nE\n";
+		"C;Y4;X4;K\"500\"\nC;Y4;X5;K\"3\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"1\"\n"
+		"C;Y5;X1;K\"Aoar\"\nC;Y5;X2;K\"Aoar\"\n"
+		"C;Y6;X1;K\"Aarm\"\nC;Y6;X2;K\"Aarm\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	reset_entities();
+	setup_test_world();
 	LPEDICT health_source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	LPEDICT mana_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT blight_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 
+	health_source->svflags |= SVF_MONSTER; mana_source->svflags |= SVF_MONSTER;
+	blight_source->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
 	UnitAbilities_t static_abilities = { .abilList = "ACnr" };
 	health_source->s.player = mana_source->s.player = blight_source->s.player = target->s.player = 0;
 	health_source->targtype = mana_source->targtype = blight_source->targtype = target->targtype = TARG_GROUND;
@@ -392,12 +398,16 @@ TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_
 		"C;Y2;X1;K\"ACn1\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
 		"C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\n"
 		"C;Y3;X1;K\"ACn2\"\nC;Y3;X2;K\"Aoar\"\nC;Y3;X3;K\"ground,friend,organic\"\n"
-		"C;Y3;X4;K\"500\"\nC;Y3;X5;K\"0.02\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\nE\n";
+		"C;Y3;X4;K\"500\"\nC;Y3;X5;K\"0.02\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\n"
+		"C;Y4;X1;K\"Aoar\"\nC;Y4;X2;K\"Aoar\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	reset_entities();
+	setup_test_world();
 	LPEDICT first = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 
+	first->svflags |= SVF_MONSTER; second->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
 	first->s.player = second->s.player = target->s.player = 0;
 	first->targtype = second->targtype = target->targtype = TARG_GROUND;
 	first->abilities.added[0] = MAKEFOURCC('A','C','n','1'); ARRAY_COUNT(first->abilities.added) = 1;
@@ -414,18 +424,22 @@ TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_
 
 TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_range) {
 	const char slk[] =
-		"ID;PWXL;N;EBB;Y2;X8\n"
+		"ID;PWXL;N;EBB;Y3;X8\n"
 		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
 		"C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
 		"C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"levels\"\n"
 		"C;Y2;X1;K\"ACnr\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
 		"C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\n"
-		"C;Y2;X7;K\"Biml\"\nC;Y2;X8;K\"1\"\nE\n";
+		"C;Y2;X7;K\"Biml\"\nC;Y2;X8;K\"1\"\n"
+		"C;Y3;X1;K\"Aoar\"\nC;Y3;X2;K\"Aoar\"\nC;Y3;X7;K\"Biml\"\nC;Y3;X8;K\"1\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	reset_entities();
+	setup_test_world();
 	LPEDICT source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 	LPEDICT overlay = NULL;
 
+	source->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
 	source->s.player = target->s.player = 0;
 	source->targtype = target->targtype = TARG_GROUND;
 	source->abilities.added[0] = MAKEFOURCC('A','C','n','r');
