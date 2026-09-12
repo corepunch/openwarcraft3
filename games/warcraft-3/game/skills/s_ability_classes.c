@@ -61,6 +61,59 @@ ability_t CAbilityRegenBase  = { .parent = &CAbilityPersistentBonus }; /* AREB *
 ability_t CAbilityAura       = { .parent = &CBonusBase };              /* aura */
 ability_t CAbilityBaseBuild  = { .parent = &CAbilityInterfaced };      /* ABbs */
 
+/* ── intermediate / leaf base classes from the TFT registry ── */
+
+ability_t CAbilityClosestTargetSpell = { .parent = &CAbilitySimpleSpell };  /* AAcs */
+ability_t CAbilityBuildQueue    = { .parent = &CAbilityBaseBuild };         /* ABqu — kept as alias for ABbs until queue behavior is split */
+ability_t CAbilityBuildInProgress = { .parent = &CAbilityInProgress };      /* ABnP */
+ability_t CAbilityInProgress    = { .parent = &CAbilityBaseBuild };         /* AInP */
+ability_t CAbilityUpgradeInProgress = { .parent = &CAbilityInProgress };    /* AUnP */
+ability_t CAbilitySacrificeInProgress = { .parent = &CAbilityBaseBuild };   /* ASnP */
+ability_t CAbilityResearch      = { .parent = &CAbilityBaseBuild };         /* ARes */
+ability_t CAbilityBaseSell      = { .parent = &CAbilityBaseBuild };         /* ASbs */
+ability_t CAbilitySellItem      = { .parent = &CAbilityBaseSell };          /* Asei */
+ability_t CAbilitySellUnit      = { .parent = &CAbilityBaseSell };          /* Asel */
+ability_t CAbilityMakeItem      = { .parent = &CAbilitySellItem };          /* Amai */
+ability_t CAbilityQueue         = { .parent = &CAbilityBaseBuild };         /* Aque */
+ability_t CAbilityUpgrade       = { .parent = &CAbilityBaseBuild };         /* Aupg */
+ability_t CAbilityRegenMana     = { .parent = &CAbilityRegenBase };         /* Arem */
+ability_t CAbilityStarfallDrain = { .parent = &CAbility };                  /* AEsd */
+ability_t CAbilityTranquilityRegen = { .parent = &CAbilityRegenBase };      /* AEtr → Arel → AREB (Arel = CAbilityRegenLife, not yet defined) */
+ability_t CAbilityDamageBonusBase = { .parent = &CAbilityAttackBonus };     /* AIDB → AIat → APbo */
+ability_t CAbilityDamageBonusBaseEx = { .parent = &CAbilityDamageBonusBase }; /* AIDE */
+ability_t CAbilityItemCureAoe   = { .parent = &CAbilitySimpleSpell };       /* AIca */
+ability_t CAbilityItemFlyingCarpet = { .parent = &CAbilitySimpleSpell };    /* AIfc */
+ability_t CAbilityMaxManaMod    = { .parent = &CAbilitySimpleSpell };       /* AImn → AItm → AAsm */
+ability_t CAbilityItemPermInvis = { .parent = &CAbility };                  /* AIpi → Apiv → ABon */
+ability_t CAbilityItemTeleport  = { .parent = &CAbilitySimpleSpell };       /* AIte */
+ability_t CAbilityNeutralG2L    = { .parent = &CAbilityNeutralSpell };      /* ANgl */
+ability_t CAbilityNeutralL2G    = { .parent = &CAbilityNeutralSpell };      /* ANlg */
+ability_t CAbilityMonsoonDrain  = { .parent = &CAbilityStarfallDrain };     /* ANmd */
+ability_t CAbilityNeutralRegenLife = { .parent = &CAbilityRegenBase };      /* ANrl → Arel → AREB */
+ability_t CAbilityNeutralRegenMana = { .parent = &CAbilityRegenMana };      /* ANrm → Arem → AREB */
+ability_t CAbilityNeutralSpies  = { .parent = &CAbilityNeutralSpell };      /* ANsp */
+ability_t CAbilityBarkskin      = { .parent = &CAbilityModalSpell };        /* Abar */
+ability_t CAbilityBlightRegen   = { .parent = &CAbility };                  /* Ablr */
+ability_t CAbilityBounce        = { .parent = &CAbilitySpell };             /* Abou */
+ability_t CAbilityCallToArms    = { .parent = &CPower };                    /* Acal */
+ability_t CAbilityChaosBase     = { .parent = &CAbility };                  /* Achb */
+ability_t CAbilityCouple        = { .parent = &CPower };                    /* Acou */
+ability_t CAbilityCargo         = { .parent = &CAbility };                  /* Acrg */
+ability_t CAbilityNotifyDamage  = { .parent = &CAbility };                  /* Admg */
+ability_t CAbilityDetectAoe     = { .parent = &CAbilitySimpleSpell };       /* Adta */
+ability_t CAbilityGoldMineBase  = { .parent = &CAbility };                  /* Agmb */
+ability_t CAbilityGraveyardCorpse = { .parent = &CAbility };                /* Agyc */
+ability_t CAbilityHarvestBase   = { .parent = &CPower };                    /* Ahrb */
+ability_t CAbilityHarvestReturn = { .parent = &CAbilityHarvestBase };       /* Ahrr */
+ability_t CAbilityLeash         = { .parent = &CAbility };                  /* Alea */
+ability_t CAbilityMount         = { .parent = &CAbilityMorph };             /* Amou */
+ability_t CAbilityNeutralInteract = { .parent = &CAbilityNeutralSpell };    /* Anei */
+ability_t CAbilityNightVision   = { .parent = &CAbility };                  /* Anit */
+ability_t CAbilityPossessedGoldMine = { .parent = &CAbilityGoldMineBase };  /* Apgm */
+ability_t CAbilityRescuable     = { .parent = &CAbility };                  /* Arsc */
+ability_t CAbilityTankPilot     = { .parent = &CAbilitySimpleSpell };       /* Atpi */
+ability_t CAbilityTarget        = { .parent = &CAbility };                  /* Atrg */
+
 /* ── parent wiring for concrete abilities ──
  *
  * Sets the .parent pointer on every registered concrete ability_t

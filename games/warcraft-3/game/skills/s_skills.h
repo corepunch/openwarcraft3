@@ -21,6 +21,56 @@ extern ability_t CAbilityPersistentBonus;/* APbo */
 extern ability_t CAbilityRegenBase;      /* AREB */
 extern ability_t CAbilityAura;           /* aura */
 extern ability_t CAbilityBaseBuild;      /* ABbs */
+extern ability_t CAbilityClosestTargetSpell; /* AAcs */
+extern ability_t CAbilityBuildQueue;     /* ABqu */
+extern ability_t CAbilityBuildInProgress;/* ABnP */
+extern ability_t CAbilityInProgress;     /* AInP */
+extern ability_t CAbilityUpgradeInProgress; /* AUnP */
+extern ability_t CAbilitySacrificeInProgress; /* ASnP */
+extern ability_t CAbilityResearch;       /* ARes */
+extern ability_t CAbilityBaseSell;       /* ASbs */
+extern ability_t CAbilitySellItem;       /* Asei */
+extern ability_t CAbilitySellUnit;       /* Asel */
+extern ability_t CAbilityMakeItem;       /* Amai */
+extern ability_t CAbilityQueue;          /* Aque */
+extern ability_t CAbilityUpgrade;        /* Aupg */
+extern ability_t CAbilityRegenMana;      /* Arem */
+extern ability_t CAbilityStarfallDrain;  /* AEsd */
+extern ability_t CAbilityTranquilityRegen; /* AEtr */
+extern ability_t CAbilityDamageBonusBase;/* AIDB */
+extern ability_t CAbilityDamageBonusBaseEx; /* AIDE */
+extern ability_t CAbilityItemCureAoe;    /* AIca */
+extern ability_t CAbilityItemFlyingCarpet; /* AIfc */
+extern ability_t CAbilityMaxManaMod;     /* AImn */
+extern ability_t CAbilityItemPermInvis;  /* AIpi */
+extern ability_t CAbilityItemTeleport;   /* AIte */
+extern ability_t CAbilityNeutralG2L;     /* ANgl */
+extern ability_t CAbilityNeutralL2G;     /* ANlg */
+extern ability_t CAbilityMonsoonDrain;   /* ANmd */
+extern ability_t CAbilityNeutralRegenLife; /* ANrl */
+extern ability_t CAbilityNeutralRegenMana; /* ANrm */
+extern ability_t CAbilityNeutralSpies;   /* ANsp */
+extern ability_t CAbilityBarkskin;       /* Abar */
+extern ability_t CAbilityBlightRegen;    /* Ablr */
+extern ability_t CAbilityBounce;         /* Abou */
+extern ability_t CAbilityCallToArms;     /* Acal */
+extern ability_t CAbilityChaosBase;      /* Achb */
+extern ability_t CAbilityNotifyDamage;   /* Admg */
+extern ability_t CAbilityDetectAoe;      /* Adta */
+extern ability_t CAbilityGoldMineBase;   /* Agmb */
+extern ability_t CAbilityGraveyardCorpse;/* Agyc */
+extern ability_t CAbilityHarvestBase;    /* Ahrb */
+extern ability_t CAbilityHarvestReturn;  /* Ahrr */
+extern ability_t CAbilityLeash;          /* Alea */
+extern ability_t CAbilityMount;          /* Amou */
+extern ability_t CAbilityNeutralInteract;/* Anei */
+extern ability_t CAbilityNightVision;    /* Anit */
+extern ability_t CAbilityPossessedGoldMine; /* Apgm */
+extern ability_t CAbilityRescuable;      /* Arsc */
+extern ability_t CAbilityTankPilot;      /* Atpi */
+extern ability_t CAbilityTarget;         /* Atrg */
+extern ability_t CAbilityCouple;         /* Acou */
+extern ability_t CAbilityCargo;          /* Acrg */
 void S_WireAbilityParents(void);
 
 extern ability_t CAbilityHarvest;
