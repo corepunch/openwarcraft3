@@ -8,6 +8,9 @@ recovering Blizzard's original C++ class hierarchy.
 supposed to observe. It is not a complete specification, so every implementation
 record separates confirmed facts, reasonable deductions, and unresolved behavior.
 
+Ability-owned behavior is the default architecture: keep the full behavior in its ability module and reach it through
+generic dispatch. See [ownership](#ability-owned-orders-and-persistent-behavior) and [testing](#testing) before adding code.
+
 ## Sources Of Truth
 
 Use sources in this order, choosing the smallest set that answers the question:
@@ -88,8 +91,8 @@ Start with abilities whose behavior maps directly to an existing runtime contrac
 | direct damage/heal | `spell_info_t` plus `spell_cmd` | apply the authored amount to validated targets |
 | timed buff/debuff | `unit_addtimedstatus` | add and expire the status through normal lifecycle code |
 | toggle | `SPELL_TOGGLE` plus status | execute the same command to add/remove the state |
-| passive aura | central movement/combat consumer | calculate from active nearby owners; avoid stale recipient state |
-| attack proc | attack-resolution hook | evaluate chance and effect at damage time |
+| passive aura | ability modifier hooks consumed by movement/combat | calculate from active nearby owners; avoid stale recipient state |
+| attack proc | ability callback at attack resolution | evaluate chance and effect in the owning ability at damage time |
 | autocast | existing autocast hooks | acquire targets, then issue the ordinary spell order |
 | channel/wave | `SPELL_CHANNEL` and thinker | schedule ticks and cancellation explicitly |
 | summon | summon helpers and unit rawcode | use authored `UnitID`/`Data` values and duration |
@@ -320,6 +323,12 @@ all ability work.
 
 ## Testing
 
+Recreate the gameplay situation in automated tests before launching the game. Use production order/ability dispatch,
+the real animation and update callbacks, deterministic simulation time, and representative archive fixtures. If the
+intended reproducer is a sequence of player or script actions, test that sequence rather than only the final helper.
+Extend the harness or fixture generator if it cannot yet exercise the path. See the
+[test-first workflow](../../../CONTRIBUTING.md#test-first-behavior-verification).
+
 Each new ability needs focused tests for:
 
 - registration and rawcode lookup;
@@ -330,23 +339,23 @@ Each new ability needs focused tests for:
 - save/load when the ability adds persistent entity state;
 - ROC and TFT rows when the archives differ.
 
+For Raven Form, reproduce both completion of Morph and replacement by Move before its end callback, followed by ascent,
+pause, and reversal. Assert the retained order, form, animation interval, height, and cleanup at the relevant steps.
+Exercise the generic scheduler as well as the ability callback so a missing registration or lifecycle hook cannot hide
+behind a passing helper test. Use the generated morph model to select actual sequences; do not require a campaign replay
+to prove these transitions. A save/load or parser bug belongs in the corresponding fixture-backed regression suite.
+
 Run the affected WC3 tests first, then the full suite:
 
 ```sh
-make test-wc3-engine WC3_PATTERN='spell|ability'
+make test-wc3-engine WC3_PATTERN='wc3_unit.*'
+make test-wc3-engine WC3_PATTERN='wc3_spell.*'
 make test
 ```
 
-For runtime checks, exercise the actual gameplay path with a bounded run rather than
-only starting the menu:
-
-```sh
-build/bin/openwarcraft3 -data 'data/Warcraft III' -roc \
-  +map 'Maps/(2)Rivercross.w3m' +com_frame_limit 100
-```
-
-For presentation work, capture a frame after issuing the ability and verify that the
-model, effect, status, and animation all return to their normal states.
+Only use a bounded game run for a named property the tests and tools cannot measure, such as the final rendered pixels.
+State that gap before launching and exercise it directly. Animation selection, effect lifetime, status cleanup, and
+return to the normal state should already have automated assertions. Once covered, rerun the tests instead of the game.
 
 ## Known Pitfalls
 
@@ -370,12 +379,21 @@ See also:
 
 ## Ability-owned orders and persistent behavior
 
-Keep an ability's order strings, validation, animation moves, completion functions, and timed effects in its
+This is the direction for new gameplay work and for refactoring behavior encountered in general-purpose files.
+Split behavior by the ability that owns it; do not grow `g_monster.c`, `m_unit.c`, or `g_ai.c` with individual spell rules.
+Keep an ability's order strings, validation, state transitions, animation moves, completion functions, and timed effects in its
 `skills/s_*.c` owner. For immediate orders outside the spell pipeline, register `ability_t.orders` and `.order`;
 for effects that outlive an active order, use `.update`. `s_skills.c` owns generic dispatch and deduplicates shared
 update handlers at initialization. Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
 See [Raven Form](unit-animation-properties.md) for the order/update contract and persistence tests.
 
+Encapsulation includes setup, interruption, cancellation, inverse orders, expiry/death/removal cleanup, and restoration
+after save/load where applicable. Moving a command function into `skills/` while leaving its timer or cleanup in a generic
+unit loop is incomplete. Use existing lifecycle hooks or add a small generic hook when necessary. The shared mechanism
+dispatches or applies an ability's result; the ability decides its own rules. Keep this flat and data-oriented.
+
 `skills/s_move.c` owns reusable locomotion (steering, steps, collision policy, route goals, and support height).
 Attack, Follow, Harvest, and Build call that ability's movement operations while owning their own goals and arrival
 conditions. `g_ai.c` owns acquisition/behavior transitions, and `g_monster.c` owns initialization and generic animation dispatch.
+Shared math, routing algorithms, collision queries, serialization, and in-place type rebinding remain reusable services;
+ability ownership does not mean duplicating these mechanisms in each ability.

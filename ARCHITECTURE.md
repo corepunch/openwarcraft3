@@ -260,4 +260,13 @@ For in-depth details on specific engine subsystems, consult the following dedica
     If no hook exists, add a function-table entry rather than using `#ifdef` as a substitute.
 - **Network Contract Stability**: `entityState_t` and `playerState_t` are tight network contracts. Never add fields without careful justification; prefer existing fields, configstrings, or server-authored UI payloads.
 - **Data-Oriented & id-Tech Idioms**: Follow Quake 2 patterns (`g_*.c`, `cl_*.c`, `sv_*.c`, `r_*.c`). Favor flat, memory-mapped structs, single-pass schema tables, and thin interfaces over heavy OOP abstractions.
-- **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Verify root causes with logging and tests before committing fixes.
+- **Ability-Owned Gameplay Behavior**: Split gameplay behaviors into their owning abilities. Orders, eligibility, timers,
+  animation moves, interruption/inverse paths, and cleanup live together in the ability module. Movement is also an ability:
+  other behaviors reuse its locomotion operations while retaining their own goals and arrival conditions. General-purpose
+  machinery such as `g_monster.c`, `m_unit.c`, and `g_ai.c` provides lifecycle, dispatch, and shared mechanisms; it must not
+  accumulate individual spell rules or direct spell update calls. Use flat callback/function-table contracts, not a new
+  class hierarchy. See [WC3 ability ownership](docs/games/warcraft-3/ability-implementation-plan.md#ability-owned-orders-and-persistent-behavior).
+- **Test-First Verification**: Recreate gameplay situations through production entry points in automated tests, including
+  timing and callback order. Extend fixtures and harnesses before resorting to a game launch. See
+  [verification workflow](CONTRIBUTING.md#test-first-behavior-verification) for the limited visual/platform exceptions.
+- **No Silent Fallbacks or Demotions**: If an asset or resource fails to load, log a clear diagnostic. Do not hide bugs behind silent fallback flags. Confirm root causes with regression tests and authoritative data; use diagnostic logs when needed.

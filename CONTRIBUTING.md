@@ -7,6 +7,39 @@ Investigation findings are part of the contribution. Follow the
 code, game data, runtime logs, history, issues, or external references. Add focused documents to the nearest subsystem index so the
 next contributor can find the answer without repeating the lookup.
 
+## Test-First Behavior Verification
+
+Prefer added regression tests over launching the game to verify gameplay functionality. Reproduce the situation that
+would otherwise require playing a map, issuing console commands, or watching a cinematic. Headless tests can execute
+the real game module through the test binary; this does not require opening the game or using installed retail archives.
+
+1. Establish the expected contract from authoritative data and the actual code path. Describe the initial state, inputs,
+   event order, timing, and expected observable result.
+2. Add the smallest representative fixture and drive production entry points: orders, script/native dispatch, scheduler
+   ticks, animation end callbacks, save/load, or message encode/decode, as relevant. Advance simulation time explicitly.
+   Avoid wall-clock sleeps, copies of production algorithms, or mocks that replace the behavior being verified.
+3. Reproduce the failure before fixing it. Include the relevant interruption, pause, inverse, invalid-target, or restoration
+   case; success-path helper tests alone do not establish that the gameplay lifecycle works.
+4. Fix the owner, rerun the regression, then run the required suite. For WC3 data changes, cover both ROC and TFT schemas
+   with fixtures; running the same TFT-only fixture twice does not test ROC column names.
+5. If the harness lacks something needed to reproduce the situation, extend the harness, fixture generator, or diagnostic
+   tool. Once an automated reproducer covers the behavior, use it for subsequent edits and rebases instead of replaying the game.
+
+The Raven Form refactor provides concrete examples in `games/warcraft-3/game/tests/`: `t_unit.c` issues a morph followed
+by Move before animation completion and checks that ascent continues without replacing Move; it also covers pause and
+reversal. `t_combat.c` tests an animation end callback installing another sequence, `t_slk.c` covers ROC rawcode columns,
+and `t_game.c` checks persistence. The generated `mdxgen morph` model supplies the required sequences without retail assets.
+See [ability implementation](docs/games/warcraft-3/ability-implementation-plan.md) for ownership and test design.
+
+Launch the game only for a specific property that remains untestable after considering these options, such as framebuffer
+output or OS input integration. State that coverage gap before launching, keep the run bounded with `+com_frame_limit N`,
+and capture just the relevant behavior. A newly discovered gameplay failure should become a regression test so another
+manual run is unnecessary. Passing behavior tests do not prove visual correctness; report that limit when it matters.
+There is no blanket requirement to launch the game after an implementation, rebase, or build.
+
+For code and executable fixture/build changes, build the affected targets and run `make test` before committing.
+Documentation-only changes need text, relative-link, and `git diff --check` validation; no game launch or full suite is needed.
+
 ## Test Fixtures and MPQ Assets
 
 - Tests must not depend on a developer's local Warcraft III data or `War3.mpq`. Add game-specific archive fixtures under `games/<game>/tests/resources-src`; Warcraft III packs `games/warcraft-3/tests/resources-src` into the generated `build/tests/tests.mpq` through `make test-assets`, and tests should read from that fixture MPQ instead.

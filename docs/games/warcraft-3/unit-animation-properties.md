@@ -71,10 +71,23 @@ The `mdxgen morph` fixture supplies distinct base/alternate Stand, Walk, and Mor
 registered orders, toggle state, nonmatching units, ordinary-unit update no-ops, morph completion, ascent during
 Move/pause, reversal, and both data-column schemas.
 
-Bounded live-archive campaign reproducer (repeat with `-tft`):
+Use the automated reproducers for functionality checks; they replace repeated launches of Prologue01:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_unit.*'
+make test-wc3-engine WC3_PATTERN='wc3_combat.mmoveframe*'
+make test-wc3-engine WC3_PATTERN='wc3_slk.roc_ability_data_preserves_object_ids_and_numbers'
+make test-wc3-engine WC3_PATTERN='wc3_save.*'
+make test
+```
+
+These headless fixture tests exercise the same order, callback, interruption, and persistence situations as the campaign.
+If another gameplay failure is reported, extend the reproducer rather than relying on another manual replay. See
+[test-first verification](../../../CONTRIBUTING.md#test-first-behavior-verification).
+
+The original live-archive reproducer is retained for an uncovered visual/platform question only; identify that gap before
+using it (repeat with `-tft` if the gap depends on archive variants):
 
 ```sh
 build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -com_fast_forward +set sv_cheats 1 +map Maps/Campaign/Prologue01.w3m +jass Trig_End_Cinematic_Actions +com_frame_limit 1600
-make test-wc3-engine WC3_PATTERN='wc3_unit.*'
-make test
 ```

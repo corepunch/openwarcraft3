@@ -52,7 +52,7 @@ Copyable bounded commands, expected evidence, and relevant file paths.
 Incorrect assumptions, version differences, silent-failure risks, and why prior bugs happened.
 
 ## Verification
-Tests and runtime scenes that cover the behavior.
+Automated scenario tests, fixtures, and commands that cover the behavior; any specific gap still needing a runtime scene.
 ```
 
 Prefer exact symbols and repository-relative paths so `rg` finds the documentation alongside code searches. Include representative
@@ -69,3 +69,4 @@ Before finishing work that required investigation:
 - [ ] Adjacent workflow/reference documents cross-link it when useful.
 - [ ] Code comments explain only local constraints; broader context lives in documentation.
 - [ ] Documentation matches the final implementation and tests, not an abandoned hypothesis.
+- [ ] Gameplay repro steps identify the automated test that replaces manual replay; any remaining game-launch requirement names the property the harness cannot yet verify.
