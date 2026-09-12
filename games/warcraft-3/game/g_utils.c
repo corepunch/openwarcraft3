@@ -16,6 +16,7 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     /* Direct JASS RemoveUnit must release construction workers before the building edict is cleared. */
     if (ent->construction.active) G_StopConstruction(ent);
     if (ent->buildwork.ability) S_CancelRepair(ent);

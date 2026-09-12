@@ -447,7 +447,7 @@ client selection
   -> CL_RequestUnitUI
   -> clc_request_unit_ui
   -> server/sv_unit_ui.c
-  -> games/warcraft-3/game/g_unit_ui.c
+  -> games/warcraft-3/game/hud/hud_unit.c
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI

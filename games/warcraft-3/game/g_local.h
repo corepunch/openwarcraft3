@@ -527,6 +527,7 @@ typedef struct {
 #define AB_COMMAND      (1u << 6)  // bit 6; bespoke command procedure; exposes a command-card action
 #define AB_UPDATE       (1u << 7)  // bit 7; persistent behavior procedure; receives per-unit update messages
 #define AB_ITEM         (1u << 8)  // bit 8; inventory behavior procedure; receives item-use messages
+#define AB_INNATE       (1u << 9)  // bit 9; unit-data behavior; receives lifecycle messages without a command-card slot
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -591,6 +592,13 @@ typedef enum {
     A_LEVEL_CHANGED,    /* Level refresh: apply the new call->level to behavior-owned state. */
     A_ORDER,            /* Immediate-order dispatch: handle call->order; return whether it was accepted. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
+    A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
+    A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
+    A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
+    A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
+    A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
+    A_CANCEL,           /* Explicit cancellation: return to the unit's ordinary idle behavior. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)
@@ -1636,14 +1644,11 @@ void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
 
-// g_creep_sleep.c
+// skills/s_creep_sleep.c — JASS natural-sleep interface
 BOOL G_UnitCanSleep(LPCEDICT);
 BOOL G_UnitIsSleeping(LPCEDICT);
 void G_UnitSetCanSleep(LPEDICT, BOOL);
-void G_UnitLeaveCreepSleep(LPEDICT);
 void G_UnitWakeUp(LPEDICT);
-BOOL G_TryEnterCreepSleep(LPEDICT);
-BOOL G_IsCreepSleepMove(umove_t const *);
 
 // g_spawn.c
 BOOL WriteGame(LPCSTR filename);
@@ -1781,7 +1786,6 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
 LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount);
-void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount);
 BOOL G_UnitCanReviveHeroes(LPCEDICT altar);
 BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
 
@@ -1828,6 +1832,7 @@ void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);
+BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
@@ -1857,7 +1862,10 @@ void G_DestroyEffect(LPEDICT effect);
 void G_EffectThink(LPEDICT);
 void G_EffectValidateTarget(LPEDICT);
 
-// g_unit_ui.c (Phase 8)
+// hud/hud_resource_text.c
+void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount);
+
+// hud/hud_unit.c
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
 BOOL G_BuildAllEnabled(void);

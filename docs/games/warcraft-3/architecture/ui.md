@@ -205,7 +205,7 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
 | File | Purpose |
 |------|---------|
 | `server/sv_unit_ui.c` | Handle `clc_request_unit_ui`, query game DLL |
-| `games/warcraft-3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
+| `games/warcraft-3/game/hud/hud_unit.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
 | `games/warcraft-3/game/hud/hud.c` | FDF→uiframe serialization bridge, frames[] global registry |
 | `server/game.h` | `game_export` callbacks for unit data queries |
 | `client/menu.h` | Shared UI module API declaration |
@@ -221,9 +221,16 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, menuUnitData_t *units) {
 
 ### Server-Side Data Providers
 
+`games/warcraft-3/game/hud/` owns game-specific presentation, including unit UI data and world-space resource labels.
+`hud_unit.c` builds command buttons, inventory entries, and queue data from gameplay state;
+`hud_resource_text.c` resolves and emits floating resource-gain text. Resource accounting remains in `g_food.c`,
+which passes the final credited amount to presentation. Both providers remain in the server-side game module.
+Shared string copying lives in `hud_utils.h`, explicitly included by `hud_unit.c` and `hud_infopanel.c`;
+it must not depend on a private helper becoming visible through unity-build source ordering.
+
 | File | Purpose |
 |------|---------|
-| `games/warcraft-3/game/g_unit_ui.c` | Converts selected entities into command card, inventory, and build queue data |
+| `games/warcraft-3/game/hud/hud_unit.c` | Converts selected entities into command card, inventory, and build queue data |
 | `server/sv_unit_ui.c` | Marshals unit UI data into `svc_unit_ui` messages |
 | `client/cl_unit_ui.c` | Receives `svc_unit_ui` and forwards decoded data to the UI library |
 

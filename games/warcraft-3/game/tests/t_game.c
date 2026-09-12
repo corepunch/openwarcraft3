@@ -2534,9 +2534,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->stand = unit_stand; first->birth = unit_birth; first->die = unit_die; first->think = monster_think;
     unit_stand(first);
     first->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    first->svflags |= SVF_MONSTER;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
-    T_ASSERT(G_TryEnterCreepSleep(first));
+    ai_stand(first);
+    T_ASSERT(G_UnitIsSleeping(first));
     strlcpy(first->animation_props, "alternate,work", sizeof(first->animation_props));
     strlcpy(first->animation_request, "stand ready", sizeof(first->animation_request));
     T_ASSERT(first->currentmove != NULL);
@@ -2701,7 +2703,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].think == monster_think);
     /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
     T_ASSERT(g_edicts[first - g_edicts].currentmove == saved_move);
+    T_ASSERT(G_UnitIsSleeping(first));
     T_ASSERT(unit_issueimmediateorder(g_edicts + (first - g_edicts), "stop"));
+    T_ASSERT(!G_UnitIsSleeping(first));
+    FOR_LOOP(i, globals.num_edicts)
+        T_ASSERT(!g_edicts[i].inuse || g_edicts[i].owner != first || g_edicts[i].goalentity != first);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 123);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 45);
     T_EQ(game.clients[0].camera.state.fov, 61.0f);

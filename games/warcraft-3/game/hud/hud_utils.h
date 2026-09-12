@@ -1,6 +1,11 @@
 #ifndef hud_utils_h
 #define hud_utils_h
 
+/* Missing authored text is represented by an empty, bounded HUD string. */
+static void UI_CopyString(LPSTR out, DWORD size, LPCSTR text) {
+    if (out && size) snprintf(out, size, "%s", text ? text : "");
+}
+
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
 static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
     int offset = 0;

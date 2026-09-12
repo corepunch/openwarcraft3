@@ -1,8 +1,39 @@
 # Neutral Creep Sleep
 
-OpenRealm models Warcraft III's **natural neutral-creep sleep** as simulation
-state owned by the unit.  It is deliberately separate from the Dreadlord Sleep
-spell (`AUsl` / `BUsL`), which continues to use the timed-status system.
+`skills/s_creep_sleep.c` owns Warcraft III's **natural neutral-creep sleep** through
+`CAbilityCreepSleep`, registered as `ACsp` with `AB_PASSIVE | AB_INNATE`.
+The TFT registry (`games/warcraft-3/tft-ability-classes.txt`) identifies its parent
+as `Asla` / `CAbilitySleepAlways`. The concrete procedure delegates shared wake,
+interruption, removal, and acquisition messages directly to that parent procedure.
+Dreadlord Sleep (`AUsl` / `BUsL`) continues to use the independent timed-status system.
+
+## Ability ownership
+
+`AB_INNATE` marks unit-data behaviors which receive lifecycle messages without
+requiring an explicit ability-list or command-card slot. `InitAbilities` builds
+concrete `abilityitem_t` entries once; `S_UnitAbilityEvent` sends each procedure
+its rawcode and registry row through `abilityCall_t`.
+
+| Entry point | Message | Ability-owned decision |
+|---|---|---|
+| `SP_SpawnUnit` (including type rebind) | `A_UNIT_INIT` | Seed mutable eligibility from `UnitData.canSleep` |
+| `ai_stand`, before neutral-owner early return | `A_IDLE` | Enter sleep if eligible at night |
+| `unit_setmove`, before replacing a distinct move | `A_MOVE_LEAVE` | Clear sleep state and remove overhead effects |
+| Positive post-mitigation `T_Damage` | `A_DAMAGED` | Wake before combat response |
+| `G_FreeEdict`, before clearing the edict | `A_UNIT_REMOVE` | Destroy owned effects before slot reuse |
+| AI target filter | `A_NO_ACQUIRE` | Suppress automatic targeting while asleep |
+
+Notifications visit every registered innate owner. Idle/acquisition queries stop
+when an owner returns true. The private sleep move carries `CAbilityCreepSleep`
+as its procedure and owns the dawn-check think callback. Natural-sleep rules now
+live in the ability rather than AI, spawn, or damage dispatch. `UnitAddSleep` and `UnitWakeUp` resolve
+`ACsp` through the registry and send `A_ENABLE`/`A_DISABLE` and `A_CANCEL` respectively.
+The read-only JASS queries stay in the same ability module.
+
+The original `g_creep_sleep.c` implementation (commit `98d73350`) bypassed the
+registry. Its removal path left a live overhead effect after `G_FreeEdict`; the
+refactor reproduces that failure in the effect lifecycle test and fixes it through
+`A_UNIT_REMOVE`.
 
 ## Authoritative data
 
@@ -82,9 +113,10 @@ existing timed-status cleanup.
 
 `UnitAddSleepPerm` remains conservative.  Warcraft's editor metadata ties this
 native to `Sleep Always` (`Asla`), whose `Sleep Once` and `Allow On Any Player
-Slot` fields need an ability-owned runtime model.  Aliasing it to ordinary night
-sleep would make those semantics wrong, so the native stays a placeholder until
-`Asla` is implemented.
+Slot` activation fields still need an authoritative behavioral contract. Aliasing
+it to ordinary night sleep would make those semantics wrong, so the native stays
+a placeholder. `CAbilitySleepAlways` currently supplies shared exit behavior to
+`ACsp`; `Asla` remains unregistered until its activation rules are implemented.
 
 ## Player-wide creep sleep switch
 
@@ -105,7 +137,10 @@ The mutable natural-sleep fields live on `edict_s`, so they cross the ordinary
 raw-edict save boundary together with the unit.  Save format version 15 marks the
 `edict_t` layout change.  `currentmove` already uses the existing `F_MMOVE`
 relocation contract, so a unit saved while using the static creep-sleep move can
-restore that move without serializing an address.
+restore that move without serializing an address. This ownership refactor changes
+neither the edict layout nor its field schema; saves use the existing same-build
+move relocation contract. The round-trip test verifies that Stop after loading
+clears sleep and destroys its restored overhead effect.
 
 ## Deliberately unresolved
 
@@ -125,12 +160,17 @@ known gap.
 
 ## Verification
 
-Focused in-engine coverage is under `wc3_unit` and the save/load round trip.
+Focused in-engine coverage is under `wc3_unit`, `wc3_combat`, `wc3_effects`,
+and the `wc3_save` round trip.
 After building the test binary, useful filters are:
 
 ```bash
-build/bin/openwarcraft3-tests -data tests +dedicated 1 +test 'wc3_unit.*sleep*'
-build/bin/openwarcraft3-tests -data tests +dedicated 1 +test 'wc3_save.*'
+make openwarcraft3-tests test-assets
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_unit.*'
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_effects.*'
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_combat.*'
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_save.*'
+python3 tools/wc3_ability_class_audit.py --format=coverage
 ```
 
 For a retail-data manual check, use a map with one of the Ogre rows above,
@@ -140,6 +180,7 @@ the sleeper and disappears on wake, and direct damage wakes it.
 
 ## See also
 
+- [Ability ownership](ability-implementation-plan.md#ability-owned-orders-and-persistent-behavior)
 - [Time of Day](time-of-day.md)
 - [JASS Native Coverage](jass-native-coverage.md)
 - [Attack and Damage](attack-damage.md)

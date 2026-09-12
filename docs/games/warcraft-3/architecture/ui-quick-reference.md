@@ -41,7 +41,7 @@ client/cl_input.c
   CL_RequestUnitUI
   -> clc_request_unit_ui
   -> server/sv_unit_ui.c
-  -> games/warcraft-3/game/g_unit_ui.c
+  -> games/warcraft-3/game/hud/hud_unit.c
   -> svc_unit_ui
   -> client/cl_unit_ui.c
   -> ui.UpdateUnitUI
@@ -64,7 +64,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 | `client/cl_main.c` | Renderer/UI init and client frame loop |
 | `client/cl_unit_ui.c` | `svc_unit_ui` parser |
 | `server/sv_unit_ui.c` | Unit UI data request handler |
-| `games/warcraft-3/game/g_unit_ui.c` | Game-side unit UI data provider |
+| `games/warcraft-3/game/hud/hud_unit.c` | Game-side unit UI data provider |
 
 ## Runtime Cvars
 

@@ -391,7 +391,7 @@ static ability_t abilitylist[] = {
     // TODO: ACtb a_creep_thunder_bolt  /* Hurl Boulder */
     // TODO: Afzy a_spell  /* Frenzy */
     // TODO: ACdv a_creep_devour  /* Devour */
-    // TODO: ACsp a_creep_sleep  /* Creep Sleep ability details; natural canSleep/night behavior lives in g_creep_sleep.c */
+    { "ACsp", CAbilityCreepSleep, AB_PASSIVE | AB_INNATE, SPELL_TARGET_NONE },  /* Natural creep sleep */
     // TODO: Asod a_simple_spell  /* Spawn Skeleton */
     // TODO: Assp a_simple_spell  /* Spawn Spiderlings */
     // TODO: Aspd a_simple_spell  /* Spawn Spiders */
@@ -903,6 +903,8 @@ static ability_t abilitylist[] = {
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */
 static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static DWORD num_updates;
+static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static DWORD num_innate;
 
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
@@ -933,6 +935,18 @@ ability_t const *FindAbilityByOrder(LPCSTR order) {
 void S_RunAbilityUpdates(LPEDICT ent) {
     FOR_LOOP(i, num_updates)
         ability_updates[i](ent, A_UPDATE, NULL);
+}
+
+/* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
+ * idle and acquisition queries stop when an owner consumes the decision. */
+BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
+    BOOL handled = false;
+    FOR_LOOP(i, num_innate) {
+        abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
+        handled |= S_AbilityMessage(ent, msg, &call) != 0;
+        if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
+    }
+    return handled;
 }
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {
@@ -1154,6 +1168,7 @@ void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
     num_updates = 0;
+    num_innate = 0;
     FOR_LOOP(i, game.num_abilities) {
         ability_t *entry = &abilitylist[i];
         abilityitem_t item = MAKE(abilityitem_t, .code = strlen(entry->classname) == 4 ? FS_SLKKey(entry->classname) : 0,
@@ -1161,6 +1176,7 @@ void InitAbilities(void) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .classname = entry->classname);
         if (!entry->proc) gi.error("InitAbilities: %s has no procedure", entry->classname);
         entry->proc(NULL, A_INIT, &call);
+        if (entry->flags & AB_INNATE) innate_items[num_innate++] = item;
         if (entry->flags & AB_UPDATE) {
             DWORD n;
             for (n = 0; n < num_updates && ability_updates[n] != entry->proc; n++) {}

@@ -207,10 +207,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         }
         return;
     }
-    /* Natural creep sleep and AUsl/BUsL are separate Warcraft states. Positive
-     * damage wakes the former here; the existing status cleanup below wakes
-     * the spell-induced Sleep effect independently. */
-    G_UnitWakeUp(target);
+    S_UnitAbilityEvent(target, A_DAMAGED);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
     FOR_LOOP(i, MAX_UNIT_STATUSES)

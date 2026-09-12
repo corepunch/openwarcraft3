@@ -1,4 +1,4 @@
-#include "g_local.h"
+#include "../g_local.h"
 
 #define RESOURCE_TEXT_WORLD_Z_OFFSET 10.0f /* world units; current Warsmash TextTag constructor lift */
 #define RESOURCE_TEXT_VELOCITY_X 0.0f      /* screen pixels per second; current Warsmash built-in motion */

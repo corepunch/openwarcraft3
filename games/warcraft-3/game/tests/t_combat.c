@@ -218,7 +218,8 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
-    T_ASSERT(G_TryEnterCreepSleep(target));
+    ai_stand(target);
+    T_ASSERT(G_UnitIsSleeping(target));
     overlay = find_creep_sleep_overlay(target);
     T_NOT_NULL(overlay);
     T_ASSERT(overlay->s.model != 0);
@@ -233,11 +234,20 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
 
     /* Replacing the Sleep move directly must use the same overlay cleanup,
      * not merely clear the logical sleeping flag. */
-    T_ASSERT(G_TryEnterCreepSleep(target));
+    ai_stand(target);
+    T_ASSERT(G_UnitIsSleeping(target));
     T_NOT_NULL(find_creep_sleep_overlay(target));
     unit_stand(target);
     T_ASSERT(!G_UnitIsSleeping(target));
     T_NULL(find_creep_sleep_overlay(target));
+
+    /* RemoveUnit must clean the overlay before this edict slot can be reused. */
+    ai_stand(target);
+    T_ASSERT(G_UnitIsSleeping(target));
+    overlay = find_creep_sleep_overlay(target);
+    T_NOT_NULL(overlay);
+    G_FreeEdict(target);
+    T_ASSERT(overlay && !overlay->inuse);
 
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
@@ -257,12 +267,18 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
-    T_ASSERT(G_TryEnterCreepSleep(target));
+    ai_stand(target);
+    T_ASSERT(G_UnitIsSleeping(target));
+
+    gi.LinkEntity(target); gi.LinkEntity(attacker);
+    T_NULL(G_FindNearestEnemy(attacker, 128.0f));
+    T_Damage(target, attacker, 0);
     T_ASSERT(G_UnitIsSleeping(target));
 
     T_Damage(target, attacker, 1);
 
     T_ASSERT(!G_UnitIsSleeping(target));
+    T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == target);
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
 }

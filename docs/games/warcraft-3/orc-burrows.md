@@ -74,7 +74,7 @@ Warsmash `Abtl` class.
 
 - `games/warcraft-3/game/skills/s_cargo.c`
 - `games/warcraft-3/game/skills/s_attack.c`
-- `games/warcraft-3/game/g_unit_ui.c`
+- `games/warcraft-3/game/hud/hud_unit.c`
 - `games/warcraft-3/game/hud/hud_infopanel.c`
 - `games/warcraft-3/game/skills/s_stop.c`
 - `games/warcraft-3/game/m_unit.c`

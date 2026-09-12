@@ -569,6 +569,10 @@ Keep an ability's order strings, validation, state transitions, animation moves,
 for effects that outlive an active order, register `AB_UPDATE` and handle `A_UPDATE`. `s_skills.c` owns generic dispatch and deduplicates shared
 update handlers at initialization. Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
 See [Raven Form](unit-animation-properties.md) for the order/update contract and persistence tests.
+Unit-data behaviors use `AB_INNATE` and `S_UnitAbilityEvent` for spawn/rebind, idle acquisition,
+move interruption, damage, entity removal, and automatic-target eligibility. Each message carries
+an `abilityitem_t`; the owner decides whether its per-unit state applies. See
+[Creep Sleep](creep-sleep.md) for `ACsp` and its direct `CAbilitySleepAlways` parent delegation.
 
 Encapsulation includes setup, interruption, cancellation, inverse orders, expiry/death/removal cleanup, and restoration
 after save/load where applicable. Moving a command function into `skills/` while leaving its timer or cleanup in a generic

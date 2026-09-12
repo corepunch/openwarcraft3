@@ -510,10 +510,21 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     setup_test_world();
     LPEDICT creep = make_unit(0, 0);
     USHORT *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
+    UnitData_t data = *creep->data.UnitData;
+    UnitBalance_t balance = *creep->data.UnitBalance;
+    UnitUI_t ui = *creep->data.UnitUI;
 
-    creep->svflags |= SVF_MONSTER;
+    /* Spawn from authored eligibility, without an explicit ACsp ability-list entry. */
+    data.canSleep = true;
+    balance.maxHealth = 100;
+    ui.modelFile = "Units\\Creeps\\Medivh\\Medivh.mdx";
+    creep->data.UnitData = &data;
+    creep->data.UnitBalance = &balance;
+    creep->data.UnitUI = &ui;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
-    creep->sleep.can_sleep = true;
+    SP_SpawnUnit(creep);
+    unit_stand(creep);
+    T_ASSERT(G_UnitCanSleep(creep));
     *no_creep_sleep = 0;
 
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
@@ -522,6 +533,9 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     ai_stand(creep);
     T_ASSERT(G_UnitIsSleeping(creep));
     T_STREQ(creep->animation_request, "sleep");
+    ability_t const *ability = FindAbilityByClassname("ACsp");
+    T_NOT_NULL(ability);
+    T_ASSERT(ability && creep->currentmove->proc == ability->proc);
 
     G_SetTimeOfDay(game.constants.dawnTimeGameHours);
     G_UpdateTimeOfDay();
@@ -529,6 +543,7 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     monster_think(creep);
     T_ASSERT(!G_UnitIsSleeping(creep));
     T_STREQ(creep->animation_request, "stand");
+    G_BindEntityData(creep);
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
 }

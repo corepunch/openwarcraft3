@@ -13,7 +13,7 @@ For ordinary workers the label belongs to **deposit**, not extraction. A Peasant
 
 ## Server-selected presentation contract
 
-`games/warcraft-3/game/g_resource_text.c` owns Warcraft data lookup and turns GOLD/LUMBER into resolved presentation values. The generic engine sees only `TE_FLOATING_TEXT` with this payload:
+`games/warcraft-3/game/hud/hud_resource_text.c` owns Warcraft data lookup and turns GOLD/LUMBER into resolved presentation values. The generic engine sees only `TE_FLOATING_TEXT` with this payload:
 
 ```text
 POSITION world anchor

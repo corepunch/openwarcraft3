@@ -103,7 +103,7 @@ The remaining high-confidence manual grammars are bounded and should be converte
 
 - `games/world-of-warcraft/common/world_wow.c`, `renderer/wow/r_wowmap_adt.c`, and `game/g_gameobject.c`: simple WoW chunk-tag bindings; use the descriptor shape already present in `renderer/wow/r_wowmap_wmo.c`.
 - `games/warcraft-3/menu/screens/single_player.c`: scalar campaign keys; keep indexed mission/file productions specialized.
-- `games/warcraft-3/game/g_unit_ui.c`, `tools/m2tool.c`, and `tools/mpqtool.c`: direct string-to-value maps.
+- `games/warcraft-3/game/hud/hud_unit.c`, `tools/m2tool.c`, and `tools/mpqtool.c`: direct string-to-value maps.
 
 Do not mechanically table-drive ordinary control flow, two-way checks, or binary productions whose meaning depends on previously decoded context. The table must clarify the format grammar rather than hide it behind generic callbacks.
 

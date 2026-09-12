@@ -1,8 +1,9 @@
 /*
- * g_unit_ui.c — Server-side unit HUD data helpers.
+ * hud_unit.c — Server-side unit HUD data helpers.
  */
 
-#include "g_local.h"
+#include "../g_local.h"
+#include "hud_utils.h"
 
 typedef struct {
     LPEDICT ent;
@@ -22,13 +23,6 @@ static void G_SetCommandCooldown(commandCooldownParams_t const *params) {
         params->button->cooldown_start_time = window.start_time;
         params->button->cooldown_end_time = window.end_time;
     }
-}
-
-static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
-    if (!out || out_size == 0) {
-        return;
-    }
-    snprintf(out, out_size, "%s", text ? text : "");
 }
 
 static LPCSTR G_ResearchField(LPCSTR field, BOOL research) {
@@ -190,7 +184,7 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
      * commonly pass that buffer here, while tooltip level selection also uses
      * parse_segment(). Own the command string before any nested parsing so
      * ResearchTip/ResearchUbertip processing cannot overwrite the rawcode. */
-    G_CopyString(command_code, sizeof(command_code), code);
+    UI_CopyString(command_code, sizeof(command_code), code);
     code = command_code;
 
     memset(button, 0, sizeof(*button));
@@ -217,17 +211,17 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
                              G_ResearchField(STR_UBERTIP, research && !upgrade_research));
     hotkey = FindConfigValue(art_code, toggle_on ? STR_UNHOTKEY :
                             G_ResearchField(STR_HOTKEY, research && !upgrade_research));
-    G_CopyString(art_level, sizeof(art_level), research ? G_StringForLevel(art, level) : art);
+    UI_CopyString(art_level, sizeof(art_level), research ? G_StringForLevel(art, level) : art);
     art_path = G_UIArtPath(art_level);
 
     if (buttonpos && *buttonpos) {
         sscanf(buttonpos, "%u,%u", &x, &y);
     }
 
-    G_CopyString(button->art, sizeof(button->art), art_path);
-    G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
-    G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
-    G_CopyString(button->command, sizeof(button->command), code);
+    UI_CopyString(button->art, sizeof(button->art), art_path);
+    UI_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, level));
+    UI_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, level));
+    UI_CopyString(button->command, sizeof(button->command), code);
     if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
         strlcat(button->alternate, code, sizeof(button->alternate));
@@ -350,17 +344,17 @@ static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
     if (!art || !*art) return false;
 
     memset(button, 0, sizeof(*button));
-    G_CopyString(button->art, sizeof(button->art), G_UIArtPath(art));
+    UI_CopyString(button->art, sizeof(button->art), G_UIArtPath(art));
     if (tip && *tip) {
-        G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, 0));
+        UI_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, 0));
     } else {
         snprintf(fallback, sizeof(fallback), "Revive %s",
                  hero->data.UnitProfile && hero->data.UnitProfile->name ? hero->data.UnitProfile->name : code);
-        G_CopyString(button->tooltip, sizeof(button->tooltip), fallback);
+        UI_CopyString(button->tooltip, sizeof(button->tooltip), fallback);
     }
-    G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, 0));
+    UI_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, 0));
     snprintf(command, sizeof(command), "revive:%u", (unsigned)hero->s.number);
-    G_CopyString(button->command, sizeof(button->command), command);
+    UI_CopyString(button->command, sizeof(button->command), command);
     button->x = slot % 4;
     button->y = slot / 4;
     button->active = 255;
@@ -518,9 +512,9 @@ BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryIte
     memset(out, 0, sizeof(*out));
     item_name = GetClassName(item->class_id);
     art = FindConfigValue(item_name, STR_ART);
-    G_CopyString(out->art, sizeof(out->art), G_UIArtPath(art));
-    G_CopyString(out->tooltip, sizeof(out->tooltip), G_CleanTooltipString(FindConfigValue(item_name, STR_TIP), 0));
-    G_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
+    UI_CopyString(out->art, sizeof(out->art), G_UIArtPath(art));
+    UI_CopyString(out->tooltip, sizeof(out->tooltip), G_CleanTooltipString(FindConfigValue(item_name, STR_TIP), 0));
+    UI_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
     out->slot = slot;
     out->charges = G_ItemCharges(item);
     if (!out->art[0]) {
@@ -563,7 +557,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
             duration = (DWORD)(MAX(0.0f, build->research.duration) * 1000.0f);
             if (G_BuildCommandButton(ent, GetClassName(build->research.upgrade), true,
                                      (DWORD)build->research.level, &button)) {
-                G_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
+                UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
             if (count == 0 && build->research.duration > 0.0f) {
                 progress = build->research.progress / build->research.duration;
@@ -585,7 +579,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
                 }
                 food_blocked = build->training && cost > 0 && build->food.used == 0 && G_FoodLimitsEnabled();
             }
-            G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
+            UI_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
         }
 
         if (food_blocked) {

@@ -154,6 +154,8 @@ BZ_ABILITY_PROC(CAbilityDeathCoil);
 BZ_ABILITY_PROC(CAbilityDeathPact);
 BZ_ABILITY_PROC(CAbilityMetamorphosis);
 BZ_ABILITY_PROC(CAbilitySleep);
+BZ_ABILITY_PROC(CAbilitySleepAlways);
+BZ_ABILITY_PROC(CAbilityCreepSleep);
 BZ_ABILITY_PROC(CAbilityDreadLordInferno);
 BZ_ABILITY_PROC(CAbilityChainLightning);
 BZ_ABILITY_PROC(CAbilityForkedLightning);

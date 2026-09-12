@@ -8,6 +8,7 @@
  */
 
 #include "hud_local.h"
+#include "hud_utils.h"
 
 #define INVENTORY_CHARGE_FONT_SIZE 10
 /* Warsmash anchors its 0.180 x 0.120 simple info panel at the bottom-centre
@@ -344,7 +345,7 @@ static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
 
     texture = InfoPanelThemeIcon(prefix, normalized, has_upgrade);
     if (texture && *texture && InfoPanelTextureExists(texture)) {
-        G_CopyString(cache->texture, sizeof(cache->texture), texture);
+        UI_CopyString(cache->texture, sizeof(cache->texture), texture);
         return cache->texture;
     }
 
@@ -358,7 +359,7 @@ static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
         if (fallback && *fallback && InfoPanelTextureExists(fallback)) {
             fprintf(stderr, "WC3 info panel: %s %s Neutral icon '%s' unavailable; using '%s'\n",
                     prefix, normalized, texture && *texture ? texture : "<missing skin field>", fallback);
-            G_CopyString(cache->texture, sizeof(cache->texture), fallback);
+            UI_CopyString(cache->texture, sizeof(cache->texture), fallback);
             return cache->texture;
         }
     }

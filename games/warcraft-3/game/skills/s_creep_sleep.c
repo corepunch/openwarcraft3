@@ -1,5 +1,5 @@
 /*
- * g_creep_sleep.c — Warcraft III natural neutral-creep sleep.
+ * s_creep_sleep.c — Warcraft III natural neutral-creep sleep.
  *
  * Natural creep sleep is separate from the Dreadlord Sleep spell (AUsl/BUsL).
  * UnitData.canSleep supplies the authored night-sleep capability; the runtime
@@ -7,16 +7,16 @@
  * enters natural sleep at night.  Sleeping units use their authored Sleep MDX
  * sequence and wake at dawn, on positive damage, or through UnitWakeUp.
  */
-#include "g_local.h"
+#include "s_skills.h"
 
-#define ID_CREEP_SLEEP MAKEFOURCC('A', 'C', 's', 'p')
-#define CREEP_SLEEP_TARGET_ART \
+#define BZ_CREEP_SLEEP MAKEFOURCC('A','C','s','p') // rawcode; TFT natural sleep; used by JASS dispatch
+#define BZ_CREEP_SLEEP_ART \
     "Abilities\\Spells\\Other\\CreepSleep\\CreepSleepTarget.mdx"
 
 /* common.j declares PLAYER_STATE_NO_CREEP_SLEEP as playerstate 25.  The
  * WC3-local constant lives in g_local.h instead of widening common/shared.h. */
 static void creep_sleep_think(LPEDICT self);
-static umove_t creep_sleep_move = { .animation = "sleep", .think = creep_sleep_think, .endfunc = NULL };
+static umove_t creep_sleep_move = { .animation = "sleep", .think = creep_sleep_think, .proc = CAbilityCreepSleep };
 
 /* Match only the overlay owned by this unit, leaving unrelated target effects untouched. */
 static BOOL is_creep_sleep_overlay(LPCEDICT effect, LPCEDICT unit) {
@@ -35,21 +35,18 @@ static void remove_creep_sleep_overlay(LPEDICT unit) {
 /* Spawn ACsp's target art at overhead. Some retail data sets do not expose
  * the hidden ability's TargetArt through the loaded Func metadata, so preserve
  * data/map overrides first and otherwise use Warcraft's canonical sleep art. */
-static void add_creep_sleep_overlay(LPEDICT unit) {
-    LPCSTR art = G_AbilityEffectArt(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0);
+static void add_creep_sleep_overlay(LPEDICT unit, DWORD code) {
+    LPCSTR art = G_AbilityEffectArt(code, WC3_EFFECT_TARGET, 0);
     LPEDICT effect;
 
     if (art && *art) {
-        effect = G_SpawnAbilityEffectTarget(ID_CREEP_SLEEP, WC3_EFFECT_TARGET, 0,
-                                            unit, "overhead", false);
+        effect = G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, unit, "overhead", false);
     } else {
-        fprintf(stderr, "WC3 CreepSleep: ACsp TargetArt missing; using canonical sleep art for unit %u\n",
-                unit->s.number);
-        effect = G_SpawnModelEffect(CREEP_SLEEP_TARGET_ART, NULL, unit,
-                                    "overhead", false);
+        fprintf(stderr, "WC3 CreepSleep: %.4s TargetArt missing; using canonical sleep art for unit %u\n", (LPCSTR)&code, unit->s.number);
+        effect = G_SpawnModelEffect(BZ_CREEP_SLEEP_ART, NULL, unit, "overhead", false);
     }
     if (!effect) {
-        fprintf(stderr, "WC3 CreepSleep: failed to spawn ACsp overlay for unit %u\n", unit->s.number);
+        fprintf(stderr, "WC3 CreepSleep: failed to spawn %.4s overlay for unit %u\n", (LPCSTR)&code, unit->s.number);
         return;
     }
     effect->owner = unit;
@@ -79,13 +76,8 @@ BOOL G_UnitIsSleeping(LPCEDICT unit) {
     return unit && unit->sleep.sleeping && unit->currentmove == &creep_sleep_move;
 }
 
-/* Identify the private move record used by natural neutral-creep sleep. */
-BOOL G_IsCreepSleepMove(umove_t const *move) {
-    return move == &creep_sleep_move;
-}
-
 /* Clear natural sleep and remove its persistent target presentation effect. */
-void G_UnitLeaveCreepSleep(LPEDICT unit) {
+static void creep_sleep_leave(LPEDICT unit) {
     if (!unit || !unit->sleep.sleeping)
         return;
     unit->sleep.sleeping = false;
@@ -93,25 +85,16 @@ void G_UnitLeaveCreepSleep(LPEDICT unit) {
 }
 
 /* Leave natural sleep and restore the normal stand move when the unit is alive. */
-void G_UnitWakeUp(LPEDICT unit) {
+static void creep_sleep_wake(LPEDICT unit) {
     if (!G_UnitIsSleeping(unit))
         return;
-    G_UnitLeaveCreepSleep(unit);
+    creep_sleep_leave(unit);
     if (!M_IsDead(unit))
         unit_stand(unit);
 }
 
-/* Apply UnitAddSleep's mutable permission and wake a unit when disabling it. */
-void G_UnitSetCanSleep(LPEDICT unit, BOOL can_sleep) {
-    if (!unit_is_neutral_sleep_candidate(unit))
-        return;
-    unit->sleep.can_sleep = can_sleep;
-    if (!can_sleep)
-        G_UnitWakeUp(unit);
-}
-
 /* Enter natural sleep only for idle Neutral Hostile units during nighttime. */
-BOOL G_TryEnterCreepSleep(LPEDICT unit) {
+static BOOL creep_sleep_enter(LPEDICT unit, DWORD code) {
     if (!unit || unit->s.player != PLAYER_NEUTRAL_AGGRESSIVE ||
         !G_UnitCanSleep(unit) || G_UnitIsSleeping(unit) || M_IsDead(unit) ||
         unit_affectingcombat(unit) || !G_IsNight() || neutral_hostile_sleep_disabled()) {
@@ -120,12 +103,54 @@ BOOL G_TryEnterCreepSleep(LPEDICT unit) {
 
     unit_setmove(unit, &creep_sleep_move);
     unit->sleep.sleeping = true;
-    add_creep_sleep_overlay(unit);
+    add_creep_sleep_overlay(unit, code);
     return true;
 }
 
 /* Wake sleeping creeps as soon as the simulation reaches daytime. */
 static void creep_sleep_think(LPEDICT self) {
     if (!G_IsNight())
-        G_UnitWakeUp(self);
+        creep_sleep_wake(self);
 }
+
+/* The TFT parent owns shared sleep exit paths. Asla's independent activation policies
+ * (Sleep Once/Allow On Any Player Slot) remain unresolved and are not registered. */
+BZ_ABILITY_PROC(CAbilitySleepAlways) {
+    switch (msg) {
+    case A_MOVE_LEAVE:
+    case A_UNIT_REMOVE: creep_sleep_leave(ent); return true;
+    case A_DAMAGED:
+    case A_CANCEL: creep_sleep_wake(ent); return true;
+    case A_NO_ACQUIRE: return G_UnitIsSleeping(ent);
+    default: return false;
+    }
+}
+
+/* ACsp is implicit in UnitData.canSleep; it consumes lifecycle messages even when
+ * the unit has no explicit ACsp command-card entry. The clock remains game-owned. */
+BZ_ABILITY_PROC(CAbilityCreepSleep) {
+    switch (msg) {
+    case A_UNIT_INIT:
+        ent->sleep.can_sleep = ent->data.UnitData->canSleep;
+        if (!ent->sleep.can_sleep || !G_UnitIsSleeping(ent)) creep_sleep_leave(ent);
+        return true;
+    case A_IDLE: return call && call->item && creep_sleep_enter(ent, call->item->code);
+    case A_ENABLE:
+    case A_DISABLE:
+        if (!unit_is_neutral_sleep_candidate(ent)) return false;
+        ent->sleep.can_sleep = msg == A_ENABLE;
+        if (!ent->sleep.can_sleep) creep_sleep_wake(ent);
+        return true;
+    default: return CAbilitySleepAlways(ent, msg, call);
+    }
+}
+
+/* Script natives use the same concrete registration as unit lifecycle dispatch. */
+static void creep_sleep_message(LPEDICT unit, abilityMsg_t msg) {
+    abilityitem_t item = S_AbilityItem(BZ_CREEP_SLEEP);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    S_AbilityMessage(unit, msg, &call);
+}
+
+void G_UnitSetCanSleep(LPEDICT unit, BOOL enabled) { creep_sleep_message(unit, enabled ? A_ENABLE : A_DISABLE); }
+void G_UnitWakeUp(LPEDICT unit) { creep_sleep_message(unit, A_CANCEL); }
