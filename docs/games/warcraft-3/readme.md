@@ -109,8 +109,9 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
+- [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
 - [Ability Coverage](architecture/ability-coverage.md)
-- [Flat C Ability Plan: Flags and Callbacks](ability-inheritance-plan.md)
+- [Flat C Ability System: Flags and Message Procedures](ability-inheritance-plan.md)
 - [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Scripted Doodad Animation](doodad-animation.md)
@@ -119,7 +120,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [UI Quick Reference](architecture/ui-quick-reference.md)
 - [Map Renderer](architecture/map-renderer.md)
 - [Hero Ability Progression](hero-abilities.md)
-- [Ability Cooldowns](ability-cooldowns.md)
+- [Ability Identity and Cooldown Ownership](ability-inheritance-plan.md#rawcode-and-procedure-identity)
 - [Cinematics](cinematics.md)
 - [Time Of Day](time-of-day.md)
 - [Hero Revival](hero-revival.md)
@@ -134,4 +135,4 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
 
-- [Ability message procedure proposal](ability-procedure-plan.md): coverage, payload/result contracts, default delegation, and migration scope.
+- [Ability message procedures](ability-procedure-plan.md): registry, payload/result contracts, default delegation, and lifecycle.
