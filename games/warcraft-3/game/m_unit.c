@@ -508,13 +508,11 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
             if (S_UnitPolymorphed(self) || !G_DestructableAcceptsSmartAttack(self, target)) {
                 return false;
             }
-            order_attack(self, target);
-            return true;
+            return S_OrderAttack(self, target);
         }
         if (unit_smart_target_is_enemy(self, target)) {
             if (S_UnitPolymorphed(self)) return false;
-            order_attack(self, target);
-            return true;
+            return S_OrderAttack(self, target);
         }
         /* Friendly transports, including Orc Burrows, consume Smart as a
          * boarding order when this unit satisfies their cargo restrictions. */
@@ -539,8 +537,7 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         if (G_IsDestructable(target) && !G_DestructableCanBeAttackedBy(self, target)) {
             return false;
         }
-        order_attack(self, target);
-        return true;
+        return S_OrderAttack(self, target);
     }
     if (!strcmp(order, "militia") || !strcmp(order, "militiaoff")) {
         return S_MilitiaTargetOrder(self, order, target);

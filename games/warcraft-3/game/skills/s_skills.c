@@ -138,7 +138,7 @@ static ability_t abilitylist[] = {
     { "AHhb", CAbilityHolyBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Holy Light */
     { "AHds", CAbilityDivineShield, AB_SPELL },  /* Divine Shield */
     { "AHad", CAbilityAuraDevotion, AB_SPELL },  /* Devotion Aura */
-    { "AHre", CAbilityResurrection, AB_SPELL, SPELL_TARGET_POINT },  /* Resurrection */
+    { "AHre", CAbilityResurrection, AB_SPELL, SPELL_TARGET_NONE },  /* Resurrection */
     { "Amil", CAbilityMilitia, AB_COMMAND },  /* Call to Arms */
     { "Amic", CAbilityMilitiaConvert, AB_COMMAND | AB_SEPARATE_OFF },  /* Call To Arms */
 
@@ -255,7 +255,7 @@ static ability_t abilitylist[] = {
     { "AUcs", CAbilityCarrionSwarm, AB_SPELL, SPELL_TARGET_POINT },  /* Carrion Swarm */
     { "AUsl", CAbilitySleep, AB_SPELL, SPELL_TARGET_UNIT },  /* Sleep */
     { "AUav", CAbilityPassive, AB_PASSIVE },  /* Vampiric Aura */
-    { "AUfn", CAbilityFrostNova, AB_SPELL },  /* Frost Nova */
+    { "AUfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Nova */
     { "AUfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUdr", CAbilityDarkRitual, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Ritual */
@@ -941,6 +941,11 @@ void S_RunAbilityUpdates(LPEDICT ent) {
  * idle and acquisition queries stop when an owner consumes the decision. */
 BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
     BOOL handled = false;
+    if (msg == A_MOVE_LEAVE && ent && ent->channel.code) {
+        abilityitem_t item = S_AbilityItem(ent->channel.code);
+        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+        handled = S_AbilityMessage(ent, msg, &call) != 0;
+    }
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
@@ -992,6 +997,7 @@ void S_EnableAbility(LPEDICT ent, DWORD code) {
 }
 
 void S_DisableAbility(LPEDICT ent, DWORD code) {
+    if (ent && ent->autocast_code == code) G_SetUnitAutocast(ent, code, false);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_DISABLE, &call);
@@ -1006,136 +1012,47 @@ void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {
     S_AbilityMessage(ent, A_LEVEL_CHANGED, &changed);
 }
 
-static BOOL unit_has_ability_handler(LPEDICT ent, ability_t const *wanted) {
-    LPCSTR abilities;
-
-    if (!ent || !wanted || !ent->data.UnitAbilities) return false;
-    abilities = ent->data.UnitAbilities->abilList;
-    if (!abilities) return false;
-
-    PARSE_LIST(abilities, ability_name, parse_segment) {
-        ability_t const *ability = FindAbilityForCommand(ability_name);
-        if (ability && ability->proc == wanted->proc) return true;
-    }
-    return false;
-}
-
-BOOL G_UnitAutocastIsOn(LPEDICT ent, ability_t const *ability) {
-    abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
+/* The selected rawcode is shared state; each procedure owns its autocast policy and side effects. */
+BOOL G_UnitAutocastIsOn(LPEDICT ent, DWORD code) {
+    abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
-    return ent && ability && (ability->flags & AB_AUTOCAST) && unit_has_ability_handler(ent, ability) &&
-           S_AbilityMessage(ent, A_AUTOCAST_ON, &call);
+    return ent && code && ent->autocast_code == code && item.ability && (item.ability->flags & AB_AUTOCAST) &&
+        G_UnitAbilityLevel(ent, code) && S_AbilityMessage(ent, A_AUTOCAST_ON, &call);
 }
 
-BOOL G_SetUnitAutocast(LPEDICT ent, ability_t const *ability, BOOL enabled) {
-    abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
+/* Keeping the alias through the UI and scheduler preserves authored cost, range and effect data. */
+BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled) {
+    abilityitem_t item = S_AbilityItem(code), old;
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .enabled = enabled);
-    LPCSTR abilities;
-
-    if (!ent || !ability || !(ability->flags & AB_AUTOCAST) || !unit_has_ability_handler(ent, ability)) {
-#ifdef WC3_DEBUG_AUTOCAST
-        if (G_AutocastDebugLevel() >= 1) {
-            fprintf(stderr, "WC3_AUTOCAST toggle rejected unit=%ld ability=%p enabled=%d flags=0x%x\n",
-                    ent && g_edicts ? (long)(ent - g_edicts) : -1L, (void *)ability,
-                    enabled ? 1 : 0, ent ? ent->aiflags : 0);
-        }
-#endif
+    if (!ent || !item.ability || !(item.ability->flags & AB_AUTOCAST) ||
+        (enabled && !G_UnitAbilityLevel(ent, code))) return false;
+    old = S_AbilityItem(ent->autocast_code);
+    if (!enabled && old.code != code) return true;
+    abilityCall_t prev = MAKE(abilityCall_t, .item = &old, .enabled = false);
+    BOOL switched = enabled && old.code && old.code != code;
+    /* Distinct procedures may share policy state (the two Repair families). Retire it before enabling the next. */
+    if (switched) S_AbilityMessage(ent, A_AUTOCAST_SET, &prev);
+    if (!S_AbilityMessage(ent, A_AUTOCAST_SET, &call)) {
+        prev.enabled = true;
+        if (switched) S_AbilityMessage(ent, A_AUTOCAST_SET, &prev);
         return false;
     }
-
-    /* Warsmash keeps one selected autocast ability per unit. Turning a new one
-     * on first disables every other autocast-capable ability currently present
-     * on this unit; abilities without autocast hooks remain untouched. */
-    if (enabled && ent->data.UnitAbilities && (abilities = ent->data.UnitAbilities->abilList)) {
-        PARSE_LIST(abilities, ability_name, parse_segment) {
-            ability_t const *other = FindAbilityForCommand(ability_name);
-            abilityitem_t other_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = other);
-            abilityCall_t other_call = MAKE(abilityCall_t, .item = &other_item, .enabled = false);
-            if (other && other->proc != ability->proc && (other->flags & AB_AUTOCAST))
-                S_AbilityMessage(ent, A_AUTOCAST_SET, &other_call);
-        }
-    }
-    S_AbilityMessage(ent, A_AUTOCAST_SET, &call);
     if (enabled) {
+        ent->autocast_code = code;
         ent->aiflags |= AI_AUTOCAST_ACTIVE;
-    } else {
-        BOOL any_enabled = false;
-        if (ent->data.UnitAbilities && (abilities = ent->data.UnitAbilities->abilList)) {
-            PARSE_LIST(abilities, ability_name, parse_segment) {
-                ability_t const *other = FindAbilityForCommand(ability_name);
-                abilityitem_t other_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = other);
-                abilityCall_t other_call = MAKE(abilityCall_t, .item = &other_item);
-                if (other && (other->flags & AB_AUTOCAST) && S_AbilityMessage(ent, A_AUTOCAST_ON, &other_call)) {
-                    any_enabled = true;
-                    break;
-                }
-            }
-        }
-        if (!any_enabled) ent->aiflags &= ~AI_AUTOCAST_ACTIVE;
+    } else if (old.code == code) {
+        ent->autocast_code = 0;
+        ent->aiflags &= ~AI_AUTOCAST_ACTIVE;
     }
-#ifdef WC3_DEBUG_AUTOCAST
-    if (G_AutocastDebugLevel() >= 1) {
-        fprintf(stderr, "WC3_AUTOCAST toggle unit=%ld class=%.4s enabled=%d flags=0x%x idle_worker=%d abilities=%s\n",
-                g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
-                enabled ? 1 : 0, ent->aiflags, G_UnitIsIdleWorker(ent) ? 1 : 0,
-                ent->data.UnitAbilities && ent->data.UnitAbilities->abilList ? ent->data.UnitAbilities->abilList : "<none>");
-    }
-#endif
     return true;
 }
 
+/* Dispatch the selected alias directly, including runtime-added abilities absent from UnitAbilities. */
 BOOL G_TryUnitAutocast(LPEDICT ent) {
-    LPCSTR abilities;
-
-    if (!ent || !(ent->aiflags & AI_AUTOCAST_ACTIVE) || !ent->data.UnitAbilities ||
-        !(abilities = ent->data.UnitAbilities->abilList)) {
-#ifdef WC3_DEBUG_AUTOCAST
-        if (G_AutocastDebugLevel() >= 2 && ent) {
-            fprintf(stderr, "WC3_AUTOCAST skip unit=%ld class=%.4s flags=0x%x abilities=%s\n",
-                    g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
-                    ent->aiflags,
-                    ent->data.UnitAbilities && ent->data.UnitAbilities->abilList ? ent->data.UnitAbilities->abilList : "<none>");
-        }
-#endif
-        return false;
-    }
-#ifdef WC3_DEBUG_AUTOCAST
-    if (G_AutocastDebugLevel() >= 2) {
-        fprintf(stderr, "WC3_AUTOCAST try unit=%ld class=%.4s flags=0x%x abilities=%s\n",
-                g_edicts ? (long)(ent - g_edicts) : -1L, (LPCSTR)&ent->class_id,
-                ent->aiflags, abilities);
-    }
-#endif
-    PARSE_LIST(abilities, ability_name, parse_segment) {
-        ability_t const *ability = FindAbilityForCommand(ability_name);
-        abilityitem_t item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
-        BOOL is_on;
-        if (!ability || !(ability->flags & AB_AUTOCAST)) continue;
-        is_on = S_AbilityMessage(ent, A_AUTOCAST_ON, &call);
-#ifdef WC3_DEBUG_AUTOCAST
-        if (G_AutocastDebugLevel() >= 2) {
-            fprintf(stderr, "WC3_AUTOCAST ability unit=%ld code=%s on=%d\n",
-                    g_edicts ? (long)(ent - g_edicts) : -1L, ability_name, is_on ? 1 : 0);
-        }
-#endif
-        if (is_on && S_AbilityMessage(ent, A_AUTOCAST_ACQUIRE, &call)) {
-#ifdef WC3_DEBUG_AUTOCAST
-            if (G_AutocastDebugLevel() >= 1) {
-                fprintf(stderr, "WC3_AUTOCAST acquired unit=%ld code=%s\n",
-                        g_edicts ? (long)(ent - g_edicts) : -1L, ability_name);
-            }
-#endif
-            return true;
-        }
-    }
-#ifdef WC3_DEBUG_AUTOCAST
-    if (G_AutocastDebugLevel() >= 2) {
-        fprintf(stderr, "WC3_AUTOCAST no_target unit=%ld\n",
-                g_edicts ? (long)(ent - g_edicts) : -1L);
-    }
-#endif
-    return false;
+    if (!ent || !(ent->aiflags & AI_AUTOCAST_ACTIVE)) return false;
+    abilityitem_t item = S_AbilityItem(ent->autocast_code);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+    return G_UnitAutocastIsOn(ent, item.code) && S_AbilityMessage(ent, A_AUTOCAST_ACQUIRE, &call);
 }
 
 DWORD FindAbilityIndex(LPCSTR classname) {

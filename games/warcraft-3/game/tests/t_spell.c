@@ -942,7 +942,7 @@ TEST(wc3_spell, requested_neutral_hero_abilities_have_contracts) {
 	T_ASSERT(mana_shield->flags & AB_PASSIVE);
 	T_ASSERT(brawler->flags & AB_PASSIVE);
 	T_ASSERT(cleave->flags & AB_PASSIVE);
-	T_EQ((int)revive->target_type, (int)SPELL_TARGET_POINT);
+	T_EQ((int)revive->target_type, (int)SPELL_TARGET_NONE);
 	T_EQ((int)breath->target_type, (int)SPELL_TARGET_POINT);
 	T_EQ((int)haze->target_type, (int)SPELL_TARGET_UNIT);
 	T_EQ((int)doom->target_type, (int)SPELL_TARGET_UNIT);
@@ -1202,7 +1202,9 @@ TEST(wc3_spell, death_and_decay_uses_percentage_damage_and_enemy_filter) {
 	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
-	test_execute_code(caster, "AUdd", st);
+    UnitAbilities_t abilities = { .abilList = "AUdd" };
+    caster->data.UnitAbilities = &abilities;
+    T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AUdd"), &st.point));
 	thinker = &globals.edicts[thinker_slot];
 	T_FEQ(enemy->health.value, 96.0f, 0.01f);
 	T_FEQ(caster->health.value, 250.0f, 0.01f);

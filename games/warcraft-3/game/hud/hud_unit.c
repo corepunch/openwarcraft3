@@ -225,7 +225,7 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     if (!research && ability && (ability->flags & AB_AUTOCAST)) {
         strlcpy(button->alternate, "autocast ", sizeof(button->alternate));
         strlcat(button->alternate, code, sizeof(button->alternate));
-        button->alternate_active = G_UnitAutocastIsOn(ent, ability) ? 1 : 0;
+        button->alternate_active = G_UnitAutocastIsOn(ent, FS_SLKKey(code)) ? 1 : 0;
     }
     hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';

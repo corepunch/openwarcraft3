@@ -421,7 +421,7 @@ static void ai_repair(LPEDICT ent) {
     }
     if (hp->value >= hp->max_value) {
         G_SetHealth(building, hp->max_value);
-        building->stand(building);
+        /* Repair completes the worker's order; the target may still be training, researching, or attacking. */
         repair_stop_reason(ent, "repair_complete");
     }
 }
@@ -644,16 +644,8 @@ static FLOAT repair_autocast_distance(LPCEDICT ent, LPCEDICT target) {
 }
 
 BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled) {
-    char rawcode[5];
-    DWORD code;
-    ability_t const *ability;
-
     if (!ent) return false;
-    code = repair_find_code(ent, NULL, 0);
-    repair_code_string(code, rawcode);
-    ability = FindAbilityForCommand(rawcode);
-    if (!ability) return false;
-    return G_SetUnitAutocast(ent, ability, enabled);
+    return G_SetUnitAutocast(ent, repair_find_code(ent, NULL, 0), enabled);
 }
 
 /* Repair uses Warsmash's NEARESTVALID autocast policy: acquisition range only

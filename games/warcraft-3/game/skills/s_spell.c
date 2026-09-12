@@ -67,6 +67,9 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
         spell_cmd(call->client);
         return true;
     case A_VALIDATE: return true;
+    case A_MOVE_LEAVE:
+        if (ent && ent->channel.code == call->item->code) S_SpellCancelChannel(ent);
+        return true;
     default:
         return false;
     }
@@ -418,9 +421,33 @@ void S_SpellCancelChannel(LPEDICT caster) {
         return;
     }
     caster->channel.code = 0;
-    if (caster->stand) {
-        caster->stand(caster);
-    }
+}
+
+/* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
+LPEDICT S_SpellChannelThinker(LPEDICT caster, DWORD code) {
+    LPEDICT ent = G_Spawn();
+    ent->owner = caster; ent->class_id = code;
+    ent->channel.serial = caster->channel.serial;
+    ent->channel.owner_spawn_time = caster->spawn_time;
+    return ent;
+}
+
+/* Each effect rechecks the caster before ticking, independently of edict iteration order. */
+BOOL S_SpellChannelActive(LPEDICT ent) {
+    LPEDICT caster = ent ? ent->owner : NULL;
+    if (!caster || !caster->inuse || caster->spawn_time != ent->channel.owner_spawn_time) return false;
+    spell_run_frame(caster);
+    return !M_IsDead(caster) && caster->channel.code == ent->class_id &&
+        caster->channel.serial == ent->channel.serial;
+}
+
+/* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
+void S_SpellEndChannel(LPEDICT ent) {
+    LPEDICT caster = ent->owner;
+    if (caster && caster->inuse && caster->spawn_time == ent->channel.owner_spawn_time &&
+        caster->channel.code == ent->class_id && caster->channel.serial == ent->channel.serial)
+        S_SpellCancelChannel(caster);
+    G_FreeEdict(ent);
 }
 
 /* ---- Unified Spell Pipeline ---- */
@@ -447,9 +474,7 @@ void spell_run_frame(LPEDICT ent) {
 
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
 static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
-    if (!caster)
-        return false;
-    if (S_UnitPolymorphed(caster)) return false;
+    if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster)) return false;
     if (S_UnitHasStatus(caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(clent, "Silenced.");
         return false;
@@ -471,7 +496,7 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point)
         return false;
-    if (S_UnitPolymorphed(params->caster)) return false;
+    if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster)) return false;
     if (S_UnitHasStatus(params->caster, MAKEFOURCC('B','N','s','i'))) {
         G_ShowCommandErrorText(params->clent, "Silenced.");
         return false;
@@ -491,12 +516,15 @@ static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(LPEDICT caster, DWORD code) {
+    if (caster->stand) caster->stand(caster);
+    caster->channel.serial++;
     caster->channel.code = code;
     caster->channel.origin = caster->s.origin2;
 }
 
 /* Pre-execute common work: spend mana, start cooldown. */
 static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
+    S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_SpellSpendMana(caster, code, level);
     S_SpellStartCooldown(caster, code, level);
@@ -579,7 +607,7 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
 
     /* Mana/cooldown can change while walking. Do not spend or fire the ability
      * unless it is still legal at the actual cast point. */
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level)) {
+    if (!spell_validate(NULL, caster, code, level, target, range)) {
         unit_stand(caster);
         G_FreeEdict(thinker);
         return;
@@ -683,6 +711,7 @@ static void spell_no_target_execute(LPEDICT clent) {
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
     spell_commit(caster, code, level);
+    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     spell_message(caster, A_EXECUTE, &item, &st);
 }
@@ -697,10 +726,11 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || spell->target_type != SPELL_TARGET_NONE || !S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level)) return false;
+    if (!spell_validate(NULL, caster, code, level, NULL, 0)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level);
+    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
@@ -745,8 +775,8 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     abilityitem_t item = { .code = code, .ability = spell };
     if (!spell || spell->target_type != SPELL_TARGET_UNIT || !S_AbilityHasCommand(spell)) return false;
     level = S_SpellLevel(caster, code);
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level) ||
-        !S_SpellTargetInRange(caster, unit, S_SpellRange(code, level)) || !S_SpellAllowsTarget(code, caster, unit)) return false;
+    if (!spell_validate(NULL, caster, code, level, unit, S_SpellRange(code, level)) ||
+        !S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level);

@@ -4,26 +4,6 @@
  * Follows WarSmash pattern: CAbilityItemAttackBonus.onAdd/onRemove,
  * CAbilityItemDefenseBonus.onAdd/onRemove, etc. */
 
-typedef struct {
-    DWORD code;
-    FLOAT bonus;
-} itemstat_t;
-
-/* Per-type bonus storage, populated by init functions. */
-static FLOAT item_attack_bonus_val;
-static FLOAT item_defense_bonus_val;
-static FLOAT item_life_bonus_val;
-static FLOAT item_mana_bonus_val;
-static FLOAT item_stat_str_val;
-static FLOAT item_stat_agi_val;
-static FLOAT item_stat_int_val;
-
-#define ID_ITEM_ATTACK   MAKEFOURCC('A', 'I', 'a', 't')
-#define ID_ITEM_DEFENSE  MAKEFOURCC('A', 'I', 'd', 'e')
-#define ID_ITEM_LIFE     MAKEFOURCC('A', 'I', 'm', 'l')
-#define ID_ITEM_MANA_BONUS MAKEFOURCC('A', 'I', 'm', 'm')
-#define ID_ITEM_STAT     MAKEFOURCC('A', 'I', 'a', 'b')
-
 static void apply_attack(LPEDICT unit, FLOAT amount) {
     unit->attack1.temporaryDamageBonus += amount;
     unit->attack2.temporaryDamageBonus += amount;
@@ -52,7 +32,11 @@ static void apply_mana(LPEDICT unit, FLOAT amount) {
     unit->mana.value = unit->mana.max_value * ratio;
 }
 
-static void apply_stat(LPEDICT unit, FLOAT str, FLOAT agi, FLOAT intel) {
+/* Attribute aliases share the authored Agility/Intelligence/Strength field order used by tomes. */
+static void apply_stat(LPEDICT unit, DWORD code, FLOAT sign) {
+    FLOAT str = sign * S_SpellData(code, 1, 3);
+    FLOAT agi = sign * S_SpellData(code, 1, 1);
+    FLOAT intel = sign * S_SpellData(code, 1, 2);
     if (!G_UnitIsHero(unit)) {
         return;
     }
@@ -62,68 +46,26 @@ static void apply_stat(LPEDICT unit, FLOAT str, FLOAT agi, FLOAT intel) {
     G_RecomputeHeroStats(unit);
 }
 
-void item_stat_apply(LPEDICT unit, DWORD item_code) {
-    if (!unit) {
-        return;
+/* Inventory messages retain the authored alias, including distinct values on stacked items. */
+#define BZ_ITEM_BONUS_PROC(NAME, APPLY) \
+    BZ_ABILITY_PROC(C##NAME) { \
+        if (msg != A_ITEM_ADD && msg != A_ITEM_REMOVE) return CAbilityPassive(ent, msg, call); \
+        if (!ent || !call || !call->item) return false; \
+        FLOAT sign = msg == A_ITEM_ADD ? 1.0f : -1.0f; \
+        APPLY(ent, sign * S_SpellData(call->item->code, 1, 1)); \
+        return true; \
     }
-    if (item_code == ID_ITEM_ATTACK && item_attack_bonus_val != 0) {
-        apply_attack(unit, item_attack_bonus_val);
-    }
-    if (item_code == ID_ITEM_DEFENSE && item_defense_bonus_val != 0) {
-        apply_defense(unit, item_defense_bonus_val);
-    }
-    if (item_code == ID_ITEM_LIFE && item_life_bonus_val != 0) {
-        apply_life(unit, item_life_bonus_val);
-    }
-    if (item_code == ID_ITEM_MANA_BONUS && item_mana_bonus_val != 0) {
-        apply_mana(unit, item_mana_bonus_val);
-    }
-    if (item_code == ID_ITEM_STAT) {
-        apply_stat(unit, item_stat_str_val, item_stat_agi_val, item_stat_int_val);
-    }
-}
 
-void item_stat_remove(LPEDICT unit, DWORD item_code) {
-    if (!unit) {
-        return;
-    }
-    if (item_code == ID_ITEM_ATTACK && item_attack_bonus_val != 0) {
-        apply_attack(unit, -item_attack_bonus_val);
-    }
-    if (item_code == ID_ITEM_DEFENSE && item_defense_bonus_val != 0) {
-        apply_defense(unit, -item_defense_bonus_val);
-    }
-    if (item_code == ID_ITEM_LIFE && item_life_bonus_val != 0) {
-        apply_life(unit, -item_life_bonus_val);
-    }
-    if (item_code == ID_ITEM_MANA_BONUS && item_mana_bonus_val != 0) {
-        apply_mana(unit, -item_mana_bonus_val);
-    }
-    if (item_code == ID_ITEM_STAT) {
-        apply_stat(unit, -item_stat_str_val, -item_stat_agi_val, -item_stat_int_val);
-    }
-}
+BZ_ITEM_BONUS_PROC(AbilityAttackBonus, apply_attack)
+BZ_ITEM_BONUS_PROC(AbilityDefenseBonus, apply_defense)
+BZ_ITEM_BONUS_PROC(AbilityMaxLifeBonus, apply_life)
+BZ_ITEM_BONUS_PROC(AbilityMaxManaBonus, apply_mana)
 
-/* Init functions — read bonus values from AbilityData.slk at startup. */
-
-void SP_ability_item_attack_bonus(LPCSTR classname) {
-    item_attack_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
-}
-
-void SP_ability_item_defense_bonus(LPCSTR classname) {
-    item_defense_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
-}
-
-void SP_ability_item_life_bonus(LPCSTR classname) {
-    item_life_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
-}
-
-void SP_ability_item_mana_bonus(LPCSTR classname) {
-    item_mana_bonus_val = G_AbilityDataName(classname)->level[0].data[0].number;
-}
-
-void SP_ability_item_stat_bonus(LPCSTR classname) {
-    item_stat_str_val = G_AbilityDataName(classname)->level[0].data[0].number;
-    item_stat_agi_val = G_AbilityDataName(classname)->level[0].data[1].number;
-    item_stat_int_val = G_AbilityDataName(classname)->level[0].data[2].number;
+/* Read every attribute from the same alias on acquisition and removal. */
+BZ_ABILITY_PROC(CAbilityAttributeBonus) {
+    if (msg != A_ITEM_ADD && msg != A_ITEM_REMOVE) return CAbilityPassive(ent, msg, call);
+    if (!ent || !call || !call->item) return false;
+    FLOAT sign = msg == A_ITEM_ADD ? 1.0f : -1.0f;
+    apply_stat(ent, call->item->code, sign);
+    return true;
 }

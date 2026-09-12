@@ -18,7 +18,8 @@
     void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell)
 #define BZ_VALIDATED_SPELL_PROC(NAME, VALIDATE, EXECUTE) \
     BZ_ABILITY_PROC(C##NAME) { \
-        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ? \
+            *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
         case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
@@ -318,15 +319,13 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius);
 void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);
 void S_SpellCancelChannel(LPEDICT caster);
+LPEDICT S_SpellChannelThinker(LPEDICT caster, DWORD code);
+BOOL S_SpellChannelActive(LPEDICT thinker);
+void S_SpellEndChannel(LPEDICT thinker);
 
 /* Unified spell pipeline owns targeting and cast lifecycle; concrete procedures
  * receive validation and execution messages through the registry row. */
 void spell_cmd(LPEDICT clent);
 void spell_run_frame(LPEDICT ent);
-void SP_ability_item_attack_bonus(LPCSTR classname);
-void SP_ability_item_defense_bonus(LPCSTR classname);
-void SP_ability_item_life_bonus(LPCSTR classname);
-void SP_ability_item_mana_bonus(LPCSTR classname);
-void SP_ability_item_stat_bonus(LPCSTR classname);
 
 #endif

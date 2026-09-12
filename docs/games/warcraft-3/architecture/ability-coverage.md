@@ -3,6 +3,9 @@
 This note tracks the current OpenWarcraft3 game-side ability registry against
 the reference ability base-code list used for parity work.
 
+See the [implemented ability verification review](../ability-verification-review.md) for the
+September 2026 source audit, lifecycle fixes, and current coverage limits.
+
 Primary local files:
 
 - `games/warcraft-3/game/skills/s_skills.c`
@@ -29,8 +32,6 @@ follow-up contracts when their authored rows and runtime consumers are added.
 
 OpenWarcraft3 uses a small Quake-style `ability_t` registry row and one `abilityProc_t` per behavior. Flags select command, spell, item, autocast and update paths; those paths send typed `abilityMsg_t` messages. `UnitAddAbility` and `UnitRemoveAbility` send `A_ENABLE` and `A_DISABLE` immediately. Stateful abilities answer `A_LEVEL`, and `S_RefreshAbilityLevel()` forwards the value through `A_LEVEL_CHANGED`. Command-card discovery uses `S_AbilityHasCommand`, so passive/no-op procedures do not create dead buttons. Concrete procedures explicitly call their TFT parent procedure for unhandled messages; no callback descriptor or runtime parent table exists.
 `Aoar` (Healing Ward Aura), `Aabr` (Aura of Blight), and `Aarm` (Mana Regeneration Aura) are registered passive regeneration families. Alias rows such as `ACnr -> Aoar` and `ANre -> Aarm` are discovered on the owning unit and keep alias-authored area, targets, and DataA/DataB values. Percentage mode scales against the recipient's maximum HP/mana; same-family sources use the strongest value while `Aoar` and `Aabr` remain distinct contributors. Presentation effects remain separate work. See [Regeneration Auras And Fountains](../regeneration-auras.md).
-
-OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
 
 The CommonAbility base codes use the subsystem that already owns their behavior.
 `AEbu`, `AGbu`, `AHbu`, `ANbu`, `AObu`, and `AUbu` share the build command;
@@ -112,7 +113,7 @@ thinker therefore follows the caster like `AOww` while retaining the normal
 channel lifetime and periodic area-status path.
 
 The selected neutral-hero contracts now also cover `ANms` (Mana Shield) at the
-central damage boundary, `AHre` (Resurrection) through persistent dead-hero
+central damage boundary, `AHre` (Resurrection) through nearby ordinary friendly-corpse
 revival, `ANbf` (Breath of Fire) through point-area damage, `ANdb` (Drunken
 Brawler) through the existing critical/evasion hooks, `ANdh` (Drunken Haze) and
 `ANdo` (Doom) through timed target buffs, `ANht` (Howl of Terror) through its

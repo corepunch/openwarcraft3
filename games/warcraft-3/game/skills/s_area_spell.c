@@ -37,19 +37,17 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
 void blizzard_think(LPEDICT ent) {
     DWORD now = G_Time();
 
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime)
         return;
     area_spell_damage(ent, ent->velocity); /* velocity reused: max damage per wave */
     if (ent->resources > 0)
         ent->resources--;
-    if (ent->resources == 0 || (ent->spawn_time && now >= ent->spawn_time)) {
-        LPEDICT caster = ent->owner;
-        if (caster && caster->channel.code == ent->class_id)
-            S_SpellCancelChannel(caster);
-        G_FreeEdict(ent);
+    if (ent->resources == 0) {
+        S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + 1000;
+    ent->freetime = now + (DWORD)MAX(FRAMETIME, ent->wait * 1000.0f);
 }
 
 static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
@@ -64,33 +62,31 @@ static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
     return along >= 0.0f && along <= ctx->length && fabsf(across) <= ctx->width;
 }
 
-static void rain_of_fire_think(LPEDICT ent) {
+void rain_of_fire_think(LPEDICT ent) {
     DWORD now = G_Time();
 
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     area_spell_damage(ent, 0.0f);
-    if (ent->resources == 0) {
-        G_FreeEdict(ent);
+    if (!--ent->resources) {
+        S_SpellEndChannel(ent);
         return;
     }
-    ent->resources--;
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
 /* Starfall: self-centered periodic area damage.  AbilityData stores the
  * authored damage in DataA, wave interval in DataB, area in Area, and the
  * channel lifetime in Dur. */
-static void starfall_think(LPEDICT ent) {
+void starfall_think(LPEDICT ent) {
     DWORD now = G_Time();
 
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime)
         return;
     area_spell_damage(ent, 0.0f);
     if (ent->spawn_time && now >= ent->spawn_time) {
-        LPEDICT caster = ent->owner;
-        if (caster && caster->channel.code == ent->class_id)
-            S_SpellCancelChannel(caster);
-        G_FreeEdict(ent);
+        S_SpellEndChannel(ent);
         return;
     }
     ent->freetime = now + (DWORD)MAX(1.0f, ent->velocity * 1000.0f);
@@ -109,9 +105,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPEDICT thinker;
 
-    thinker = G_Spawn();
-    thinker->owner = caster;
-    thinker->class_id = spell->code;
+    thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -119,7 +113,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     thinker->damage = damage ? damage : 1;
     thinker->resources = waves ? waves : 1;
     thinker->velocity = S_SpellData(spell->code, level, 6); /* DataF = Max Damage per Wave */
-    thinker->spawn_time = G_Time() + (DWORD)(MAX(1.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
+    thinker->wait = S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, level);
     thinker->think = blizzard_think;
     blizzard_think(thinker); /* first wave immediately */
 }
@@ -169,10 +163,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-
-    thinker->owner = caster;
-    thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -186,10 +177,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
 
 /* Death and Decay deals the authored percentage of each enemy's maximum life
  * on every pulse; unlike Rain of Fire, DataA is not a fixed damage amount. */
-static void death_and_decay_think(LPEDICT ent) {
+void death_and_decay_think(LPEDICT ent) {
     DWORD now = G_Time();
     LPEDICT caster = ent->owner;
 
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, target->inuse && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
@@ -197,9 +189,7 @@ static void death_and_decay_think(LPEDICT ent) {
         S_SpellDamage(target, caster, (DWORD)MAX(1.0f, target->health.max_value * ent->wait));
     }
     if (ent->spawn_time && now >= ent->spawn_time) {
-        if (caster && caster->channel.code == ent->class_id)
-            S_SpellCancelChannel(caster);
-        G_FreeEdict(ent);
+        S_SpellEndChannel(ent);
         return;
     }
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
@@ -210,10 +200,7 @@ static void death_and_decay_think(LPEDICT ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-
-    thinker->owner = caster;
-    thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -248,21 +235,32 @@ BZ_SIMPLE_SPELL_PROC(AbilityThunderClap) { area_damage_status_execute(caster, st
 /* Name=Frost Nova
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) { area_damage_status_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
+    DWORD rank = S_SpellLevel(caster, spell->code);
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
+    LPCSTR buff = G_AbilityLevel(spell->code, rank)->buffID;
+    VECTOR2 center = st.entity->s.origin2;
+    FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
+                  Vector2_distance(&target->s.origin2, &center) <= radius) {
+        FLOAT damage = S_SpellData(spell->code, rank, 1);
+        if (target == st.entity) damage += S_SpellData(spell->code, rank, 2);
+        if (S_SpellDamage(target, caster, (int)damage) && !M_IsDead(target) && buff && strlen(buff) >= 4)
+            unit_addtimedstatus(target, buff, rank, S_SpellDuration(spell->code, rank, G_UnitIsHero(target)));
+    }
+}
 
-static void tranquility_think(LPEDICT ent) {
+void tranquility_think(LPEDICT ent) {
     DWORD now = G_Time();
     LPEDICT caster = ent->owner;
 
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, target->inuse && S_SpellIsAliveTarget(target) &&
                   S_SpellIsFriend(caster, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision)
         S_SpellHeal(target, ent->damage);
     if (ent->spawn_time && now >= ent->spawn_time) {
-        if (caster && caster->channel.code == ent->class_id)
-            S_SpellCancelChannel(caster);
-        G_FreeEdict(ent);
+        S_SpellEndChannel(ent);
         return;
     }
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
@@ -273,10 +271,7 @@ static void tranquility_think(LPEDICT ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-
-    thinker->owner = caster;
-    thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
@@ -293,10 +288,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-
-    thinker->owner = caster;
-    thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;

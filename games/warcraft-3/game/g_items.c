@@ -1,12 +1,6 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
 
-/* Passive item-effect hooks remain centralized here so every inventory exit
- * reverses the corresponding inventory entry. Effect coverage is expanded in
- * a later item-system phase. */
-void item_stat_apply(LPEDICT unit, DWORD item_code);
-void item_stat_remove(LPEDICT unit, DWORD item_code);
-
 /* Keep the native itemtype mapping in one table shared by GetItemType and the
  * random-item selectors. */
 DWORD G_ItemTypeFromClass(LPCSTR cls) {
@@ -88,8 +82,9 @@ static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
     LPCSTR abilities = G_ItemAbilityList(item);
     if (!abilities || !*abilities) return;
     PARSE_LIST(abilities, ability, parse_segment) {
-        DWORD code = *((DWORD const *)ability);
-        apply ? item_stat_apply(unit, code) : item_stat_remove(unit, code);
+        abilityitem_t entry = S_AbilityItem(FS_SLKKey(ability));
+        abilityCall_t call = MAKE(abilityCall_t, .item = &entry);
+        S_AbilityMessage(unit, apply ? A_ITEM_ADD : A_ITEM_REMOVE, &call);
     }
 }
 

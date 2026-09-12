@@ -111,10 +111,12 @@ static BOOL attack_target_is_valid(LPCEDICT attacker, LPCEDICT target) {
     return !M_IsDead((LPEDICT)target);
 }
 
-static void attack_finish_after_combat(LPEDICT attacker) {
-    if (!attacker) {
-        return;
-    }
+/* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
+static void attack_finish_after_combat(LPEDICT attacker, LPCEDICT target) {
+    if (!attacker || M_IsDead(attacker) || !attacker->currentmove ||
+        attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
+    unit_leavecombat(attacker);
+    attacker->goalentity = NULL;
     if (attacker->movement.patrol_a) {
         order_patrol_resume(attacker);
     } else if (attacker->movement.attackmove_waypoint) {
@@ -130,11 +132,7 @@ static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
     if (attack_target_is_valid(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
-    if (attacker) {
-        unit_leavecombat(attacker);
-        attacker->goalentity = NULL;
-        attack_finish_after_combat(attacker);
-    }
+    if (attacker) attack_finish_after_combat(attacker, attacker->goalentity);
     return true;
 }
 
@@ -203,7 +201,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (damage <= 0) return;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
-            attack_finish_after_combat(attacker);
+            attack_finish_after_combat(attacker, target);
         }
         return;
     }
@@ -220,9 +218,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (target->health.value <= damage) {
         G_SetHealth(target, 0);
         unit_leavecombat(target);
-        unit_leavecombat(attacker);
         target->die(target, attacker);
-        attack_finish_after_combat(attacker);
+        attack_finish_after_combat(attacker, target);
         return;
     } else {
         G_AddHealth(target, -damage);
@@ -281,6 +278,8 @@ static BOOL attack_animation_can_finish(LPCEDICT ent) {
 
 static void damage_target(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) return;
+    umove_t const *move = ent->currentmove;
+    LPEDICT target = ent->goalentity;
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
@@ -288,8 +287,10 @@ static void damage_target(LPEDICT ent) {
      * fires the first hit, but M_MoveFrame() can never reach the move endfunc,
      * leaving the attack state parked at wait==0 forever. Treat the completed
      * hit as the end of the windup when there is no finite animation to drive
-     * that transition. */
-    if (attack_target_is_valid(ent, ent->goalentity) && !attack_animation_can_finish(ent))
+     * that transition. A lethal hit may already have resumed Follow or the next
+     * queued order, so only the unchanged attack may enter this recovery. */
+    if (ent->currentmove == move && ent->goalentity == target &&
+        attack_target_is_valid(ent, target) && !attack_animation_can_finish(ent))
         attack_melee_cooldown(ent);
 }
 
@@ -385,6 +386,11 @@ static void ai_attack_walk(LPEDICT ent) {
         return;
     }
     if (attack_target_out_of_range(ent)) {
+        /* Hold still acquires at sight range, but must return to its stationary scan instead of chasing. */
+        if (ent->movement.holding_position) {
+            attack_finish_after_combat(ent, ent->goalentity);
+            return;
+        }
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (ent->attack1.weapon == WPN_MISSILE) {
@@ -412,6 +418,18 @@ void order_attack(LPEDICT self, LPEDICT target) {
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);
+}
+
+/* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
+BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
+    if (!self || M_IsDead(self) || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(self, target))
+        return false;
+    self->movement.attackmove_waypoint = NULL;
+    self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;
+    self->movement.follow_target = NULL;
+    self->movement.holding_position = false;
+    order_attack(self, target);
+    return true;
 }
 
 static FLOAT attack_speed_divisor(LPEDICT self) {
