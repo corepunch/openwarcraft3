@@ -39,7 +39,7 @@ static abilityitem_t abilitylist[] = {
     { "ANsh", &CAbilityShockwaveCampaign },  /* Shockwave */
     { "ACs8", &CAbilitySpiritBeast },  /* Spirit Beast */
     { "ANr2", &CAbilityReincarnationCampaign },  /* Reincarnation */
-    { "Afbb", &CAbilityFeedback },  /* Feedback */
+    { "Afbb", &CAbilityFeedbackCampaign },  /* Feedback (campaign toggle) */
     { "Andm", &CAbilityAbolishMagic },  /* Abolish Magic */
     { "Asb1", &CAbilitySubmergeMyrmidon },  /* Submerge */
     { "Asb2", &CAbilitySubmergeRoyalGuard },  /* Submerge */

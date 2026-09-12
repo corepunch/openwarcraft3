@@ -84,7 +84,7 @@ CAMPAIGN_SPELL(AbilityWarStompCampaign, ('A','O','w','2'), SPELL_TARGET_NONE, 0,
 CAMPAIGN_SPELL(AbilityFeralSpiritCampaign, ('A','C','s','7'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
 CAMPAIGN_SPELL(AbilitySpiritBeast, ('A','C','s','8'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
 CAMPAIGN_SPELL(AbilityReincarnationCampaign, ('A','N','r','2'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
-CAMPAIGN_SPELL(AbilityFeedback, ('A','f','b','b'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityFeedbackCampaign, ('A','f','b','b'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
 CAMPAIGN_SPELL(AbilityAbolishMagic, ('A','n','d','m'), SPELL_TARGET_POINT, 0, campaign_dispel_execute);
 CAMPAIGN_SPELL(AbilitySubmergeMyrmidon, ('A','s','b','1'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
 CAMPAIGN_SPELL(AbilitySubmergeRoyalGuard, ('A','s','b','2'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
