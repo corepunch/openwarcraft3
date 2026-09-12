@@ -221,6 +221,9 @@ client traversals, then reprofile; the report does not justify a promised FPS im
 `python3 tools/extract_wc3_ability_classes.py data/warcraft3demo/game.dll -o /tmp/demo-abilities.txt`
 extracts 197 FOURCC-to-`CAbility*` mappings from the demo's actual class registration
 calls and factory RTTI references. Add `--all-classes` for all 526 static classes.
+The same tool accepts `"data/Warcraft III/Warcraft III.exe"` (TFT 1.29.2.9231):
+489 ability classes, or 1,076 static classes plus four helper RTTI entries with `--all-classes`. The complete
+TFT export is `games/warcraft-3/tft-ability-classes.txt`.
 See [binary offsets, validation, and the generated reference](games/warcraft-3/demo-ability-classes.md).
 This differs from `ability_map.c`, whose rawcode relationships are manually transcribed.
 
