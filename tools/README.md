@@ -5,15 +5,19 @@ Warcraft III assets and game data.
 
 ## `extract_wc3_ability_classes.py`
 
-Extract the demo DLL's actual FOURCC-to-class registration mapping using Python's
+Extract the demo/TFT binaries' actual FOURCC-to-class registration mappings using Python's
 standard library. Each output row includes the parent type and binary offsets.
 
 ```sh
 python3 tools/extract_wc3_ability_classes.py data/warcraft3demo/game.dll -o /tmp/demo-abilities.txt
+python3 tools/extract_wc3_ability_classes.py "data/Warcraft III/Warcraft III.exe" --all-classes -o games/warcraft-3/tft-ability-classes.txt
 ```
 
-The default exports 197 `CAbility*` classes; `--all-classes` exports all 526 static
-classes. This tool requires the verified demo build. See the
+The default exports 197 demo or 489 TFT `CAbility*` classes; `--all-classes`
+exports 526 demo or 1,076 TFT static classes. TFT also includes a separate appendix
+for four unregistered ability database/helper RTTI names with binary offsets.
+The tool recognizes the verified
+demo and TFT 1.29.2.9231 builds by SHA-256. See the
 [offset documentation and saved reference](../docs/games/warcraft-3/demo-ability-classes.md).
 
 ## `mpqtool`
