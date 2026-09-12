@@ -10,7 +10,6 @@ static void devotionaura_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
 }
 
 static spell_info_t spell_devotionaura = {
-    .code = MAKEFOURCC('A', 'H', 'a', 'd'),
     .name = "Devotion Aura",
     .target_type = SPELL_TARGET_NONE,
     .execute = devotionaura_execute,

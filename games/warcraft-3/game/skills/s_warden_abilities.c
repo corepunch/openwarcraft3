@@ -3,8 +3,6 @@
 /* Night Elf Warden (Maiev) hero abilities: Blink, Fan of Knives, Shadow Strike. */
 
 #define ID_BLINK        MAKEFOURCC('A', 'E', 'b', 'l')
-#define ID_FAN_OF_KNIVES MAKEFOURCC('A', 'E', 'f', 'k')
-#define ID_SHADOW_STRIKE MAKEFOURCC('A', 'E', 's', 'h')
 
 /* ---- Blink (AEbl): instant teleport to a target point within range -------- */
 
@@ -31,7 +29,6 @@ static void blink_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *
 }
 
 static spell_info_t spell_blink = {
-    .code = ID_BLINK,
     .name = "Blink",
     .target_type = SPELL_TARGET_POINT,
     .validate = blink_validate,
@@ -64,7 +61,6 @@ static void fanofknives_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_fan_of_knives = {
-    .code = ID_FAN_OF_KNIVES,
     .name = "Fan of Knives",
     .target_type = SPELL_TARGET_NONE,
     .execute = fanofknives_execute,
@@ -84,7 +80,6 @@ static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
 }
 
 static spell_info_t spell_shadow_strike = {
-    .code = ID_SHADOW_STRIKE,
     .name = "Shadow Strike",
     .target_type = SPELL_TARGET_UNIT,
     .execute = shadowstrike_execute,

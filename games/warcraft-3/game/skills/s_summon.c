@@ -1,12 +1,6 @@
 #include "s_skills.h"
 
 #define ID_TIMED_LIFE "BTLF"
-#define ID_WATER_ELEMENTAL MAKEFOURCC('A', 'H', 'w', 'e')
-#define ID_FERAL_SPIRIT MAKEFOURCC('A', 'O', 's', 'f')
-#define ID_FORCE_OF_NATURE MAKEFOURCC('A', 'E', 'f', 'n')
-#define ID_SUMMON_BEAR MAKEFOURCC('A', 'N', 's', 'g')
-#define ID_SUMMON_QUILBEAST MAKEFOURCC('A', 'N', 's', 'q')
-#define ID_SUMMON_HAWK MAKEFOURCC('A', 'N', 's', 'w')
 
 static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
     VECTOR2 loc;
@@ -95,42 +89,36 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, spell_info_t const 
 }
 
 static spell_info_t spell_water_elemental = {
-    .code = ID_WATER_ELEMENTAL,
     .name = "Water Elemental",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
 };
 
 static spell_info_t spell_feral_spirit = {
-    .code = ID_FERAL_SPIRIT,
     .name = "Feral Spirit",
     .target_type = SPELL_TARGET_NONE,
     .execute = feral_spirit_execute,
 };
 
 static spell_info_t spell_force_of_nature = {
-    .code = ID_FORCE_OF_NATURE,
     .name = "Force of Nature",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
 };
 
 static spell_info_t spell_summon_bear = {
-    .code = ID_SUMMON_BEAR,
     .name = "Summon Bear",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
 };
 
 static spell_info_t spell_summon_quilbeast = {
-    .code = ID_SUMMON_QUILBEAST,
     .name = "Summon Quilbeast",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
 };
 
 static spell_info_t spell_summon_hawk = {
-    .code = ID_SUMMON_HAWK,
     .name = "Summon Hawk",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,

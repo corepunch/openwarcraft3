@@ -4,8 +4,6 @@
  * the target location that deals initial damage after a short delay, then
  * periodic burn damage to units in the area. */
 
-#define ID_FLAME_STRIKE MAKEFOURCC('A', 'N', 'f', 's')
-
 void flame_strike_tick(LPEDICT ent) {
     LPEDICT caster = ent->owner;
     FLOAT radius = ent->collision;
@@ -63,14 +61,12 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
 }
 
 static spell_info_t spell_flame_strike = {
-    .code = ID_FLAME_STRIKE,
     .name = "Flame Strike",
     .target_type = SPELL_TARGET_POINT,
     .execute = flame_strike_execute,
 };
 
 static spell_info_t spell_flame_strike_human = {
-    .code = MAKEFOURCC('A', 'H', 'f', 's'),
     .name = "Flame Strike",
     .target_type = SPELL_TARGET_POINT,
     .execute = flame_strike_execute,

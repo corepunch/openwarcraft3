@@ -1,14 +1,9 @@
 #include "s_skills.h"
 
 #define ID_BLIZZARD MAKEFOURCC('A', 'H', 'b', 'z')
-#define ID_CARRION_SWARM MAKEFOURCC('A', 'U', 'c', 's')
 #define ID_STARFALL MAKEFOURCC('A', 'E', 's', 'f')
-#define ID_SHOCKWAVE MAKEFOURCC('A', 'O', 's', 'h')
-#define ID_RAIN_OF_FIRE MAKEFOURCC('A', 'N', 'r', 'f')
 #define ID_TRANQUILITY MAKEFOURCC('A', 'E', 't', 'q')
 #define ID_DEATH_AND_DECAY MAKEFOURCC('A', 'U', 'd', 'd')
-#define ID_THUNDER_CLAP MAKEFOURCC('A', 'H', 't', 'c')
-#define ID_FROST_NOVA MAKEFOURCC('A', 'U', 'f', 'n')
 
 typedef struct {
     LPEDICT caster;
@@ -87,7 +82,6 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
 }
 
 static spell_info_t spell_blizzard = {
-    .code = ID_BLIZZARD,
     .name = "Blizzard",
     .target_type = SPELL_TARGET_POINT,
     .flags = SPELL_CHANNEL,
@@ -109,7 +103,6 @@ static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, spell_info_t
 }
 
 static spell_info_t spell_carrion_swarm = {
-    .code = ID_CARRION_SWARM,
     .name = "Carrion Swarm",
     .target_type = SPELL_TARGET_POINT,
     .execute = carrion_swarm_execute,
@@ -148,7 +141,6 @@ static void shockwave_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 }
 
 static spell_info_t spell_shockwave = {
-    .code = ID_SHOCKWAVE,
     .name = "Shockwave",
     .target_type = SPELL_TARGET_POINT,
     .execute = shockwave_execute,
@@ -184,7 +176,6 @@ static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
 }
 
 static spell_info_t spell_rain_of_fire = {
-    .code = ID_RAIN_OF_FIRE,
     .name = "Rain of Fire",
     .target_type = SPELL_TARGET_POINT,
     .flags = SPELL_CHANNEL,
@@ -227,7 +218,6 @@ static void starfall_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
 }
 
 static spell_info_t spell_starfall = {
-    .code = ID_STARFALL,
     .name = "Starfall",
     .target_type = SPELL_TARGET_NONE,
     .flags = SPELL_CHANNEL,
@@ -304,7 +294,6 @@ static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, spell_info
 }
 
 static spell_info_t spell_death_and_decay = {
-    .code = ID_DEATH_AND_DECAY,
     .name = "Death and Decay",
     .target_type = SPELL_TARGET_POINT,
     .flags = SPELL_CHANNEL,
@@ -333,14 +322,12 @@ static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_i
 }
 
 static spell_info_t spell_thunder_clap = {
-    .code = ID_THUNDER_CLAP,
     .name = "Thunder Clap",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
 };
 
 static spell_info_t spell_frost_nova = {
-    .code = ID_FROST_NOVA,
     .name = "Frost Nova",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
@@ -390,7 +377,6 @@ static void tranquility_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 }
 
 static spell_info_t spell_tranquility = {
-    .code = ID_TRANQUILITY,
     .name = "Tranquility",
     .target_type = SPELL_TARGET_NONE,
     .flags = SPELL_CHANNEL,

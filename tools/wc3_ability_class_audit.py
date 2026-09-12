@@ -32,7 +32,7 @@ TFT_RE = re.compile(
 TFT_NULL_RE = re.compile(r'^\{\s*NULL\s*,\s*"([^"]+)"\s*\}')
 
 # Active: { "AHhb", &a_holylight },  /* Holy Light */
-ACTIVE_RE = re.compile(r'^\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*&(\w+)\s*\}')
+ACTIVE_RE = re.compile(r'^\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*&(\w+)\s*(?:,\s*\.alias\s*=\s*true\s*)?\}')
 # TODO:   // TODO: { "Ablo", &a_bloodlust },  /* Bloodlust */
 TODO_RE = re.compile(r'^\s*//\s*TODO:\s*\{\s*"([A-Za-z0-9+\-]{2,5})"\s*,\s*&(\w+)\s*\}')
 # Engine commands use STR_Cmd* instead of string literals

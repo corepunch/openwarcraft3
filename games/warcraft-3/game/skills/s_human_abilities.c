@@ -1,7 +1,6 @@
 #include "s_skills.h"
 
 #define HUMAN_AUTOCAST_RADIUS 900.0f // world units; fallback acquisition radius when the spell range is zero
-#define BZ_AVATAR MAKEFOURCC('A', 'H', 'a', 'v') // rawcode; Human Mountain King Avatar ability
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v') // rawcode; timed Avatar buff that owns immunity and bonuses
 #define BZ_POLYMORPH MAKEFOURCC('A', 'p', 'l', 'y') // rawcode; stock Polymorph ability code
 #define BZ_POLYMORPH_GROUND_SLOT 2 // data slot; authored Ply2 ground morph form
@@ -413,43 +412,43 @@ HUMAN_AUTOCAST(inner_fire, ('A','i','n','f'), true, false)
 HUMAN_AUTOCAST(heal, ('A','h','e','a'), true, true)
 HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
 
-#define HUMAN_SPELL(NAME, CODE, TARGET, FLAGS, VALIDATE, EXECUTE) \
-    static spell_info_t spell_##NAME = { .code = MAKEFOURCC CODE, .name = #NAME, .target_type = TARGET, .flags = FLAGS, .validate = VALIDATE, .execute = EXECUTE }; \
+#define HUMAN_SPELL(NAME, TARGET, FLAGS, VALIDATE, EXECUTE) \
+    static spell_info_t spell_##NAME = { .name = #NAME, .target_type = TARGET, .flags = FLAGS, .validate = VALIDATE, .execute = EXECUTE }; \
     ability_t C##NAME = { .cmd = spell_cmd, .spell = &spell_##NAME }
 
 /* Name=Aerial Shackles
  * Ubertip="Magically binds a target enemy air unit, so that it cannot move or attack and takes <Amls,DataA1> damage per second. Lasts <Amls,Dur1> seconds."
  */
-HUMAN_SPELL(AbilityMagicLeash, ('A','m','l','s'), SPELL_TARGET_UNIT, SPELL_CHANNEL, aerial_shackles_validate, aerial_shackles_execute);
+HUMAN_SPELL(AbilityMagicLeash, SPELL_TARGET_UNIT, SPELL_CHANNEL, aerial_shackles_validate, aerial_shackles_execute);
 /* Name=Control Magic
  * Ubertip="Takes control of an enemy summoned unit. The mana cost is <Acmg,DataB1,%>% of the summoned unit's current hit points."
  */
-HUMAN_SPELL(AbilityControlMagic, ('A','c','m','g'), SPELL_TARGET_UNIT, 0, control_magic_validate, control_magic_execute);
+HUMAN_SPELL(AbilityControlMagic, SPELL_TARGET_UNIT, 0, control_magic_validate, control_magic_execute);
 /* Name=Magic Defense; Untip=Stop Magic Defense */
-HUMAN_SPELL(AbilityMagicDefense, ('A','m','d','f'), SPELL_TARGET_NONE, SPELL_TOGGLE, NULL, human_toggle_execute);
+HUMAN_SPELL(AbilityMagicDefense, SPELL_TARGET_NONE, SPELL_TOGGLE, NULL, human_toggle_execute);
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilitySpellSteal, ('A','s','p','s'), SPELL_TARGET_UNIT, SPELL_AUTOCAST, NULL, spell_steal_execute);
+HUMAN_SPELL(AbilitySpellSteal, SPELL_TARGET_UNIT, SPELL_AUTOCAST, NULL, spell_steal_execute);
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
-HUMAN_SPELL(AbilityCloudOfFog, ('A','c','l','f'), SPELL_TARGET_UNIT, 0, cloud_validate, human_status_execute);
+HUMAN_SPELL(AbilityCloudOfFog, SPELL_TARGET_UNIT, 0, cloud_validate, human_status_execute);
 /* Name=Defend; Untip=Stop Defend */
-HUMAN_SPELL(AbilityDefend, ('A','d','e','f'), SPELL_TARGET_NONE, SPELL_TOGGLE, NULL, human_toggle_execute);
+HUMAN_SPELL(AbilityDefend, SPELL_TARGET_NONE, SPELL_TOGGLE, NULL, human_toggle_execute);
 /* Name=Flare; Ubertip="Launches a Dwarven flare above a target point, which reveals that area for <Afla,Dur1> seconds." */
-HUMAN_SPELL(AbilityFlare, ('A','f','l','a'), SPELL_TARGET_POINT, 0, NULL, flare_execute);
+HUMAN_SPELL(AbilityFlare, SPELL_TARGET_POINT, 0, NULL, flare_execute);
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilityInnerFire, ('A','i','n','f'), SPELL_TARGET_UNIT, SPELL_AUTOCAST, inner_fire_validate, human_status_execute);
+HUMAN_SPELL(AbilityInnerFire, SPELL_TARGET_UNIT, SPELL_AUTOCAST, inner_fire_validate, human_status_execute);
 /* Name=Dispel Magic; Ubertip="Removes all buffs from units in a target area. Deals <Adis,DataB1> damage to summoned units." */
-HUMAN_SPELL(AbilityDispelMagic, ('A','d','i','s'), SPELL_TARGET_POINT, 0, NULL, dispel_magic_execute);
+HUMAN_SPELL(AbilityDispelMagic, SPELL_TARGET_POINT, 0, NULL, dispel_magic_execute);
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
-HUMAN_SPELL(AbilityHeal, ('A','h','e','a'), SPELL_TARGET_UNIT, SPELL_AUTOCAST, heal_validate, heal_execute);
+HUMAN_SPELL(AbilityHeal, SPELL_TARGET_UNIT, SPELL_AUTOCAST, heal_validate, heal_execute);
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
-HUMAN_SPELL(AbilitySlow, ('A','s','l','o'), SPELL_TARGET_UNIT, SPELL_AUTOCAST, slow_validate, human_status_execute);
+HUMAN_SPELL(AbilitySlow, SPELL_TARGET_UNIT, SPELL_AUTOCAST, slow_validate, human_status_execute);
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
-HUMAN_SPELL(AbilityInvisibility, ('A','i','v','s'), SPELL_TARGET_UNIT, 0, invisibility_validate, invisibility_execute);
+HUMAN_SPELL(AbilityInvisibility, SPELL_TARGET_UNIT, 0, invisibility_validate, invisibility_execute);
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
-HUMAN_SPELL(AbilityPolymorph, ('A','p','l','y'), SPELL_TARGET_UNIT, 0, polymorph_validate, polymorph_execute);
+HUMAN_SPELL(AbilityPolymorph, SPELL_TARGET_UNIT, 0, polymorph_validate, polymorph_execute);
 /* Name=Avatar */
 static spell_info_t spell_avatar = {
-    .code = BZ_AVATAR, .name = "Avatar", .target_type = SPELL_TARGET_NONE,
+    .name = "Avatar", .target_type = SPELL_TARGET_NONE,
     .validate = avatar_validate, .execute = avatar_execute
 };
 ability_t CAbilityAvatar = { .cmd = spell_cmd, .spell = &spell_avatar, .disabled = S_AvatarExpire };

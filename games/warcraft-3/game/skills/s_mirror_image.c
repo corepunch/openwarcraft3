@@ -1,6 +1,5 @@
 #include "s_skills.h"
 
-#define ID_MIRROR_IMAGE MAKEFOURCC('A', 'O', 'm', 'i')
 #define ID_TIMED_LIFE "BTLF"
 
 static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT duration) {
@@ -58,7 +57,6 @@ static void mirror_image_execute(LPEDICT caster, spellTarget_t target, spell_inf
 }
 
 static spell_info_t spell_mirror_image = {
-    .code = ID_MIRROR_IMAGE,
     .name = "Mirror Image",
     .target_type = SPELL_TARGET_NONE,
     .execute = mirror_image_execute,
