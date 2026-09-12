@@ -327,10 +327,10 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	T_FEQ(S_UnholyMoveBonus(target), 0.1f, 0.001f);
 	T_FEQ(S_UnholyHealthRegen(target), 0.5f, 0.001f);
 	T_FEQ(S_VampiricLifeSteal(target), 0.2f, 0.001f);
-	level.time = 1000;
+	level.time = AURA_UPDATE_MS / 2;
 	target->s.origin2.x = 901.0f;
 	T_FEQ(S_BrillianceManaRegen(target), 0.75f, 0.001f);
-	level.time = 2000;
+	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_BrillianceManaRegen(target), 0.0f, 0.001f);
 	T_FEQ(S_UnholyMoveBonus(target), 0.0f, 0.001f);
 
@@ -387,10 +387,10 @@ TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) 
 
 	T_FEQ(S_RegenerationHealthAura(target), 13.0f, 0.001f);
 	T_FEQ(S_RegenerationManaAura(target), 8.0f, 0.001f);
-	level.time = 1000;
+	level.time = AURA_UPDATE_MS / 2;
 	target->s.origin2.x = 501.0f;
 	T_FEQ(S_RegenerationHealthAura(target), 13.0f, 0.001f);
-	level.time = 2000;
+	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_RegenerationHealthAura(target), 0.0f, 0.001f);
 	T_FEQ(S_RegenerationManaAura(target), 0.0f, 0.001f);
 
@@ -411,6 +411,7 @@ TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	reset_entities();
 	setup_test_world();
+	level.time = 0;
 	LPEDICT first = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
@@ -424,6 +425,7 @@ TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_
 
 	T_FEQ(S_RegenerationHealthAura(target), 20.0f, 0.001f);
 	target->targtype = TARG_MECHANICAL;
+	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_RegenerationHealthAura(target), 0.0f, 0.001f);
 
 	G_SetSLKRows("AbilityData", old);
@@ -443,6 +445,7 @@ TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_rang
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	reset_entities();
 	setup_test_world();
+	level.time = 0;
 	LPEDICT source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 	LPEDICT overlay = NULL;
@@ -487,6 +490,7 @@ TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_rang
 	T_NOT_NULL(overlay->goalentity);
 
 	target->s.origin2.x = 501.0f;
+	level.time = AURA_UPDATE_MS;
 	S_UpdateRegenerationAuraEffects(target);
 	T_ASSERT(overlay->goalentity == NULL);
 
@@ -499,7 +503,7 @@ TEST(wc3_spell, regeneration_aura_base_codes_are_registered_passives) {
 	FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
 		ability_t const *ability = FindAbilityByClassname(codes[i]);
 		T_NOT_NULL(ability);
-		T_ASSERT(ability->flags & ABILITY_PASSIVE);
+		T_ASSERT(ability->flags & AB_PASSIVE);
 	}
 }
 
@@ -512,6 +516,7 @@ TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
 	LPEDICT aura = make_hero(MAKEFOURCC('E', 'd', 'r', 'u'), 500, 0, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 100, 0);
 	LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 100, 0);
+	level.time = 0;
 	aura->s.player = target->s.player = attacker->s.player = 0;
 	aura->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A', 'E', 'a', 'h'), .level = 1);
 	target->attack1.weapon = WPN_NORMAL;
@@ -522,6 +527,7 @@ TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
 	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
 	attacker->attack1.weapon = WPN_NORMAL;
 	target->s.origin2.x = 901.0f;
+	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
 	ability_t const *ability = FindAbilityByClassname("AEah");
 	T_NOT_NULL(ability);
