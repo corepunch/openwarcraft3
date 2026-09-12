@@ -1,6 +1,11 @@
 name: Refresh Linux CI Image
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/docker/ci/Dockerfile"
+      - ".github/workflows/ci-image-refresh.yml"
   schedule:
     # Refresh daily so the image picks up Ubuntu base and APT security updates.
     - cron: "17 3 * * *"
