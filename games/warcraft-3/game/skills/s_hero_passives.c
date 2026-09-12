@@ -214,13 +214,16 @@ static BOOL is_regen_aura_overlay(LPCEDICT effect, LPCEDICT unit, DWORD base_cod
 }
 
 static void sync_regen_aura_overlay(LPEDICT unit, DWORD base_code, regenerationAuraInfo_t const *info) {
-    DWORD effect_code = info ? info->buff : 0;
+    BOOL const needs_resource = base_code == ID_REGEN_MANA
+        ? unit->mana.max_value > 0.0f && unit->mana.value < unit->mana.max_value
+        : unit->health.max_value > 0.0f && unit->health.value > 0.0f && unit->health.value < unit->health.max_value;
+    DWORD effect_code = needs_resource && info ? info->buff : 0;
     LPCSTR art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
 
     /* Buff rows may carry only the icon while the alias owns TargetArt. Keep
      * the authored buff presentation when present, then fall back to the
      * ability alias so a valid aura cannot become visually silent. */
-    if ((!art || !*art) && info) {
+    if ((!art || !*art) && needs_resource && info) {
         effect_code = info->alias;
         art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
     }

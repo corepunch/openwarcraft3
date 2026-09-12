@@ -144,10 +144,8 @@ void G_RunEntity(LPEDICT ent) {
                     (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
         if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
     }
-    /* Warsmash-style aura presentation is persistent buff TargetArt rather
-     * than a one-shot effect per regeneration tick.  Keep it independent of
-     * whether the target is currently wounded/full so aura presence owns the
-     * visual lifetime. */
+    /* Keep aura TargetArt active only while the recipient still needs the
+     * corresponding resource; full health/mana removes the visual immediately. */
     if (ent->data.UnitBalance && ((level.framenum + ent->s.number) & 7) == 0)
         S_UpdateRegenerationAuraEffects(ent);
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);

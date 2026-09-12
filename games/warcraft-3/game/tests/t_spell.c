@@ -444,7 +444,8 @@ TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_rang
 	source->targtype = target->targtype = TARG_GROUND;
 	source->abilities.added[0] = MAKEFOURCC('A','C','n','r');
 	ARRAY_COUNT(source->abilities.added) = 1;
-	target->health.max_value = target->health.value = 1000.0f;
+	target->health.max_value = 1000.0f;
+	target->health.value = 900.0f;
 
 	S_UpdateRegenerationAuraEffects(target);
 	FOR_LOOP(i, globals.num_edicts) {
@@ -458,6 +459,24 @@ TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_rang
 	T_NOT_NULL(overlay);
 	T_ASSERT(overlay->s.model != 0);
 	T_EQ(overlay->movetype, MOVETYPE_LINK);
+
+	target->health.value = target->health.max_value;
+	S_UpdateRegenerationAuraEffects(target);
+	T_NULL(overlay->goalentity);
+
+	target->health.value = 900.0f;
+	S_UpdateRegenerationAuraEffects(target);
+	overlay = NULL;
+	FOR_LOOP(i, globals.num_edicts) {
+		LPEDICT effect = g_edicts + i;
+		if (effect->inuse && effect->owner == target && effect->goalentity == target &&
+			effect->summon_ability == MAKEFOURCC('A','o','a','r')) {
+			overlay = effect;
+			break;
+		}
+	}
+	T_NOT_NULL(overlay);
+	T_NOT_NULL(overlay->goalentity);
 
 	target->s.origin2.x = 501.0f;
 	S_UpdateRegenerationAuraEffects(target);
