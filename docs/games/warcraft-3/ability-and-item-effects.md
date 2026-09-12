@@ -2,6 +2,10 @@
 
 ## Contract
 
+For the gameplay distinction between an ability and its applied buff, including
+the demo's `Ablo`/`Bblo` Bloodlust registrations, see
+[Abilities versus buffs](demo-ability-classes.md#abilities-versus-buffs).
+
 Warcraft III gameplay owns effect timing and semantics. The renderer never decides that an art model deals damage, heals a unit, applies a buff, or consumes an item. Game code first performs or validates the simulation action and then requests presentation by Warcraft rawcode and effect slot.
 
 The game-side effect selector is `wc3EffectType_t` in `games/warcraft-3/game/g_local.h`:

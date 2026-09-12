@@ -3,6 +3,19 @@
 This directory contains the standalone command-line tools used to inspect
 Warcraft III assets and game data.
 
+## `extract_wc3_ability_classes.py`
+
+Extract the demo DLL's actual FOURCC-to-class registration mapping using Python's
+standard library. Each output row includes the parent type and binary offsets.
+
+```sh
+python3 tools/extract_wc3_ability_classes.py data/warcraft3demo/game.dll -o /tmp/demo-abilities.txt
+```
+
+The default exports 197 `CAbility*` classes; `--all-classes` exports all 526 static
+classes. This tool requires the verified demo build. See the
+[offset documentation and saved reference](../docs/games/warcraft-3/demo-ability-classes.md).
+
 ## `mpqtool`
 
 Archive utility for MPQ files.
