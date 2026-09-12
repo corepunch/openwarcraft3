@@ -57,10 +57,10 @@ void blizzard_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-/* Blizzard: channeled point-target AoE.  SPELL_CHANNEL flag causes the unified
+/* Blizzard: channeled point-target AoE.  AB_CHANNEL flag causes the unified
  * pipeline to lock the caster via channel_code/cast_origin; spell_run_frame()
  * enforces movement-cancel.  The thinker entity runs the per-wave damage. */
-static void blizzard_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void blizzard_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD waves = (DWORD)S_SpellData(spell->code, level, 1);
     DWORD damage = (DWORD)S_SpellData(spell->code, level, 2);
@@ -81,15 +81,8 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
     blizzard_think(thinker); /* first wave immediately */
 }
 
-static spell_info_t spell_blizzard = {
-    .name = "Blizzard",
-    .target_type = SPELL_TARGET_POINT,
-    .flags = SPELL_CHANNEL,
-    .execute = blizzard_execute,
-};
-
 /* Carrion Swarm: instant point-target AoE blast. */
-static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT blast;
 
@@ -101,12 +94,6 @@ static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, spell_info_t
     area_spell_damage(blast, S_SpellData(spell->code, level, 2)); /* DataB = Max Damage */
     G_FreeEdict(blast);
 }
-
-static spell_info_t spell_carrion_swarm = {
-    .name = "Carrion Swarm",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = carrion_swarm_execute,
-};
 
 static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
     VECTOR2 offset;
@@ -122,7 +109,7 @@ static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
 
 /* Shockwave uses the authored damage, cap, travel distance, and corridor width
  * rather than treating the line spell as a circular point-target burst. */
-static void shockwave_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void shockwave_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
     VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
@@ -140,12 +127,6 @@ static void shockwave_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     FILTER_EDICTS(target, shockwave_hits(target, &ctx)) S_SpellDamage(target, caster, (DWORD)damage);
 }
 
-static spell_info_t spell_shockwave = {
-    .name = "Shockwave",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = shockwave_execute,
-};
-
 static void rain_of_fire_think(LPEDICT ent) {
     DWORD now = G_Time();
 
@@ -159,7 +140,7 @@ static void rain_of_fire_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -174,13 +155,6 @@ static void rain_of_fire_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     thinker->think = rain_of_fire_think;
     rain_of_fire_think(thinker);
 }
-
-static spell_info_t spell_rain_of_fire = {
-    .name = "Rain of Fire",
-    .target_type = SPELL_TARGET_POINT,
-    .flags = SPELL_CHANNEL,
-    .execute = rain_of_fire_execute,
-};
 
 /* Starfall: self-centered periodic area damage.  AbilityData stores the
  * authored damage in DataA, wave interval in DataB, area in Area, and the
@@ -201,7 +175,7 @@ static void starfall_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)MAX(1.0f, ent->velocity * 1000.0f);
 }
 
-static void starfall_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void starfall_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -217,43 +191,44 @@ static void starfall_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
     starfall_think(thinker);
 }
 
-static spell_info_t spell_starfall = {
-    .name = "Starfall",
-    .target_type = SPELL_TARGET_NONE,
-    .flags = SPELL_CHANNEL,
-    .execute = starfall_execute,
-};
-
 /* Name=Blizzard
  * Ubertip="Calls down an icy storm that damages enemy units in a target area."
  */
 ability_t CAbilityBlizzard = {
-    .cmd = spell_cmd,
-    .spell = &spell_blizzard,
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Blizzard",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = blizzard_execute,
 };
 
 /* Name=Carrion Swarm
  * Ubertip="Sends a wave of bats that damages enemy units in a line."
  */
 ability_t CAbilityCarrionSwarm = {
-    .cmd = spell_cmd,
-    .spell = &spell_carrion_swarm,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Carrion Swarm",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = carrion_swarm_execute,
 };
 
 /* Name=Shockwave
  * Ubertip="A wave of force that ripples outward, causing <AOsh,DataA1> damage to land units in a line."
  */
 ability_t CAbilityShockwave = {
-    .cmd = spell_cmd,
-    .spell = &spell_shockwave,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Shockwave",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = shockwave_execute,
 };
 
 /* Name=Rain of Fire
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
 ability_t CAbilityRainOfFire = {
-    .cmd = spell_cmd,
-    .spell = &spell_rain_of_fire,
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Rain of Fire",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = rain_of_fire_execute,
 };
 
 /* Death and Decay deals the authored percentage of each enemy's maximum life
@@ -277,7 +252,7 @@ static void death_and_decay_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -293,19 +268,17 @@ static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, spell_info
     death_and_decay_think(thinker);
 }
 
-static spell_info_t spell_death_and_decay = {
-    .name = "Death and Decay",
-    .target_type = SPELL_TARGET_POINT,
-    .flags = SPELL_CHANNEL,
-    .execute = death_and_decay_execute,
-};
-
 /* Name=Death and Decay
  * Ubertip="Damages enemy units in a target area over time."
  */
-ability_t CAbilityDeathAndDecay = { .cmd = spell_cmd, .spell = &spell_death_and_decay };
+ability_t CAbilityDeathAndDecay = {
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Death and Decay",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = death_and_decay_execute,
+};
 
-static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
@@ -321,26 +294,24 @@ static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_i
     }
 }
 
-static spell_info_t spell_thunder_clap = {
+/* Name=Thunder Clap
+ * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
+ */
+ability_t CAbilityThunderClap = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Thunder Clap",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
 };
-
-static spell_info_t spell_frost_nova = {
+/* Name=Frost Nova
+ * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
+ */
+ability_t CAbilityFrostNova = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Frost Nova",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
 };
-
-/* Name=Thunder Clap
- * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
- */
-ability_t CAbilityThunderClap = { .cmd = spell_cmd, .spell = &spell_thunder_clap };
-/* Name=Frost Nova
- * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
- */
-ability_t CAbilityFrostNova = { .cmd = spell_cmd, .spell = &spell_frost_nova };
 
 static void tranquility_think(LPEDICT ent) {
     DWORD now = G_Time();
@@ -360,7 +331,7 @@ static void tranquility_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
-static void tranquility_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void tranquility_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -376,27 +347,24 @@ static void tranquility_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     tranquility_think(thinker);
 }
 
-static spell_info_t spell_tranquility = {
-    .name = "Tranquility",
-    .target_type = SPELL_TARGET_NONE,
-    .flags = SPELL_CHANNEL,
-    .execute = tranquility_execute,
-};
-
 /* Name=Tranquility
  * Ubertip="Heals nearby friendly units over time."
  */
 ability_t CAbilityTranquility = {
-    .cmd = spell_cmd,
-    .spell = &spell_tranquility,
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Tranquility",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = tranquility_execute,
 };
 
 /* Name=Starfall
  * Ubertip="Calls down falling stars that damage nearby enemy units over time."
  */
 ability_t CAbilityStarfall = {
-    .cmd = spell_cmd,
-    .spell = &spell_starfall,
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Starfall",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = starfall_execute,
 };
 
 static void channel_test_command(LPEDICT clent) {

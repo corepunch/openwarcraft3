@@ -285,7 +285,7 @@ static void G_AddCommandButton(LPEDICT ent,
 
 static BOOL G_IsImplementedAbility(LPCSTR code) {
     ability_t const *ability = FindAbilityForCommand(code);
-    return ability && ability->cmd;
+    return S_AbilityHasCommand(ability);
 }
 
 static BOOL G_HasCommandRawcode(gameCommandButton_t const *buttons, BYTE count, DWORD code) {
@@ -304,7 +304,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     BYTE idx;
     DWORD rawcode;
 
-    if (!ability || !ability->cmd || strlen(code) != 4 || *count >= max_buttons) return;
+    if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
@@ -314,7 +314,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     idx = *count;
     G_AddCommandButton(ent, buttons, max_buttons, count, code, false, 0);
     if (*count > idx) G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = rawcode, .level = 0, .button = &buttons[idx] });
-    if (!(ability->flags & ABILITY_SEPARATE_OFF) || *count >= max_buttons) return;
+    if (!(ability->flags & AB_SEPARATE_OFF) || *count >= max_buttons) return;
     if (G_BuildCommandButtonState(ent, code, false, 0, 1, &buttons[*count])) {
         size_t used;
         if (buttons[*count].x == 255 || buttons[*count].y == 255) {

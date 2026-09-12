@@ -17,7 +17,7 @@ static BOOL blink_validate(LPEDICT caster, spellTarget_t st) {
     return true;
 }
 
-static void blink_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void blink_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     VECTOR2 dest = st.point;
     CM_ClosestPathablePointForRadius(&st.point, caster->collision, &dest);
@@ -28,16 +28,9 @@ static void blink_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_AREA_EFFECT, 0, caster, NULL, true);
 }
 
-static spell_info_t spell_blink = {
-    .name = "Blink",
-    .target_type = SPELL_TARGET_POINT,
-    .validate = blink_validate,
-    .execute = blink_execute,
-};
-
 /* ---- Fan of Knives (AEfk): instant area damage centred on the caster ------ */
 
-static void fanofknives_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void fanofknives_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -60,15 +53,9 @@ static void fanofknives_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 #undef FOK_HITS
 }
 
-static spell_info_t spell_fan_of_knives = {
-    .name = "Fan of Knives",
-    .target_type = SPELL_TARGET_NONE,
-    .execute = fanofknives_execute,
-};
-
 /* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
 
-static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
@@ -79,12 +66,6 @@ static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
      * modifier and a periodic-damage tick first. */
 }
 
-static spell_info_t spell_shadow_strike = {
-    .name = "Shadow Strike",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = shadowstrike_execute,
-};
-
 /* ---- Registration -------------------------------------------------------- */
 
 static void SP_ability_noop(LPCSTR classname, ability_t *self) {
@@ -93,19 +74,26 @@ static void SP_ability_noop(LPCSTR classname, ability_t *self) {
 }
 
 ability_t CAbilityBlink = {
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Blink",
+    .target_type = SPELL_TARGET_POINT,
+    .validate = blink_validate,
+    .execute = blink_execute,
     .init = SP_ability_noop,
-    .cmd = spell_cmd,
-    .spell = &spell_blink,
 };
 
 ability_t CAbilityFanOfKnives = {
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Fan of Knives",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = fanofknives_execute,
     .init = SP_ability_noop,
-    .cmd = spell_cmd,
-    .spell = &spell_fan_of_knives,
 };
 
 ability_t CAbilityShadowStrike = {
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Shadow Strike",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = shadowstrike_execute,
     .init = SP_ability_noop,
-    .cmd = spell_cmd,
-    .spell = &spell_shadow_strike,
 };

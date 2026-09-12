@@ -503,8 +503,8 @@ void G_UseItem(LPEDICT unit, DWORD slot) {
         clent->client->menu.ability_code = *((DWORD const *)ability_name);
         if (ability->item_use) {
             succeeded = ability->item_use(clent);
-        } else if (ability->cmd) {
-            ability->cmd(clent);
+        } else if (S_AbilityHasCommand(ability)) {
+            S_AbilityCommand(clent, ability);
             return;
         } else {
             continue;

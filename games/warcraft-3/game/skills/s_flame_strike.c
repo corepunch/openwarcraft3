@@ -36,7 +36,7 @@ void flame_strike_tick(LPEDICT ent) {
         ent->freetime = now + 1000;
 }
 
-static void flame_strike_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void flame_strike_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT delay = S_SpellData(spell->code, level, 1); /* DataA = Cast time / delay before flame (seconds) */
     DWORD initial_damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2)); /* DataB = Initial Damage */
@@ -60,21 +60,16 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     thinker->think = flame_strike_tick;
 }
 
-static spell_info_t spell_flame_strike = {
-    .name = "Flame Strike",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = flame_strike_execute,
-};
-
-static spell_info_t spell_flame_strike_human = {
-    .name = "Flame Strike",
-    .target_type = SPELL_TARGET_POINT,
-    .execute = flame_strike_execute,
-};
-
 ability_t CAbilityFlameStrikeNeutral = {
-    .cmd = spell_cmd,
-    .spell = &spell_flame_strike,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Flame Strike",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = flame_strike_execute,
 };
 
-ability_t CAbilityFlameStrike = { .cmd = spell_cmd, .spell = &spell_flame_strike_human };
+ability_t CAbilityFlameStrike = {
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Flame Strike",
+    .target_type = SPELL_TARGET_POINT,
+    .execute = flame_strike_execute,
+};

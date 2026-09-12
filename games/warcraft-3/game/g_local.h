@@ -516,9 +516,14 @@ typedef struct {
     DWORD count;
 } unitOrderQueue_t;
 
-#define ABILITY_PASSIVE  (1 << 0)
-#define ABILITY_TOGGLE   (1 << 1)
-#define ABILITY_CHANNEL  (1 << 2)
+/* Independent policies consumed by ability command and cast dispatch. */
+#define AB_PASSIVE      (1u << 0)  // bit 0; passive command policy; used in ability flags
+#define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
+#define AB_CHANNEL      (1u << 2)  // bit 2; channel lifecycle policy; used in ability flags
+#define AB_AUTOCAST     (1u << 3)  // bit 3; independent automatic activation policy; used in ability flags
+#define AB_SPELL_SIMPLE (1u << 4)  // bit 4; shared casting path; selects generic command and effect dispatch
+#define AB_NO_SMART     (1u << 5)  // bit 5; excludes Smart target acquisition; used in ability flags
+#define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
  * base classes.  SPELL_TARGET_UNIT_OR_POINT allows either (e.g. Carrion Swarm). */
@@ -547,24 +552,6 @@ typedef struct spell_target_s {
     };
 } spellTarget_t;
 
-/* Spell execution flags — mirrors the Quake2-style ability_t flags but scoped to
- * the unified spell pipeline. */
-#define SPELL_CHANNEL    (1 << 0)  /* caster locked in place; movement cancels */
-#define SPELL_TOGGLE     (1 << 1)  /* toggle on/off like Immolation */
-#define SPELL_AUTOCAST   (1 << 2)  /* right-click toggles autocast (Cold Arrows) */
-#define SPELL_NO_SMART   (1 << 3)  /* skip smart-click auto-target (Charm) */
-#define ABILITY_SEPARATE_OFF (1u << 16) /* render an explicit Unart/Untip off button beside the on button */
-
-typedef struct spell_info_s {
-    DWORD code;                    /* canonical FourCC assigned by InitAbilities from abilitylist */
-    LPCSTR name;                   /* debug / log identifier */
-    spellTargetType_t target_type;
-    DWORD flags;
-    BOOL (*validate)(LPEDICT caster, spellTarget_t target);  /* extra validation before mana/cooldown spend */
-    void (*execute)(LPEDICT caster, spellTarget_t target, struct spell_info_s const *spell);
-} spell_info_t;
-
-
 typedef enum {
     WC3_EFFECT_EFFECT = 0,
     WC3_EFFECT_TARGET = 1,
@@ -580,16 +567,15 @@ typedef struct ability_s {
     void (*cmd)(LPEDICT);
     BOOL (*is_toggle_on)(LPEDICT); /* selects Un* command-card fields when true */
     DWORD flags;
-    struct spell_info_s *spell;    /* non-NULL for spells using the unified pipeline */
+    DWORD code; /* canonical FourCC; aliases do not overwrite this identity */
+    LPCSTR name; /* debug / log identifier */
+    spellTargetType_t target_type;
+    BOOL (*validate)(LPEDICT caster, spellTarget_t target); /* extra checks before resource spend */
+    void (*execute)(LPEDICT caster, spellTarget_t target, struct ability_s const *ability);
 
-    /* Keep new dispatch hooks append-only. ability_t is defined in a widely
-     * included game header and incremental builds may retain objects compiled
-     * against the previous layout; inserting a field above spell changes the
-     * offsets of every existing dispatch member. */
     BOOL (*item_use)(LPEDICT); /* synchronous inventory activation; true only when gameplay effect applies */
 
-    /* Optional generic autocast hooks. Keep these append-only for the same ABI
-     * reason as item_use above. The unit scheduler owns when to try autocast;
+    /* The unit scheduler owns when to try autocast;
      * each ability owns its toggle state and target acquisition policy. */
     BOOL (*autocast_is_on)(LPEDICT);
     void (*autocast_set)(LPEDICT, BOOL);
@@ -605,12 +591,6 @@ typedef struct ability_s {
     LPCSTR const *orders; /* NULL-terminated order names */
     BOOL (*order)(LPEDICT, LPCSTR);
     void (*update)(LPEDICT);
-
-    /* TFT class hierarchy: mirrors the CAbility inheritance tree from
-     * tft-ability-classes.txt. Each concrete ability points at its parent
-     * base class (e.g. CAbilityRavenForm → a_morph → a_spell → a_button →
-     * a_interfaced → a_ability). NULL terminates the chain at the root. */
-    struct ability_s const *parent;
 } ability_t;
 
 typedef struct {
@@ -1811,6 +1791,8 @@ void S_RunAbilityUpdates(LPEDICT);
 ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
+BOOL S_AbilityHasCommand(ability_t const *ability);
+void S_AbilityCommand(LPEDICT clent, ability_t const *ability);
 ability_t const *GetAbilityByIndex(DWORD);
 DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);

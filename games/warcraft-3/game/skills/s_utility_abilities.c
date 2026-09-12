@@ -15,7 +15,7 @@ static BOOL charm_validate(LPEDICT caster, spellTarget_t st) {
     return true;
 }
 
-static void charm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void charm_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     (void)spell;
 
@@ -26,13 +26,6 @@ static void charm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *
         target->stand(target);
 }
 
-static spell_info_t spell_charm = {
-    .name = "Charm",
-    .target_type = SPELL_TARGET_UNIT,
-    .validate = charm_validate,
-    .execute = charm_execute,
-};
-
 /* ---- Eat Tree (Aeat): consume a tree for healing ------------------------- */
 
 static BOOL eat_tree_validate(LPEDICT caster, spellTarget_t st) {
@@ -41,7 +34,7 @@ static BOOL eat_tree_validate(LPEDICT caster, spellTarget_t st) {
     return true;
 }
 
-static void eat_tree_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void eat_tree_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT heal = S_SpellData(spell->code, level, 3);
@@ -49,13 +42,6 @@ static void eat_tree_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
     S_SpellHeal(caster, heal);
     G_FreeEdict(target);
 }
-
-static spell_info_t spell_eat_tree = {
-    .name = "Eat Tree",
-    .target_type = SPELL_TARGET_UNIT,
-    .validate = eat_tree_validate,
-    .execute = eat_tree_execute,
-};
 
 /* ---- Moon Well (Ambt): transfer mana to health for a friendly unit -------- */
 
@@ -74,7 +60,7 @@ static BOOL moon_well_validate(LPEDICT caster, spellTarget_t st) {
     return offered > 0;
 }
 
-static void moon_well_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void moon_well_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -87,13 +73,6 @@ static void moon_well_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     caster->mana.value -= offered * mana_cost_per_point;
     S_SpellHeal(target, offered);
 }
-
-static spell_info_t spell_moon_well = {
-    .name = "Moon Well",
-    .target_type = SPELL_TARGET_UNIT,
-    .validate = moon_well_validate,
-    .execute = moon_well_execute,
-};
 
 /* ---- Root (Aroo): toggle rooted state ------------------------------------ */
 
@@ -109,18 +88,27 @@ static void root_command(LPEDICT clent) {
 /* ---- Registration -------------------------------------------------------- */
 
 ability_t CAbilityCharm = {
-    .cmd = spell_cmd,
-    .spell = &spell_charm,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Charm",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = charm_validate,
+    .execute = charm_execute,
 };
 
 ability_t CAbilityEatTree = {
-    .cmd = spell_cmd,
-    .spell = &spell_eat_tree,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Eat Tree",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = eat_tree_validate,
+    .execute = eat_tree_execute,
 };
 
 ability_t CAbilityManaBattery = {
-    .cmd = spell_cmd,
-    .spell = &spell_moon_well,
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Moon Well",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = moon_well_validate,
+    .execute = moon_well_execute,
 };
 
 ability_t CAbilityRoot = {

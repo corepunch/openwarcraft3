@@ -8,7 +8,7 @@
 typedef struct {
     LPEDICT caster;
     DWORD code, level;
-    spell_info_t const *spell;
+    ability_t const *spell;
     LPEDICT target;
 } spellUnitTargetParams_t;
 
@@ -23,14 +23,14 @@ typedef struct {
 
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
  * reads the ability code, validates mana/cooldown, configures targeting, and
- * dispatches to the spell_info_t::execute callback once a valid target is
+ * dispatches to the ability_t.execute callback once a valid target is
  * acquired.  channeled spells set ent->channel state; spell_run_frame()
  * enforces movement-cancel for them.
  *
  * Design mirrors:
  *   - WarSmash: CAbilitySpellBase with target-type dispatch
  *   - WoW: data-driven spell table + cast state machine (Wow_RunSpellCast)
- *   - Quake2: ability_t → cmd function pointer dispatch */
+ *   - Quake2: flat flags and callbacks around a shared processor */
 
 static LPCSTR S_SpellThemeString(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
@@ -51,7 +51,7 @@ DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback) {
     return code ? code : fallback;
 }
 
-spell_info_t const *S_SpellInfoForCode(DWORD code) {
+ability_t const *S_SpellAbilityForCode(DWORD code) {
     ability_t const *ability;
 
     if (!code) return NULL;
@@ -63,7 +63,7 @@ spell_info_t const *S_SpellInfoForCode(DWORD code) {
      * and use the normal alias-aware command resolver so custom abilities
      * inherit their registered base handler as well. */
     ability = FindAbilityForCommand(GetClassName(code));
-    return ability ? ability->spell : NULL;
+    return ability && (ability->flags & AB_SPELL_SIMPLE) && ability->execute ? ability : NULL;
 }
 
 DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
@@ -493,7 +493,7 @@ static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
 
     spell_commit(params->caster, params->code, params->level);
-    if (params->spell->flags & SPELL_CHANNEL)
+    if (params->spell->flags & AB_CHANNEL)
         spell_begin_channel(params->caster, params->code);
     spell_publish_effect(params->caster, params->code, st);
     params->spell->execute(params->caster, st, params->spell);
@@ -510,7 +510,7 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
     LPEDICT target = thinker ? thinker->goalentity : NULL;
     DWORD code = thinker ? thinker->class_id : 0;
-    spell_info_t const *spell = S_SpellInfoForCode(code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
     DWORD level;
     FLOAT range;
     spellTarget_t st;
@@ -588,7 +588,7 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
-    spell_info_t const *spell = S_SpellInfoForCode(code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     if (!spell) return false;
@@ -615,7 +615,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
     FLOAT range = S_SpellRange(code, level);
-    spell_info_t const *spell = S_SpellInfoForCode(code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
     spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
                                           .clent = clent, .caster = caster, .code = code, .level = level,
                                           .point = point, .range = range);
@@ -626,7 +626,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     if (spell->validate && !spell->validate(caster, st)) return false;
 
     spell_commit(caster, code, level);
-    if (spell->flags & SPELL_CHANNEL)
+    if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     spell->execute(caster, st, spell);
@@ -640,7 +640,7 @@ static void spell_no_target_execute(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
     DWORD level = S_SpellLevel(caster, code);
-    spell_info_t const *spell = S_SpellInfoForCode(code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
 
     if (!spell) return;
     if (!spell_validate(clent, caster, code, level, NULL, 0.0f)) return;
@@ -654,11 +654,11 @@ static void spell_no_target_execute(LPEDICT clent) {
 
 BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     DWORD level;
-    spell_info_t const *spell;
+    ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
     if (!caster || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellInfoForCode(code);
+    spell = S_SpellAbilityForCode(code);
     if (!spell || spell->target_type != SPELL_TARGET_NONE || !spell->execute) return false;
     level = S_SpellLevel(caster, code);
     if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level)) return false;
@@ -673,14 +673,14 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
 BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
     DWORD level;
     FLOAT range;
-    spell_info_t const *spell;
+    ability_t const *spell;
     spellTarget_t target;
 
     if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellInfoForCode(code);
+    spell = S_SpellAbilityForCode(code);
     if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
                    spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
-        !spell->execute || (spell->flags & SPELL_TOGGLE)) return false;
+        !spell->execute || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
@@ -691,7 +691,7 @@ BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
     if (spell->validate && !spell->validate(caster, target)) return false;
 
     spell_commit(caster, code, level);
-    if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
+    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell->execute(caster, target, spell);
     return true;
@@ -700,11 +700,11 @@ BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
 /* Autocast and AI orders use the same target and resource contract as a player-selected unit spell. */
 BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     DWORD level;
-    spell_info_t const *spell;
+    ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
     if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellInfoForCode(code);
+    spell = S_SpellAbilityForCode(code);
     if (!spell || spell->target_type != SPELL_TARGET_UNIT || !spell->execute) return false;
     level = S_SpellLevel(caster, code);
     if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level) ||
@@ -712,7 +712,7 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     if (spell->validate && !spell->validate(caster, target)) return false;
 
     spell_commit(caster, code, level);
-    if (spell->flags & SPELL_CHANNEL) spell_begin_channel(caster, code);
+    if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell->execute(caster, target, spell);
     return true;
@@ -721,14 +721,14 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
 BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     DWORD level;
     FLOAT range;
-    spell_info_t const *spell;
+    ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
     if (!caster || !unit || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster)) return false;
-    spell = S_SpellInfoForCode(code);
+    spell = S_SpellAbilityForCode(code);
     if (!spell || (spell->target_type != SPELL_TARGET_UNIT &&
                    spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
-        !spell->execute || (spell->flags & SPELL_TOGGLE)) return false;
+        !spell->execute || (spell->flags & AB_TOGGLE)) return false;
     level = S_SpellLevel(caster, code);
     range = S_SpellRange(code, level);
     if (!spell_validate(NULL, caster, code, level, unit, 0.0f) ||
@@ -745,21 +745,21 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
 }
 
 /* Shared command entry point for all spell abilities.  Sets up the appropriate
- * target-selection UI based on spell_info_t::target_type, or executes
+ * target-selection UI based on ability_t.target_type, or executes
  * immediately for no-target spells. */
 void spell_cmd(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
-    spell_info_t const *spell = S_SpellInfoForCode(code);
+    ability_t const *spell = S_SpellAbilityForCode(code);
 
     if (!spell) {
-        fprintf(stderr, "spell_cmd: no spell_info for code '%.4s'\n", (LPCSTR)&code);
+        fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (LPCSTR)&code);
         return;
     }
     if (!caster) return;
 
     /* Toggle abilities bypass the normal pipeline. */
-    if (spell->flags & SPELL_TOGGLE) {
+    if (spell->flags & AB_TOGGLE) {
         spell->execute(caster, (spellTarget_t){ .type = SPELL_TARGET_NONE }, spell);
         Get_Commands_f(clent);
         return;

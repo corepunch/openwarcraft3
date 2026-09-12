@@ -722,10 +722,10 @@ CLIENTCOMMAND(Button) {
         ability_off = true;
     }
     ability = FindAbilityForCommand(classname);
-    if (ability && ability->cmd) {
+    if (S_AbilityHasCommand(ability)) {
         client->menu.ability_code = *((DWORD const *)classname);
         client->menu.ability_off = ability_off;
-        ability->cmd(clent);
+        S_AbilityCommand(clent, ability);
         client->menu.ability_off = false;
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
@@ -1261,12 +1261,12 @@ CLIENTCOMMAND(Inventory) {
             if (ability->item_use) {
                 succeeded = ability->item_use(clent);
                 handled = true;
-            } else if (ability->cmd) {
+            } else if (S_AbilityHasCommand(ability)) {
                 /* Preserve existing support for item-authored command abilities
                  * that enter an asynchronous targeting mode. Their eventual
                  * success is not known here, so charge consumption remains the
                  * responsibility of a future targeted-item completion path. */
-                ability->cmd(clent);
+                S_AbilityCommand(clent, ability);
                 handled = true;
             }
 

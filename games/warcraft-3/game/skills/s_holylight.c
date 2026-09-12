@@ -10,7 +10,7 @@ void holylight_done(LPEDICT self) {
 
 /* Holy Light has unique target validation: friendlies are healed, undead
  * enemies take half-damage.  Self-target and non-undead enemies are rejected. */
-static BOOL holylight_validate(LPEDICT caster, spellTarget_t st) {
+static BOOL CAbilityHolyBolt_Validate(LPEDICT caster, spellTarget_t st) {
     LPEDICT target = st.entity;
 
     if (target == caster) return false;
@@ -22,7 +22,7 @@ static BOOL holylight_validate(LPEDICT caster, spellTarget_t st) {
     return S_SpellIsFriend(caster, target);
 }
 
-static void holylight_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void CAbilityHolyBolt_Execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = S_SpellData(spell->code, level, 1);
@@ -35,14 +35,10 @@ static void holylight_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
         S_SpellDamage(target, caster, (int)(amount * 0.5f));
 }
 
-static spell_info_t spell_holylight = {
+ability_t CAbilityHolyBolt = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Holy Light",
     .target_type = SPELL_TARGET_UNIT,
-    .validate = holylight_validate,
-    .execute = holylight_execute,
-};
-
-ability_t CAbilityHolyBolt = {
-    .cmd = spell_cmd,
-    .spell = &spell_holylight,
+    .validate = CAbilityHolyBolt_Validate,
+    .execute = CAbilityHolyBolt_Execute,
 };
