@@ -92,7 +92,7 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, ability_t const *sp
  * Ubertip="Summons a Water Elemental to fight for the caster."
  */
 ability_t CAbilityWaterElemental = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Water Elemental",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
@@ -102,7 +102,7 @@ ability_t CAbilityWaterElemental = {
  * Ubertip="Summons Spirit Wolf companions."
  */
 ability_t CAbilitySpiritWolf = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Feral Spirit",
     .target_type = SPELL_TARGET_NONE,
     .execute = feral_spirit_execute,
@@ -112,7 +112,7 @@ ability_t CAbilitySpiritWolf = {
  * Ubertip="Summons treants from a target area to fight for the caster."
  */
 ability_t CAbilityForceOfNature = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Force of Nature",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
@@ -122,7 +122,7 @@ ability_t CAbilityForceOfNature = {
  * Ubertip="Summons Misha, a powerful bear, to attack your enemies."
  */
 ability_t CAbilitySummonGrizzly = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Summon Bear",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
@@ -131,7 +131,7 @@ ability_t CAbilitySummonGrizzly = {
  * Ubertip="Summons an angry quilbeast to fling spines at your enemies."
  */
 ability_t CAbilitySummonQuillbeast = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Summon Quilbeast",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,
@@ -140,7 +140,7 @@ ability_t CAbilitySummonQuillbeast = {
  * Ubertip="Summons a hawk to fight for the caster."
  */
 ability_t CAbilitySummonWarEagle = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Summon Hawk",
     .target_type = SPELL_TARGET_NONE,
     .execute = summon_execute,

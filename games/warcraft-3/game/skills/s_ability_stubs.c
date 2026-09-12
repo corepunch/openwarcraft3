@@ -20,7 +20,7 @@ static void immolation_execute(LPEDICT caster, spellTarget_t st, ability_t const
 }
 
 ability_t CAbilityImmolation = {
-    .flags = AB_SPELL_SIMPLE | AB_TOGGLE,
+    .flags = AB_SPELL | AB_TOGGLE,
     .name = "Immolation",
     .target_type = SPELL_TARGET_NONE,
     .execute = immolation_execute,
@@ -46,7 +46,7 @@ static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 }
 
 ability_t CAbilityColdArrows = {
-    .flags = AB_SPELL_SIMPLE | AB_TOGGLE | AB_AUTOCAST,
+    .flags = AB_SPELL | AB_TOGGLE | AB_AUTOCAST,
     .name = "Cold Arrows",
     .target_type = SPELL_TARGET_NONE,
     .execute = cold_arrows_execute,
@@ -72,7 +72,7 @@ static void war_stomp_execute(LPEDICT caster, spellTarget_t st, ability_t const 
 }
 
 ability_t CAbilityStomp = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "War Stomp",
     .target_type = SPELL_TARGET_NONE,
     .execute = war_stomp_execute,
@@ -93,7 +93,7 @@ static void wind_walk_execute(LPEDICT caster, spellTarget_t st, ability_t const 
 }
 
 ability_t CAbilityWindWalk = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Wind Walk",
     .target_type = SPELL_TARGET_NONE,
     .execute = wind_walk_execute,
@@ -111,7 +111,7 @@ static void mana_burn_execute(LPEDICT caster, spellTarget_t st, ability_t const 
 }
 
 ability_t CAbilityManaBurn = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Mana Burn",
     .target_type = SPELL_TARGET_UNIT,
     .execute = mana_burn_execute,
@@ -131,7 +131,7 @@ static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 }
 
 ability_t CAbilityDarkRitual = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Dark Ritual",
     .target_type = SPELL_TARGET_UNIT,
     .execute = dark_ritual_execute,
@@ -157,13 +157,13 @@ static void frost_armor_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 }
 
 ability_t CAbilityFrostArmor = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Frost Armor",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
 };
 ability_t CAbilityFrostArmorAuto = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Frost Armor Variant",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
@@ -193,7 +193,7 @@ static void divine_shield_execute(LPEDICT caster, spellTarget_t st, ability_t co
 }
 
 ability_t CAbilityDivineShield = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Divine Shield",
     .target_type = SPELL_TARGET_NONE,
     .execute = divine_shield_execute,
@@ -227,7 +227,7 @@ static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, ability_t
 }
 
 ability_t CAbilityEntanglingRoots = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Entangling Roots",
     .target_type = SPELL_TARGET_UNIT,
     .execute = entangling_roots_execute,

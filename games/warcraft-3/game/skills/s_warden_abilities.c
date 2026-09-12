@@ -74,7 +74,7 @@ static void SP_ability_noop(LPCSTR classname, ability_t *self) {
 }
 
 ability_t CAbilityBlink = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Blink",
     .target_type = SPELL_TARGET_POINT,
     .validate = blink_validate,
@@ -83,7 +83,7 @@ ability_t CAbilityBlink = {
 };
 
 ability_t CAbilityFanOfKnives = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Fan of Knives",
     .target_type = SPELL_TARGET_NONE,
     .execute = fanofknives_execute,
@@ -91,7 +91,7 @@ ability_t CAbilityFanOfKnives = {
 };
 
 ability_t CAbilityShadowStrike = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Shadow Strike",
     .target_type = SPELL_TARGET_UNIT,
     .execute = shadowstrike_execute,

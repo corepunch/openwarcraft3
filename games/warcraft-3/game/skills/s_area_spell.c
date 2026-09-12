@@ -195,7 +195,7 @@ static void starfall_execute(LPEDICT caster, spellTarget_t st, ability_t const *
  * Ubertip="Calls down an icy storm that damages enemy units in a target area."
  */
 ability_t CAbilityBlizzard = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Blizzard",
     .target_type = SPELL_TARGET_POINT,
     .execute = blizzard_execute,
@@ -205,7 +205,7 @@ ability_t CAbilityBlizzard = {
  * Ubertip="Sends a wave of bats that damages enemy units in a line."
  */
 ability_t CAbilityCarrionSwarm = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Carrion Swarm",
     .target_type = SPELL_TARGET_POINT,
     .execute = carrion_swarm_execute,
@@ -215,7 +215,7 @@ ability_t CAbilityCarrionSwarm = {
  * Ubertip="A wave of force that ripples outward, causing <AOsh,DataA1> damage to land units in a line."
  */
 ability_t CAbilityShockwave = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Shockwave",
     .target_type = SPELL_TARGET_POINT,
     .execute = shockwave_execute,
@@ -225,7 +225,7 @@ ability_t CAbilityShockwave = {
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
 ability_t CAbilityRainOfFire = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Rain of Fire",
     .target_type = SPELL_TARGET_POINT,
     .execute = rain_of_fire_execute,
@@ -272,7 +272,7 @@ static void death_and_decay_execute(LPEDICT caster, spellTarget_t st, ability_t 
  * Ubertip="Damages enemy units in a target area over time."
  */
 ability_t CAbilityDeathAndDecay = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Death and Decay",
     .target_type = SPELL_TARGET_POINT,
     .execute = death_and_decay_execute,
@@ -298,7 +298,7 @@ static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, ability
  * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
  */
 ability_t CAbilityThunderClap = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Thunder Clap",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
@@ -307,7 +307,7 @@ ability_t CAbilityThunderClap = {
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
 ability_t CAbilityFrostNova = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Frost Nova",
     .target_type = SPELL_TARGET_NONE,
     .execute = area_damage_status_execute,
@@ -351,7 +351,7 @@ static void tranquility_execute(LPEDICT caster, spellTarget_t st, ability_t cons
  * Ubertip="Heals nearby friendly units over time."
  */
 ability_t CAbilityTranquility = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Tranquility",
     .target_type = SPELL_TARGET_NONE,
     .execute = tranquility_execute,
@@ -361,7 +361,7 @@ ability_t CAbilityTranquility = {
  * Ubertip="Calls down falling stars that damage nearby enemy units over time."
  */
 ability_t CAbilityStarfall = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Starfall",
     .target_type = SPELL_TARGET_NONE,
     .execute = starfall_execute,

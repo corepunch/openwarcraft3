@@ -57,14 +57,14 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, ability_t cons
 }
 
 ability_t CAbilityDrainNeutral = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Siphon Mana",
     .target_type = SPELL_TARGET_UNIT,
     .execute = siphon_mana_execute,
 };
 
 ability_t CAbilityDrain = {
-    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .flags = AB_SPELL | AB_CHANNEL,
     .name = "Siphon Mana",
     .target_type = SPELL_TARGET_UNIT,
     .execute = siphon_mana_execute,

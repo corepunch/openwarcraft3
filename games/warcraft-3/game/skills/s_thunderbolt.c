@@ -66,7 +66,7 @@ static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
 }
 
 ability_t CAbilityThunderBolt = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Thunder Bolt",
     .target_type = SPELL_TARGET_UNIT,
     .execute = thunderbolt_execute,
@@ -74,7 +74,7 @@ ability_t CAbilityThunderBolt = {
 };
 
 ability_t CAbilityFireBolt = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Fire Bolt",
     .target_type = SPELL_TARGET_UNIT,
     .execute = thunderbolt_execute,

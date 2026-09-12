@@ -64,11 +64,11 @@ TEST(wc3_spell, registry_initializes_spell_codes_and_preserves_aliases) {
 	T_EQ(CAbilityFeedbackCampaign.code, MAKEFOURCC('A','f','b','b'));
 	T_ASSERT(FindAbilityByClassname("AIco") == &CAbilityCharm);
 	T_ASSERT(FindAbilityByClassname("Afbk") == &CAbilityFeedback);
-	T_ASSERT(!(CAbilityFeedback.flags & AB_SPELL_SIMPLE));
+	T_ASSERT(!(CAbilityFeedback.flags & AB_SPELL));
 	T_ASSERT(CAbilityFeedback.flags & AB_PASSIVE);
 	FOR_LOOP(i, game.num_abilities) {
 		ability_t const *abil = GetAbilityByIndex(i);
-		if (abil->flags & AB_SPELL_SIMPLE) {
+		if (abil->flags & AB_SPELL) {
 			T_NULL(abil->cmd);
 			T_NOT_NULL(abil->execute);
 			T_ASSERT(S_AbilityHasCommand(abil));
@@ -188,7 +188,7 @@ TEST(wc3_spell, toggle_immolation_no_mana_spend) {
 	level.time = 1000;
 	caster->mana.value = 150;
 	ability_t const *abil = FindAbilityByClassname("AEim");
-	T_NOT_NULL(abil); T_ASSERT(abil->flags & AB_SPELL_SIMPLE);
+	T_NOT_NULL(abil); T_ASSERT(abil->flags & AB_SPELL);
 	spellTarget_t st = { .type = SPELL_TARGET_NONE };
 	abil->execute(caster, st, abil);
 	T_FEQ(caster->mana.value, 150, 0.01f);
@@ -317,7 +317,7 @@ TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
 			T_ASSERT(ability->flags & AB_PASSIVE);
 		} else {
 			T_ASSERT(S_AbilityHasCommand(ability));
-			T_ASSERT(ability->flags & AB_SPELL_SIMPLE);
+			T_ASSERT(ability->flags & AB_SPELL);
 			T_NOT_NULL(ability->execute);
 			T_EQ((int)ability->code, (int)code);
 		}
@@ -340,7 +340,7 @@ TEST(wc3_spell, campaign_ability_rawcodes_are_registered_explicitly) {
 		else {
 			T_NE(ability, &a_unimplemented);
 			T_ASSERT(S_AbilityHasCommand(ability));
-			T_ASSERT(ability->flags & AB_SPELL_SIMPLE);
+			T_ASSERT(ability->flags & AB_SPELL);
 			T_NOT_NULL(ability->execute);
 			T_EQ((int)ability->code, (int)code);
 		}
@@ -506,7 +506,7 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 TEST(wc3_spell, spell_fields_belong_to_ability) {
 	ability_t const *abil = FindAbilityByClassname("AHtb");
 	T_NOT_NULL(abil);
-	T_ASSERT(abil->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(abil->flags & AB_SPELL);
 	T_EQ((int)abil->code, (int)MAKEFOURCC('A','H','t','b'));
 	T_EQ((int)abil->target_type, (int)SPELL_TARGET_UNIT);
 }
@@ -562,46 +562,46 @@ TEST(wc3_spell, first_new_ability_handlers_are_real_spells) {
 	ability_t const *thunder_clap = FindAbilityByClassname("AHtc");
 
 	T_NOT_NULL(force);
-	T_ASSERT(force->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(force->flags & AB_SPELL);
 	T_EQ((int)force->code, (int)MAKEFOURCC('A', 'E', 'f', 'n'));
 	T_NOT_NULL(starfall);
-	T_ASSERT(starfall->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(starfall->flags & AB_SPELL);
 	T_EQ((int)starfall->code, (int)MAKEFOURCC('A', 'E', 's', 'f'));
 	T_ASSERT(starfall->flags & AB_CHANNEL);
 	T_NOT_NULL(shockwave);
-	T_ASSERT(shockwave->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(shockwave->flags & AB_SPELL);
 	T_EQ((int)shockwave->code, (int)MAKEFOURCC('A', 'O', 's', 'h'));
 	T_NOT_NULL(rain_of_fire);
-	T_ASSERT(rain_of_fire->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(rain_of_fire->flags & AB_SPELL);
 	T_EQ((int)rain_of_fire->code, (int)MAKEFOURCC('A', 'N', 'r', 'f'));
 	T_ASSERT(rain_of_fire->flags & AB_CHANNEL);
 	T_NOT_NULL(tranquility);
-	T_ASSERT(tranquility->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(tranquility->flags & AB_SPELL);
 	T_EQ((int)tranquility->code, (int)MAKEFOURCC('A', 'E', 't', 'q'));
 	T_ASSERT(tranquility->flags & AB_CHANNEL);
 	T_NOT_NULL(dark_ritual);
-	T_ASSERT(dark_ritual->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(dark_ritual->flags & AB_SPELL);
 	T_EQ((int)dark_ritual->code, (int)MAKEFOURCC('A', 'U', 'd', 'r'));
 	T_EQ((int)dark_ritual->target_type, (int)SPELL_TARGET_UNIT);
 	T_NOT_NULL(frost_armor);
-	T_ASSERT(frost_armor->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(frost_armor->flags & AB_SPELL);
 	T_EQ((int)frost_armor->code, (int)MAKEFOURCC('A', 'U', 'f', 'a'));
 	T_NOT_NULL(frost_armor_variant);
-	T_ASSERT(frost_armor_variant->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(frost_armor_variant->flags & AB_SPELL);
 	T_EQ((int)frost_armor_variant->code, (int)MAKEFOURCC('A', 'U', 'f', 'u'));
 	T_NOT_NULL(divine_shield);
-	T_ASSERT(divine_shield->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(divine_shield->flags & AB_SPELL);
 	T_EQ((int)divine_shield->code, (int)MAKEFOURCC('A', 'H', 'd', 's'));
 	T_EQ((int)divine_shield->target_type, (int)SPELL_TARGET_NONE);
 	T_NOT_NULL(death_and_decay);
-	T_ASSERT(death_and_decay->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(death_and_decay->flags & AB_SPELL);
 	T_EQ((int)death_and_decay->code, (int)MAKEFOURCC('A', 'U', 'd', 'd'));
 	T_ASSERT(death_and_decay->flags & AB_CHANNEL);
 	T_NOT_NULL(frost_nova);
-	T_ASSERT(frost_nova->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(frost_nova->flags & AB_SPELL);
 	T_EQ((int)frost_nova->code, (int)MAKEFOURCC('A', 'U', 'f', 'n'));
 	T_NOT_NULL(thunder_clap);
-	T_ASSERT(thunder_clap->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(thunder_clap->flags & AB_SPELL);
 	T_EQ((int)thunder_clap->code, (int)MAKEFOURCC('A', 'H', 't', 'c'));
 }
 
@@ -609,7 +609,7 @@ TEST(wc3_spell, tornado_uses_whirlwind_channel_handler) {
 	ability_t const *tornado = FindAbilityByClassname("ANto");
 
 	T_NOT_NULL(tornado);
-	T_ASSERT(tornado->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(tornado->flags & AB_SPELL);
 	T_NOT_NULL(tornado->execute);
 	T_EQ((int)tornado->code, (int)MAKEFOURCC('A', 'N', 't', 'o'));
 	T_EQ((int)tornado->target_type, (int)SPELL_TARGET_NONE);
@@ -677,7 +677,7 @@ TEST(wc3_spell, human_ability_rawcodes_have_concrete_contracts) {
 	FOR_LOOP(i, sizeof(spells) / sizeof(spells[0])) {
 		ability_t const *ability = FindAbilityByClassname(spells[i]);
 		T_NOT_NULL(ability); T_NE(ability, &a_unimplemented); T_ASSERT(S_AbilityHasCommand(ability));
-		T_ASSERT(ability->flags & AB_SPELL_SIMPLE); T_NOT_NULL(ability->execute);
+		T_ASSERT(ability->flags & AB_SPELL); T_NOT_NULL(ability->execute);
 		T_EQ((int)ability->code, (int)MAKEFOURCC(spells[i][0], spells[i][1], spells[i][2], spells[i][3]));
 	}
 	FOR_LOOP(i, sizeof(passives) / sizeof(passives[0])) {
@@ -772,7 +772,7 @@ TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
 	T_NOT_NULL(CAbilityOnFireHuman.level);
 	T_NOT_NULL(CAbilityOnFireHuman.level_changed);
 	T_NOT_NULL(poison);
-	T_ASSERT(poison->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(poison->flags & AB_SPELL);
 	T_EQ((int)poison->code, (int)MAKEFOURCC('A', 'E', 'p', 'a'));
 	T_ASSERT(poison->flags & AB_TOGGLE);
 	T_ASSERT(poison->flags & AB_AUTOCAST);
@@ -859,7 +859,7 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 	ability_t const *roots = FindAbilityByClassname("AEer");
 
 	T_NOT_NULL(roots);
-	T_ASSERT(roots->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(roots->flags & AB_SPELL);
 	T_EQ((int)roots->code, (int)MAKEFOURCC('A', 'E', 'e', 'r'));
 	T_EQ((int)roots->target_type, (int)SPELL_TARGET_UNIT);
 }
@@ -914,7 +914,7 @@ TEST(wc3_spell, holy_light_rawcode_lookup_is_nul_safe) {
 	 * guards against treating &code as a C string: that only worked when the
 	 * unrelated byte after the four rawcode bytes happened to be zero. */
 	T_NOT_NULL(abil);
-	T_ASSERT(abil->flags & AB_SPELL_SIMPLE); T_NULL(abil->cmd);
+	T_ASSERT(abil->flags & AB_SPELL); T_NULL(abil->cmd);
 	T_NOT_NULL(spell);
 	T_EQ((int)spell->code, (int)code);
 	T_EQ((int)spell->target_type, (int)SPELL_TARGET_UNIT);
@@ -923,7 +923,7 @@ TEST(wc3_spell, holy_light_rawcode_lookup_is_nul_safe) {
 TEST(wc3_spell, blizzard_is_channel) {
 	ability_t const *abil = FindAbilityByClassname("AHbz");
 	T_NOT_NULL(abil);
-	T_ASSERT(abil->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(abil->flags & AB_SPELL);
 	T_ASSERT(abil->flags & AB_CHANNEL);
 	T_EQ((int)abil->target_type, (int)SPELL_TARGET_POINT);
 }
@@ -931,7 +931,7 @@ TEST(wc3_spell, blizzard_is_channel) {
 TEST(wc3_spell, cold_arrows_has_autocast_flag) {
 	ability_t const *abil = FindAbilityByClassname("AHca");
 	T_NOT_NULL(abil);
-	T_ASSERT(abil->flags & AB_SPELL_SIMPLE);
+	T_ASSERT(abil->flags & AB_SPELL);
 	T_ASSERT(abil->flags & AB_AUTOCAST);
 	T_ASSERT(abil->flags & AB_TOGGLE);
 }
@@ -939,7 +939,7 @@ TEST(wc3_spell, cold_arrows_has_autocast_flag) {
 TEST(wc3_spell, non_spell_ability_uses_explicit_command) {
 	ability_t const *abil = FindAbilityByClassname(STR_CmdMove);
 	T_NOT_NULL(abil);
-	T_ASSERT(!(abil->flags & AB_SPELL_SIMPLE));  /* move is not a spell */
+	T_ASSERT(!(abil->flags & AB_SPELL));  /* move is not a spell */
 	T_ASSERT(S_AbilityHasCommand(abil));
 	T_ASSERT(!S_AbilityHasCommand(&CAbilitySimpleSpell));
 	T_ASSERT(!S_AbilityHasCommand(&CAbilityFeedback));

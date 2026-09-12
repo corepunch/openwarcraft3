@@ -1400,13 +1400,13 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 
 /* Shared casts and bespoke commands expose the same capability to HUD and item callers. */
 BOOL S_AbilityHasCommand(ability_t const *ability) {
-    return ability && ((ability->flags & AB_SPELL_SIMPLE) ? ability->execute != NULL : ability->cmd != NULL);
+    return ability && ((ability->flags & AB_SPELL) ? ability->execute != NULL : ability->cmd != NULL);
 }
 
 /* The shared-cast bit owns dispatch; individual spells only supply their effect callbacks. */
 void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
     if (!S_AbilityHasCommand(ability)) return;
-    if (ability->flags & AB_SPELL_SIMPLE)
+    if (ability->flags & AB_SPELL)
         spell_cmd(clent);
     else
         ability->cmd(clent);
@@ -1418,8 +1418,8 @@ void InitAbilities(void) {
     num_updates = 0;
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
-        if ((abil->ability->flags & AB_SPELL_SIMPLE) && (!abil->ability->execute || abil->ability->cmd))
-            gi.error("InitAbilities: %s requires an effect and no custom command for AB_SPELL_SIMPLE", abil->classname);
+        if ((abil->ability->flags & AB_SPELL) && (!abil->ability->execute || abil->ability->cmd))
+            gi.error("InitAbilities: %s requires an effect and no custom command for AB_SPELL", abil->classname);
         if (!abil->alias)
             abil->ability->code = FS_SLKKey(abil->classname);
         if (abil->ability->init) {

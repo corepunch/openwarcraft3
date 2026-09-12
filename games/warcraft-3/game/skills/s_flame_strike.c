@@ -61,14 +61,14 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, ability_t con
 }
 
 ability_t CAbilityFlameStrikeNeutral = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Flame Strike",
     .target_type = SPELL_TARGET_POINT,
     .execute = flame_strike_execute,
 };
 
 ability_t CAbilityFlameStrike = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Flame Strike",
     .target_type = SPELL_TARGET_POINT,
     .execute = flame_strike_execute,

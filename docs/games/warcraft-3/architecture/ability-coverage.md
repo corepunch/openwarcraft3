@@ -11,7 +11,7 @@ Primary local files:
 The practical parity list maps Warcraft ability base codes to concrete ability
 type definitions. Unknown or unsupported codes may resolve to explicit local
 stubs for recognition/passive coverage, but command-card discovery requires a
-an explicit command or an executable `AB_SPELL_SIMPLE` definition so a stub cannot create a dead button.
+an explicit command or an executable `AB_SPELL` definition so a stub cannot create a dead button.
 
 ## Current Model
 
@@ -27,7 +27,7 @@ code. Campaign-specific presentation, exact summon composition, Parasite
 death spawning, and full three-form Storm/Earth/Fire behavior remain separate
 follow-up contracts when their authored rows and runtime consumers are added.
 
-OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook or `AB_SPELL_SIMPLE` with a direct execute callback; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
+OpenWarcraft3 uses a small Quake-style `ability_t` dispatch object. Command-capable abilities provide a `cmd` hook or `AB_SPELL` with a direct execute callback; optional hooks cover toggle presentation, spell metadata, synchronous item use, autocast, membership changes, and levels. `UnitAddAbility` and `UnitRemoveAbility` invoke `enabled` and `disabled` immediately. Stateful abilities derive their current level through `level`; the owning gameplay mutation calls `S_RefreshAbilityLevel()`, which forwards that value to `level_changed`. Command-card discovery requires a real `cmd`, so registered passive/stub handlers do not create dead buttons.
 
 The CommonAbility base codes use the subsystem that already owns their behavior.
 `AEbu`, `AGbu`, `AHbu`, `ANbu`, `AObu`, and `AUbu` share the build command;

@@ -57,7 +57,7 @@ static void mirror_image_execute(LPEDICT caster, spellTarget_t target, ability_t
 }
 
 ability_t CAbilityMirrorImage = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Mirror Image",
     .target_type = SPELL_TARGET_NONE,
     .execute = mirror_image_execute,
