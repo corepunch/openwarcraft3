@@ -984,11 +984,11 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y1;X3;K\"modelScale\"\n"
         "C;Y1;X4;K\"scale\"\n"
         "C;Y2;X1;K\"hpea\"\n"
-        "C;Y2;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y2;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
         "C;Y2;X3;K1\n"
         "C;Y2;X4;K1\n"
         "C;Y3;X1;K\"hfoo\"\n"
-        "C;Y3;X2;K\"TestUI\\Models\\anim_pulse.mdx\"\n"
+        "C;Y3;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
         "C;Y3;X3;K1\n"
         "C;Y3;X4;K1\n"
         "E\n";
@@ -1076,10 +1076,102 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_STREQ(ent->animation_props, "");
     T_NOT_NULL(ent->animation);
-    T_ASSERT(G_AnimationHasPrimary(ent->animation, "stand"));
+    T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
     T_EQ(ent->s.frame, ent->animation->interval[0]);
 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+/* Both order entry points must resolve the registered handler, including preplaced forms. */
+TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    ability_t const *ability = FindAbilityByOrder("ravenform");
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    T_NOT_NULL(ability);
+    T_ASSERT(ability == FindAbilityByOrder("unravenform"));
+    T_ASSERT(ability == FindAbilityByClassname("Amrf"));
+    T_ASSERT(ability == FindAbilityByClassname("Arav"));
+    T_NOT_NULL(ability->cmd);
+    T_NULL(FindAbilityByOrder("unrecognized"));
+    T_NULL(FindAbilityByOrder(NULL));
+    T_ASSERT(!ability->is_toggle_on(ent));
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
+    T_ASSERT(ability->is_toggle_on(ent));
+    T_ASSERT(ent->currentmove->ability == ability);
+    T_NULL(ent->currentmove->think); /* Morph cannot acquire enemies and replace itself with Attack. */
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform")); /* Already in this form. */
+    T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    T_ASSERT(!ability->is_toggle_on(ent));
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    ent->class_id = MAKEFOURCC('o','g','r','u');
+    T_ASSERT(!unit_issueimmediateorder(ent, "ravenform"));
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+/* Completing the ability's morph starts takeoff; an unrelated Move order must not stop its timer. */
+TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    VECTOR2 point = {128, 64};
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
+    ent->raven.fly_height = 100;
+    ent->raven.rise_duration = 2;
+    T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
+    ent->s.frame = ent->animation->interval[1] - 1;
+    level.time = 1000;
+    monster_think(ent);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
+    T_ASSERT(unit_issueorder(ent, "move", &point));
+    ent->paused = true;
+    level.time = 2000;
+    monster_think(ent);
+    T_FEQ(ent->unitinfo.FlyHeight, 50, 0.001f);
+    T_FEQ(ent->s.origin2.x, 64, 0.001f); /* Pause stops walking, but preserves the PR's independent ascent. */
+    T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
+    level.time = 3000;
+    monster_think(ent);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
+    T_FEQ(ent->unitinfo.FlyHeight, 0, 0.001f);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+/* Prologue01 issues Move after 0.5 seconds, before Medivh's forward Morph clip ends. */
+TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    VECTOR2 point = {128, 64};
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    T_ASSERT(unit_issueimmediateorder(ent, "ravenform"));
+    ent->raven.fly_height = 100;
+    ent->raven.rise_duration = 2;
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_AFTER_MORPH);
+    T_ASSERT(unit_issueorder(ent, "move", &point));
+    umove_t const *walk = ent->currentmove;
+    level.time = 1000;
+    S_RunAbilityUpdates(ent);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
+    T_ASSERT(ent->currentmove == walk);
+    level.time = 2000;
+    S_RunAbilityUpdates(ent);
+    T_FEQ(ent->unitinfo.FlyHeight, 50, 0.001f);
+    T_ASSERT(ent->currentmove == walk);
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, ability_updates_leave_ordinary_units_unchanged) {
+    reset_test_entities(); setup_test_world();
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    ent->unitinfo.FlyHeight = 37;
+    ent->currentmove = NULL;
+    monster_think(ent);
+    T_FEQ(ent->unitinfo.FlyHeight, 37, 0.001f);
+    T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
 }
 
 TEST(wc3_unit, ravenform_takeoff_interpolates_from_ground_to_authored_height) {
@@ -1092,11 +1184,11 @@ TEST(wc3_unit, ravenform_takeoff_interpolates_from_ground_to_authored_height) {
     ent->raven.rise_duration = 2.0f;
     ent->raven.rise_state = RAVEN_RISE_ACTIVE;
     level.time = 2000;
-    unit_raven_update_height(ent);
+    monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 50.0f, 0.001f);
     T_EQ(ent->raven.rise_state, RAVEN_RISE_ACTIVE);
     level.time = 3000;
-    unit_raven_update_height(ent);
+    monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 100.0f, 0.001f);
     T_EQ(ent->raven.rise_state, RAVEN_RISE_NONE);
 }

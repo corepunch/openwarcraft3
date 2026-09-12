@@ -1,8 +1,7 @@
 /*
  * g_monster.c — Unit and monster shared behavior.
  *
- * This file owns the per-unit animation driver (M_MoveFrame), the waypoint
- * pool used for move orders (Waypoint_add), and unit initialization
+ * This file owns the per-unit animation driver (M_MoveFrame) and unit initialization
  * (SP_SpawnUnit) which reads unit stats from the data tables and sets up
  * combat parameters, models, and collision radii.
  *
@@ -73,35 +72,6 @@ static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     return size * 16;
 }
 
-/* Reserve a body-queue-style ring in g_edicts so ordinary F_EDICT relocation owns every waypoint pointer. */
-void G_InitWaypoints(void) {
-    DWORD base;
-    if (level.waypoints.count) return;
-    base = level.waypoints.base = globals.num_edicts;
-    FOR_LOOP(i, MAX_WAYPOINTS) {
-        LPEDICT waypoint = G_Spawn();
-        if (waypoint != g_edicts + base + i) gi.error("G_InitWaypoints: waypoint ring is not contiguous\n");
-        waypoint->svflags |= SVF_NOCLIENT;
-    }
-    level.waypoints.count = MAX_WAYPOINTS;
-}
-
-/* Recycle one real edict from the fixed ring, matching Quake II's TRAIL/body queue ownership model. */
-LPEDICT Waypoint_add(LPCVECTOR2 spot) {
-    LPEDICT waypoint;
-    G_InitWaypoints();
-    waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
-    level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
-    waypoint->s.origin.x = spot->x;
-    waypoint->s.origin.y = spot->y;
-    waypoint->heatmap2 = 0;
-    waypoint->heatmap2_radius = 0;
-    waypoint->secondarygoal = NULL;
-    waypoint->collision = 0;
-    M_CheckGround(waypoint);
-    return waypoint;
-}
-
 BOOL player_pay(LPPLAYER ps, DWORD project) {
     UnitBalance_t const *b;
     if (!ps) return false;
@@ -115,58 +85,6 @@ BOOL player_pay(LPPLAYER ps, DWORD project) {
 
 BOOL M_IsDead(LPCEDICT ent) {
     return ent->health.value <= 0;
-}
-
-static int monster_harvest_path_debug_level(void) {
-    LPCSTR value;
-    value = gi.CvarString("wc3_harvest_path_debug", "0");
-    return value ? atoi(value) : 0;
-}
-
-DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
-    LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
-    BOOL radius_matches;
-    BOOL cached = false;
-    DWORD generation;
-
-    if (!route)
-        return 0;
-
-    radius_matches = fabsf(route->heatmap2_radius - radius) < 0.01f;
-    if (radius_matches && route->heatmap2)
-        cached = CM_ActivateCachedFlow(route->heatmap2);
-
-    /* Fixed waypoints never move, so a still-cached field remains valid until
-     * static pathing invalidates the routing cache. */
-    if (cached && !(route->svflags & SVF_MONSTER))
-        return route->heatmap2;
-
-    if (cached && (route->svflags & SVF_MONSTER)) {
-        BOOL const moved = Vector2_distance(&route->s.origin2, &route->heatmap2_origin) >= 64.0f;
-        BOOL const stale = (DWORD)(level.time - route->heatmap2_time) >= 400;
-        if (!moved || !stale)
-            return route->heatmap2;
-    }
-
-    /* Cache misses are resumable in common/routing.c.  Return the old field for
-     * a moving target while its replacement is being built; fixed goals with
-     * no field simply wait until a later tick instead of steering straight into
-     * the obstacle that caused routing to be needed. */
-    generation = CM_RequestHeatmapForRadius(route, radius);
-    if (!generation)
-        return cached ? route->heatmap2 : 0;
-
-    route->heatmap2 = generation;
-    route->heatmap2_origin = route->s.origin2;
-    route->heatmap2_time = level.time;
-    route->heatmap2_radius = radius;
-
-    if (monster_harvest_path_debug_level() >= 2 && route->targtype == TARG_TREE) {
-        fprintf(stderr,
-                "WC3_HARVEST_PATH heatmap target=%d reason=ready generation=%u radius=%.1f\n",
-                route->s.number, route->heatmap2, radius);
-    }
-    return route->heatmap2;
 }
 
 /* Advance the unit's animation frame by FRAMETIME milliseconds.
@@ -224,7 +142,7 @@ void M_MoveFrame(LPEDICT self) {
  * Called each game frame by G_RunEntity; drives the animation clock and
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
 void monster_think(LPEDICT self) {
-    unit_raven_update_height(self);
+    S_RunAbilityUpdates(self);
     if (!self->currentmove)
         return;
     if (self->paused || self->stunned)
@@ -706,58 +624,8 @@ void G_UnregisterGroundSurface(LPEDICT ent) {
 
 void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
 
-static LPCSTR M_UnitMoveTypeName(LPCEDICT self) {
-    return self && self->data.UnitData ? self->data.UnitData->moveTypeName : NULL;
-}
-
-static BOOL M_UnitUsesWaterSurface(LPCEDICT self, LPCSTR movetp) {
-    if (!movetp) return false;
-    if (!strcmp(movetp, "fly") || !strcmp(movetp, "hover") || !strcmp(movetp, "float"))
-        return true;
-    if (!strcmp(movetp, "amph")) {
-        return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
-               !CM_TerrainPointIsWalkable(&self->s.origin2);
-    }
-    return false;
-}
-
-/* Resolve the visual/support surface, then apply the unit's mutable fly height.
- * FOOT/HORSE stay terrain-based; FLY/HOVER/FLOAT and swimming AMPH units use
- * max(terrain, water).  Walkable destructables can raise every movement type
- * except FLOAT, matching Warsmash's "boats can't go on bridges" rule. */
-void M_CheckGround(LPEDICT self) {
-    LPCSTR const movetp = M_UnitMoveTypeName(self);
-    BOOL const floating = movetp && !strcmp(movetp, "float");
-    FLOAT height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
-    FLOAT const cell = CM_PathCellWorldSize();
-
-    if (M_UnitUsesWaterSurface(self, movetp))
-        height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
-
-    if (!floating) {
-        for (LPEDICT surface = level.ground_surfaces; surface; surface = surface->ground_next) {
-            pathTex_t const *pathtex = surface->pathtex;
-            if (!surface->inuse || surface->destructable.dead ||
-                !surface->destructable.placement_solid || !pathtex) continue;
-            if (fabsf(self->s.origin.x - surface->s.origin.x) > pathtex->width * cell * 0.5f ||
-                fabsf(self->s.origin.y - surface->s.origin.y) > pathtex->height * cell * 0.5f) continue;
-            height = MAX(height, surface->s.origin.z);
-        }
-    }
-    self->s.ground_offset = self->unitinfo.FlyHeight;
-    self->s.origin.z = height + self->s.ground_offset;
-}
-
 BOOL M_CheckAttack(LPEDICT self) {
     return false;
-}
-
-FLOAT M_DistanceToGoal(LPEDICT ent) {
-    if (ent->goalentity) {
-        return Vector2_distance(&ent->goalentity->s.origin2, &ent->s.origin2);
-    } else {
-        return 0;
-    }
 }
 
 BYTE compress_stat(edictStat_s const *stat) {

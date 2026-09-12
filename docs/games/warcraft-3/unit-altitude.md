@@ -106,3 +106,11 @@ and a walkable bridge. The horse model origin should remain on the support surfa
 - [WC3 Data Model](../../wc3-data-model.md)
 - [WC3 Pathfinding](pathfinding.md)
 - [WC3 Attack Damage](attack-damage.md)
+
+## Ownership
+
+`skills/s_move.c` owns `M_CheckGround`, movement-type support-surface rules, steering, collision-aware steps,
+and waypoint/flow-field handling. Other abilities call these shared locomotion operations. `g_monster.c` retains
+unit initialization and the generic animation/behavior scheduler; `g_ai.c` retains acquisition and behavior transitions.
+Raven Form's ascent target, timing, and interpolation belong to `skills/s_raven.c`, which updates the ordinary
+`unitinfo.FlyHeight` value and calls Move's ground/link operations. See [Raven Form](unit-animation-properties.md).

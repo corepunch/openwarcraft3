@@ -39,6 +39,20 @@ typedef struct {
     size_t   cap;
 } wbuf_t;
 
+static int gen_quad_sprite(int, char **);
+static int gen_panel_sprite(int, char **);
+static int gen_ui_panel(int, char **);
+static int gen_anim_pulse(int, char **);
+static int gen_morph(int, char **);
+
+static const struct { const char *name; int (*gen)(int, char **); } presets[] = {
+    { "quad_sprite", gen_quad_sprite },
+    { "panel_sprite", gen_panel_sprite },
+    { "ui_panel", gen_ui_panel },
+    { "anim_pulse", gen_anim_pulse },
+    { "morph", gen_morph },
+};
+
 static void wb_grow(wbuf_t *b, size_t need) {
     if (b->size + need <= b->cap) return;
     size_t newcap = b->cap ? b->cap * 2 : 4096;
@@ -481,6 +495,18 @@ static int gen_anim_pulse(int argc, char **argv) {
                        names, starts, ends, 2) ? 0 : 1;
 }
 
+/* Separate base/alternate clips let ability tests exercise real MDX sequence selection and completion. */
+static int gen_morph(int argc, char **argv) {
+    const char *names[] = { "Stand", "Stand Alternate", "Morph", "Morph Alternate", "Walk", "Walk Alternate" };
+    uint32_t starts[] = { 0, 1000, 2000, 3000, 4000, 5000 };
+    uint32_t ends[] = { 999, 1999, 2999, 3999, 4999, 5999 };
+    if (argc < 3) {
+        fprintf(stderr, "usage: mdxgen morph <tex_path> <out.mdx>\n");
+        return 1;
+    }
+    return build_model(argv[1], argv[2], "Morph", 0.5f, 0.5f, names, starts, ends, 6) ? 0 : 1;
+}
+
 /* =========================================================================
  * main
  * =========================================================================*/
@@ -493,6 +519,7 @@ static void usage(void) {
         "  mdxgen panel_sprite  <tex_path> <out.mdx>\n"
         "  mdxgen ui_panel      <tex_path> <out.mdx>\n"
         "  mdxgen anim_pulse    <tex_path> <out.mdx>\n"
+        "  mdxgen morph         <tex_path> <out.mdx>\n"
         "\n"
         "Examples:\n"
         "  mdxgen quad_sprite   TestUI/Textures/checker_8x8.blp  quad_sprite.mdx\n"
@@ -509,10 +536,8 @@ int main(int argc, char **argv) {
     int   sub_argc    = argc - 1;
     char **sub_argv   = argv + 1;
 
-    if (strcmp(cmd, "quad_sprite")  == 0) return gen_quad_sprite(sub_argc, sub_argv);
-    if (strcmp(cmd, "panel_sprite") == 0) return gen_panel_sprite(sub_argc, sub_argv);
-    if (strcmp(cmd, "ui_panel")     == 0) return gen_ui_panel(sub_argc, sub_argv);
-    if (strcmp(cmd, "anim_pulse")   == 0) return gen_anim_pulse(sub_argc, sub_argv);
+    for (size_t i = 0; i < sizeof(presets) / sizeof(presets[0]); i++)
+        if (!strcmp(cmd, presets[i].name)) return presets[i].gen(sub_argc, sub_argv);
 
     fprintf(stderr, "mdxgen: unknown command '%s'\n\n", cmd);
     usage();

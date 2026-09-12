@@ -164,7 +164,7 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     return false;
 }
 
-/* Collision is now enforced at move time: unit_trymove() (g_ai.c) only commits
+/* Collision is now enforced at move time: unit_trymove() (skills/s_move.c) only commits
  * a step into a position free of terrain and other units, so units never end up
  * overlapping through normal movement and there is nothing left to push apart
  * here.  The old penalty solver shoved idle bystanders out of the way — which

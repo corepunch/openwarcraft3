@@ -7,7 +7,7 @@
  *  G_PushEntity
  *    - moves entity by the specified distance in the given direction
  *
- *  Move-time collision (block-and-slide, unit_trymove in g_ai.c)
+ *  Move-time collision (block-and-slide, unit_trymove in skills/s_move.c)
  *    - an idle unit is a hard, immovable obstacle (never pushed)
  *    - a mover slides around an obstacle between it and its goal
  *    - units that start overlapped can slide apart (penetration rule)
@@ -59,7 +59,7 @@ static FLOAT dist2(LPCVECTOR2 a, LPCVECTOR2 b) {
     return sqrtf(dx*dx + dy*dy);
 }
 
-/* Distance from point p to segment [a,b] — mirrors the swept test in g_ai.c so a
+/* Distance from point p to segment [a,b] — mirrors the swept test in skills/s_move.c so a
  * test can assert a unit's per-tick path never crossed a blocker. */
 static FLOAT seg_dist(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
     FLOAT abx = b->x - a->x, aby = b->y - a->y;
@@ -117,7 +117,7 @@ static FLOAT run_move_tracking_min_dist(LPEDICT mover, LPEDICT other, int frames
 /* -----------------------------------------------------------------------
  * Move-time collision — block and slide
  *
- * Collision is now enforced when a unit steps (unit_trymove in g_ai.c), driven
+ * Collision is now enforced when a unit steps (unit_trymove in skills/s_move.c), driven
  * here through the public order path (unit_issueorder + currentmove->think).
  * The old post-move push solver is retired, so these tests assert the WC3
  * invariant it violated: walking into a unit never displaces that unit.

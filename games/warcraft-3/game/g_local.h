@@ -600,6 +600,11 @@ typedef struct ability_s {
     void (*disabled)(LPEDICT);
     DWORD (*level)(LPCEDICT);
     void (*level_changed)(LPEDICT, DWORD);
+
+    /* Optional immediate orders and persistent updates; each ability owns eligibility and pause policy. */
+    LPCSTR const *orders; /* NULL-terminated order names */
+    BOOL (*order)(LPEDICT, LPCSTR);
+    void (*update)(LPEDICT);
 } ability_t;
 
 typedef struct {
@@ -970,7 +975,7 @@ struct edict_s {
         FLOAT original_move_speed;
         BOOL active;
     } polymorph;
-    struct {
+    struct edictRaven_s {
         FLOAT fly_height; /* authored Raven Form height applied after the forward morph clip */
         FLOAT rise_start;
         FLOAT rise_duration;
@@ -1699,13 +1704,12 @@ void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
 void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 void unit_stand(LPEDICT);
-void unit_raven_update_height(LPEDICT);
 void unit_entercombat(LPEDICT, LPEDICT);
 void unit_leavecombat(LPEDICT);
 BOOL unit_affectingcombat(LPEDICT);
 void unit_updatestatuses(LPEDICT);
 
-// g_monster.c
+// skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 void unit_moveindirection(LPEDICT);
 void unit_moveindirection_ignore_units(LPEDICT);
 BOOL unit_snap_to_point_ignore_units(LPEDICT, LPCVECTOR2);
@@ -1797,6 +1801,8 @@ void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
 void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 
 // g_abilities.c
+void S_RunAbilityUpdates(LPEDICT);
+ability_t const *FindAbilityByOrder(LPCSTR);
 ability_t const *FindAbilityByClassname(LPCSTR);
 ability_t const *FindAbilityForCommand(LPCSTR);
 ability_t const *GetAbilityByIndex(DWORD);

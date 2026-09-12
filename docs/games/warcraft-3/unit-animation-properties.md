@@ -12,7 +12,7 @@ The stock Medivh model/data combination is unusual: the raven-form unit requests
 
 WC3 exposes two stock abilities that use the `ravenform` / `unravenform` order pair: Medivh Crow Form (`Amrf`) and Druid of the Talon Storm Crow Form (`Arav`). Each ability's object data owns its own transformation endpoints:
 
-- AbilityData Data A (`DataA1`) is the base unit type;
+- AbilityData Data A (`Data11` in ROC, `DataA1` in TFT) is the base unit type;
 - AbilityData `UnitID1` is the raven/alternate unit type.
 
 The immediate orders `ravenform` and `unravenform` first choose the stock transform ability whose authored Data A / UnitID endpoints contain the current unit, then transform the existing edict between those two authored types. The edict/JASS handle is retained rather than replacing the unit with a new entity. Rebinding the type reruns the normal unit-data initialization, including model, movement layer, collision, attacks, authored Required Animation Names, and other presentation state, while preserving current health/mana ratios and temporary combat bonuses.
@@ -23,7 +23,39 @@ The type rebind still happens on the script-issued order so the existing edict i
 
 `M_MoveFrame()` restarts the animation that is active *after* an end callback returns. This matters for morph completion: an end callback can replace `Morph Alternate` with `Stand`, and resetting the frame to the completed morph's start would make the newly rebound human model sample an unrelated frame for one tick, producing a visible blank between forms.
 
-Full `Amrf`/`Arav` cast time, transformation effects/sounds, duration/buff-driven automatic reversion, and command-card ability behavior remain separate compatibility work. The post-morph takeoff now interpolates the saved ground unit's authored fly height over the ability's Data C duration; landing remains an immediate form change.
+Full `Amrf`/`Arav` cast time, transformation effects/sounds, duration/buff-driven automatic reversion remain separate compatibility work. The post-morph takeoff now interpolates the destination flying form's authored fly height over the ability's Data C duration; landing remains an immediate form change.
+
+## Ability Ownership
+
+`skills/s_raven.c` registers `a_raven_form` for both `Amrf` and `Arav`. The ability owns endpoint resolution,
+command-card toggling, `ravenform`/`unravenform` orders, both morph `umove_t` records, completion callbacks, and takeoff.
+`G_TransformUnitType` remains the generic in-place type-rebind operation shared with other transformation abilities.
+
+`ability_t.orders`/`.order` declare immediate orders; `FindAbilityByOrder` resolves them without spell-name branches
+in `m_unit.c`. Persistent `.update` callbacks run through `S_RunAbilityUpdates` in `monster_think`. `InitAbilities`
+builds a unique callback list once, so two rawcodes using one handler do not tick it twice and each unit tick avoids
+scanning the full ability registry. If an order replaces forward Morph before its end callback runs, the Raven update
+starts the pending ascent without replacing that order. Callbacks own eligibility and pause policy: Raven's ascent continues after Move
+replaces the morph order, including while paused, preserving #398's independent timer behavior. Animation itself
+still pauses. Morph moves have no acquisition think callback, so idle AI cannot replace a morph with Attack.
+
+The takeoff values are inline `edict.raven` state, explicitly described by `raven_fields` in `g_save.c` and covered
+by ROC/TFT round-trip tests. The generic `currentmove` relocation retains ability-owned morph moves.
+
+## Investigation Notes
+
+- #398 (`dd551065`) introduced morph/takeoff in `m_unit.c` and a direct Raven update in `monster_think`.
+  These now belong to the ability; generic animation completion remains in `M_MoveFrame`.
+- The animation regression trace showed `old=morph alternate old_start=0 new=stand alternate new_start=1000`;
+  restarting the completed clip selected the wrong frame after the callback.
+- Live ROC Prologue01 originally rejected `nmdm`: `Amrf` loaded `UnitID1=nmdm`, but its base ID was zero.
+  Archive inspection showed `Data11=nmed`; the DDX schema loaded ROC Data11..Data34 only as numbers.
+  `BZ_AB_ROW` now populates both numeric and FOURCC views, as the TFT DataA..DataI schema already did.
+  Do not patch Raven with hardcoded unit IDs or per-format column lookup.
+
+- Prologue01 orders Move 0.5 seconds after `ravenform`. The interruption trace showed `move=walk`,
+  `anim=Stand Alternate`, `height=0` with takeoff still pending: replacing `currentmove` bypasses the Morph
+  end callback. The ability update now starts ascent when the pending morph has been replaced.
 
 ## Verification
 
@@ -33,3 +65,16 @@ Focused unit tests install both synthetic `Amrf` and unrelated `Arav` object dat
 - `unravenform` restores the Data A unit type and clears the alternate type's authored properties;
 - a preplaced alternate-form endpoint can execute `unravenform` without first being transformed by OpenRealm.
 - Raven Form holds the transformed unit on its support surface through `Morph`, then interpolates to its authored fly height.
+
+The `mdxgen morph` fixture supplies distinct base/alternate Stand, Walk, and Morph clips at the original
+`Units/Creeps/Medivh/Medivh.mdx` archive path. It is generated into the fixture MPQ only. Dispatch tests cover
+registered orders, toggle state, nonmatching units, ordinary-unit update no-ops, morph completion, ascent during
+Move/pause, reversal, and both data-column schemas.
+
+Bounded live-archive campaign reproducer (repeat with `-tft`):
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -com_fast_forward +set sv_cheats 1 +map Maps/Campaign/Prologue01.w3m +jass Trig_End_Cinematic_Actions +com_frame_limit 1600
+make test-wc3-engine WC3_PATTERN='wc3_unit.*'
+make test
+```

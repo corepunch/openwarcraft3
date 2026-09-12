@@ -17,16 +17,11 @@ void ai_birth2(LPEDICT self) {
     unit_runwait(self, unit_stand);
 }
 
-static void unit_raven_morph_forward_end(LPEDICT unit);
-static void unit_raven_morph_reverse_end(LPEDICT unit);
-
 //static mmove_t unit_move_decay2 = { "Decay Bone", NULL, unit_die };
 //static mmove_t unit_move_decay1 = { "Decay Flesh", NULL, unit_decay2 };
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
-static umove_t unit_move_morph = { "morph", ai_stand, unit_raven_morph_forward_end };
-static umove_t unit_move_morph_alt = { "morph alternate", ai_stand, unit_raven_morph_reverse_end };
 static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
 /* The corpse holds its final death frame (AI_HOLD_FRAME) while the decay timer
  * counts down; the model has no separate decay sequence we can rely on. */
@@ -118,76 +113,6 @@ void unit_stand(LPEDICT self) {
             ? &unit_move_stand_ready
             : &unit_move_stand);
     }
-}
-
-/* Play the authored morph sequence after a form rebind; the reverse transform
- * uses the source form's Alternate sequence before returning to ordinary stand. */
-static void unit_play_raven_morph(LPEDICT unit, BOOL raven_form) {
-    LPCANIMATION morph;
-
-    if (raven_form) G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
-    /* Keep the morph as the active move, rather than only replacing the
-     * animation pointer; the ordinary stand move can otherwise reassert its
-     * animation while the geoset alpha track is revealing the new form. */
-    unit_setmove(unit, raven_form ? &unit_move_morph : &unit_move_morph_alt);
-    morph = unit->animation;
-    if (raven_form) {
-        G_AddUnitAnimationProperties(unit, "alternateex", true);
-        /* Keep the untagged Morph selected after restoring the form tag;
-         * later cinematic orders must immediately use crow animations. */
-        unit->animation = morph;
-    } else if (!morph) {
-        G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
-    }
-    if (!morph) {
-        fprintf(stderr, "WC3_RAVEN missing morph animation order=%s class=%.4s\n",
-                raven_form ? "ravenform" : "unravenform", (LPCSTR)&unit->class_id);
-        if (raven_form) unit_raven_morph_forward_end(unit);
-        unit_stand(unit);
-        G_SetUnitAnimation(unit, "stand");
-    }
-    if (unit->animation) unit->s.frame = unit->animation->interval[0];
-}
-
-static void unit_raven_morph_forward_end(LPEDICT unit) {
-    /* nmdm's authored required tag is alternateex; restoring alternate would
-     * select Medivh's base stand sequence after the crow morph completes. */
-    G_AddUnitAnimationProperties(unit, "alternateex", true);
-    /* Start the separate takeoff adjustment after Morph, matching Warsmash's
-     * altitude timer while keeping the form change on the support surface. */
-    if (unit->raven.rise_state == RAVEN_RISE_AFTER_MORPH) {
-        if (unit->raven.rise_duration > 0.0f) {
-            unit->raven.rise_start = (FLOAT)G_Time();
-            unit->raven.rise_state = RAVEN_RISE_ACTIVE;
-        } else {
-            unit->unitinfo.FlyHeight = unit->raven.fly_height;
-            unit->raven.rise_state = RAVEN_RISE_NONE;
-            M_CheckGround(unit);
-            gi.LinkEntity(unit);
-        }
-    }
-    unit_stand(unit);
-}
-
-/* Advance Raven Form's authored takeoff height independently from animation. */
-void unit_raven_update_height(LPEDICT unit) {
-    FLOAT fraction;
-
-    if (!unit || unit->raven.rise_state != RAVEN_RISE_ACTIVE) return;
-    fraction = ((FLOAT)G_Time() - unit->raven.rise_start) / (unit->raven.rise_duration * 1000.0f);
-    if (fraction >= 1.0f) {
-        unit->unitinfo.FlyHeight = unit->raven.fly_height;
-        unit->raven.rise_state = RAVEN_RISE_NONE;
-    } else {
-        unit->unitinfo.FlyHeight = unit->raven.fly_height * MAX(0.0f, fraction);
-    }
-    M_CheckGround(unit);
-    gi.LinkEntity(unit);
-}
-
-static void unit_raven_morph_reverse_end(LPEDICT unit) {
-    G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
-    unit_stand(unit);
 }
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
@@ -819,88 +744,6 @@ BOOL G_TransformUnitType(LPEDICT unit, DWORD type) {
     return true;
 }
 
-typedef struct {
-    DWORD ability_id;
-    LPCSTR ability_name;
-    AbilityData_t const *ability;
-    DWORD base_type;
-    DWORD raven_type;
-} ravenFormData_t;
-
-static BOOL unit_raven_form_data(LPEDICT unit, ravenFormData_t *out) {
-    static struct { DWORD id; LPCSTR name; } const candidates[] = {
-        { MAKEFOURCC('A','m','r','f'), "Amrf" }, /* Medivh Crow Form */
-        { MAKEFOURCC('A','r','a','v'), "Arav" }, /* Druid Storm Crow Form */
-    };
-    ravenFormData_t owned = {0};
-
-    if (!unit || !out) return false;
-    FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
-        AbilityData_t const *ability = G_AbilityData(candidates[i].id);
-        DWORD const base_type = ability->level[0].data[0].id;
-        DWORD const raven_type = ability->level[0].unitID;
-        ravenFormData_t current;
-
-        if (!ability->id || !base_type || !raven_type) continue;
-        current = (ravenFormData_t){
-            .ability_id = candidates[i].id,
-            .ability_name = candidates[i].name,
-            .ability = ability,
-            .base_type = base_type,
-            .raven_type = raven_type,
-        };
-        /* Endpoint identity is authoritative for preplaced campaign forms,
-         * which may not expose the transform ability through the runtime skill
-         * list before the map issues unravenform. */
-        if (unit->class_id == base_type || unit->class_id == raven_type) {
-            *out = current;
-            return true;
-        }
-        if (!owned.ability && G_ActorHasSkill(unit, candidates[i].name))
-            owned = current;
-    }
-    if (owned.ability) {
-        *out = owned;
-        return true;
-    }
-    return false;
-}
-
-static BOOL unit_raven_form_order(LPEDICT unit, BOOL raven_form) {
-    ravenFormData_t form = {0};
-    DWORD target_type;
-
-    if (!unit_raven_form_data(unit, &form)) return false;
-    target_type = raven_form ? form.raven_type : form.base_type;
-
-    if (unit->class_id == target_type) {
-        return true;
-    }
-    if (raven_form ? unit->class_id != form.base_type : unit->class_id != form.raven_type) {
-        return false;
-    }
-
-    G_ClearUnitOrderQueue(unit);
-    if (!G_TransformUnitType(unit, target_type)) return false;
-
-    unit->raven.rise_state = RAVEN_RISE_NONE;
-    if (raven_form) {
-        unit->raven.fly_height = unit->unitinfo.FlyHeight;
-        unit->raven.rise_duration = form.ability->level[0].data[2].number;
-        unit->raven.rise_state = RAVEN_RISE_AFTER_MORPH;
-        unit->unitinfo.FlyHeight = 0.0f;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-    }
-
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
-    move_reset_progress(unit);
-    unit_stand(unit);
-    unit_play_raven_morph(unit, raven_form);
-    return true;
-}
-
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!self || !order) {
@@ -920,10 +763,8 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) return S_CastNoTargetSpell(self, spell_code);
     }
-    if (!strcmp(order, "ravenform"))
-        return unit_raven_form_order(self, true);
-    if (!strcmp(order, "unravenform"))
-        return unit_raven_form_order(self, false);
+    ability_t const *ability = FindAbilityByOrder(order);
+    if (ability) return ability->order(self, order);
     if (!strcmp(order, "repairon"))
         return S_SetRepairAutocast(self, true);
     if (!strcmp(order, "repairoff"))
