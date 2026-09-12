@@ -28,9 +28,13 @@ static void blink_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_AREA_EFFECT, 0, caster, NULL, true);
 }
 
+/* ---- Registration -------------------------------------------------------- */
+
+BZ_VALIDATED_SPELL_PROC(AbilityBlink, blink_validate, blink_execute)
+
 /* ---- Fan of Knives (AEfk): instant area damage centred on the caster ------ */
 
-static void fanofknives_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -55,7 +59,7 @@ static void fanofknives_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 
 /* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
 
-static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
@@ -65,11 +69,3 @@ static void shadowstrike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
      * poison DoT via the BEsh buff.  The status system needs a movement-speed
      * modifier and a periodic-damage tick first. */
 }
-
-/* ---- Registration -------------------------------------------------------- */
-
-BZ_VALIDATED_SPELL_PROC(AbilityBlink, blink_validate, blink_execute)
-
-BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives, fanofknives_execute)
-
-BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike, shadowstrike_execute)

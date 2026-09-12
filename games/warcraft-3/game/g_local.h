@@ -585,6 +585,8 @@ typedef enum {
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
 } abilityMsg_t;
 
+#define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)
+
 typedef intptr_t (*abilityProc_t)(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call);
 
 struct ability_call_s {
@@ -1800,7 +1802,7 @@ void S_EnableAbility(LPEDICT, DWORD);
 void S_DisableAbility(LPEDICT, DWORD);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
 BOOL S_UnitPolymorphed(LPCEDICT unit);
-intptr_t CAbilityOnFireHuman(LPEDICT, abilityMsg_t, abilityCall_t const *);
+BZ_ABILITY_PROC(CAbilityOnFireHuman);
 void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);

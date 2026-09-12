@@ -6,7 +6,7 @@
  * Unubertip=""
  */
 
-static void immolation_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
     DWORD code = spell->code;
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -19,15 +19,13 @@ static void immolation_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
     unit_addstatus(caster, "Biml", 1);
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityImmolation, immolation_execute)
-
 /* Name=Cold Arrows
  * Ubertip="Adds cold damage to attacks and slows the movement speed of the attacked unit."
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
 
-static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
     DWORD code = MAKEFOURCC('c', 'o', 'l', 'd');
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -40,12 +38,10 @@ static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     unit_addstatus(caster, "cold", 1);
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityColdArrows, cold_arrows_execute)
-
 /* Name=War Stomp
  * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
  */
-static void war_stomp_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     DWORD damage = (DWORD)S_SpellData(spell->code, level, 1);
@@ -61,26 +57,22 @@ static void war_stomp_execute(LPEDICT caster, spellTarget_t st, abilityitem_t co
 #undef WAR_STOMP_HITS
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityStomp, war_stomp_execute)
-
 /* Name=Endurance Aura
  * Ubertip="Increases nearby friendly units' movement speed and attack rate."
  */
 /* Name=Wind Walk
  * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
  */
-static void wind_walk_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
     DWORD level = S_SpellLevel(caster, spell->code);
     caster->s.renderfx |= RF_HIDDEN;
     unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityWindWalk, wind_walk_execute)
-
 /* Name=Mana Burn
  * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
  */
-static void mana_burn_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityManaBurn) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = MIN(target->mana.value, S_SpellData(spell->code, level, 1));
@@ -88,13 +80,11 @@ static void mana_burn_execute(LPEDICT caster, spellTarget_t st, abilityitem_t co
     target->mana.value -= amount;
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityManaBurn, mana_burn_execute)
-
 /* Name=Dark Ritual
  * Ubertip="Sacrifices a friendly non-Hero unit, converting a percentage of its hit points into mana for the caster."
  * Dark Ritual converts the authored fraction of an allied non-hero's maximum
  * life into caster mana, then uses the normal damage/death path to sacrifice it. */
-static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT mana = target->health.max_value * S_SpellData(spell->code, level, 1);
@@ -103,14 +93,12 @@ static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     T_Damage(target, caster, (DWORD)MAX(1.0f, target->health.value));
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual, dark_ritual_execute)
-
 /* Name=Frost Armor
  * Ubertip="Creates a shield of frost around a target friendly unit. The shield adds <ACfu,DataB1> armor and slows melee units that attack it for <ACfu,Dur1> seconds. Lasts <ACfu,DataA1> seconds."
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-static void frost_armor_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
@@ -124,9 +112,6 @@ static void frost_armor_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor, frost_armor_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityFrostArmorAuto, frost_armor_execute)
-
 static void divine_shield_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
 
@@ -138,7 +123,7 @@ static void divine_shield_think(LPEDICT ent) {
 /* Name=Divine Shield
  * Ubertip="Makes the Paladin invulnerable to damage for <AHds,Dur1> seconds."
  */
-static void divine_shield_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -150,8 +135,6 @@ static void divine_shield_execute(LPEDICT caster, spellTarget_t st, abilityitem_
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityDivineShield, divine_shield_execute)
-
 /* Name=Bash
  * Ubertip="Gives a chance that an attack will deal bonus damage and stun the target."
  * TODO: no command handler; the attack-resolution path must consume this passive.
@@ -161,7 +144,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield, divine_shield_execute)
 /* Name=Entangling Roots
  * Ubertip="Roots a target enemy unit in place, preventing movement for <AEer,Dur1> seconds."
  */
-static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
     LPCSTR buff = data->level[level - 1].buffID;
@@ -177,8 +160,6 @@ static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, abilityit
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots, entangling_roots_execute)
-
 /* Name=Phoenix Fire
  * Ubertip="Automatically attacks nearby enemy units with flaming projectiles."
  * TODO: passive attack-resolution behavior is not implemented here.
@@ -188,9 +169,5 @@ BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots, entangling_roots_execute)
  */
 
 /* Harvest Lumber and Couple Instant: non-spell abilities with stub command handlers. */
-static void stub_cancel_command(LPEDICT clent) {
-    UI_AddCancelButton(clent);
-}
-
-BZ_COMMAND_PROC(AbilityHarvestLumber, stub_cancel_command)
-BZ_COMMAND_PROC(AbilityCoupleInstant, stub_cancel_command)
+BZ_COMMAND_PROC(AbilityHarvestLumber) { UI_AddCancelButton(clent); }
+BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }

@@ -631,6 +631,6 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     return false;
 }
 
-intptr_t CAbilityTrain(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityTrain) {
     return CAbilityNoop(ent, msg, call);
 }

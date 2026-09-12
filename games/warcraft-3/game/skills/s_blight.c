@@ -14,10 +14,8 @@ static BOOL blight_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     return true;
 }
 
-static void blight_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityBlightGrowth) {
     UI_AddCancelButton(clent);
     S_SpellCursorSplat(clent, 200.0f);
     clent->client->menu.on_location_selected = blight_selectlocation;
 }
-
-BZ_COMMAND_PROC(AbilityBlightGrowth, blight_command)

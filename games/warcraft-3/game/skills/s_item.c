@@ -15,7 +15,7 @@
 
 /* ---- Active items (consume on use) -------------------------------------- */
 
-static BOOL item_heal_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityItemHeal) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
     FLOAT amount = S_SpellData(code, 1, 1);
@@ -28,7 +28,7 @@ static BOOL item_heal_command(LPEDICT clent) {
     return true;
 }
 
-static BOOL item_mana_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityItemManaRestore) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
     FLOAT amount = S_SpellData(code, 1, 1);
@@ -41,7 +41,7 @@ static BOOL item_mana_command(LPEDICT clent) {
     return true;
 }
 
-static BOOL item_permanent_life_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityMaxLifeMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
     FLOAT amount = S_SpellData(code, 1, 1);
@@ -57,7 +57,7 @@ static BOOL item_permanent_life_command(LPEDICT clent) {
 
 /* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
  * Permanently adds to hero base stats, consumes the item. */
-static BOOL item_permanent_stat_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityStrengthMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
     FLOAT str = S_SpellData(code, 1, 1);
@@ -76,7 +76,7 @@ static BOOL item_permanent_stat_command(LPEDICT clent) {
 }
 
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
-static BOOL item_experience_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityExperienceMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
     DWORD amount = (DWORD)S_SpellData(code, 1, 1);
@@ -90,7 +90,7 @@ static BOOL item_experience_command(LPEDICT clent) {
 }
 
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
-static BOOL item_level_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityLevelMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
     DWORD levels = (DWORD)S_SpellData(code, 1, 1);
@@ -109,7 +109,7 @@ static BOOL item_level_command(LPEDICT clent) {
 }
 
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
-static BOOL item_figurine_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
     DWORD unit_id = S_SpellUnitId(code, 1);
@@ -130,7 +130,7 @@ static BOOL item_figurine_command(LPEDICT clent) {
  * defense amount in DataA, radius in Area, duration in Dur/HeroDur and the
  * visible status rawcode in BuffID. Keep the item itself as a thin ability
  * carrier: the ability data decides the actual numbers. */
-static BOOL item_defense_aoe_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityItemDefenseAoe) {
     LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
     DWORD level = 1;
@@ -164,7 +164,7 @@ static BOOL item_defense_aoe_command(LPEDICT clent) {
  * hour/minute and Dur as the false-time lifetime.  The false clock is a
  * simulation override, not a renderer-only tint, so all day/night consumers
  * see the same temporary time. */
-static BOOL item_change_time_command(LPEDICT clent) {
+BZ_ITEM_PROC(AbilityItemChangeTOD) {
     LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
     LONG hour = (LONG)S_SpellData(code, 1, 1);
@@ -178,16 +178,10 @@ static BOOL item_change_time_command(LPEDICT clent) {
     return true;
 }
 
-/* ---- Ability definitions ------------------------------------------------ */
-
-BZ_ITEM_PROC(AbilityItemHeal, item_heal_command)
-BZ_ITEM_PROC(AbilityItemManaRestore, item_mana_command)
-BZ_ITEM_PROC(AbilityMaxLifeMod, item_permanent_life_command)
-
 /* Passive items: init reads bonus value from SLK, actual apply/remove
  * handled by s_item_stats.c via inventory lifecycle hooks. */
 #define BZ_ITEM_INIT_PROC(NAME, INIT) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         (void)ent; \
         if (msg != A_INIT || !call || !call->classname) return false; \
         INIT(call->classname); \
@@ -199,11 +193,3 @@ BZ_ITEM_INIT_PROC(AbilityAttributeBonus, SP_ability_item_stat_bonus)
 BZ_ITEM_INIT_PROC(AbilityDefenseBonus, SP_ability_item_defense_bonus)
 BZ_ITEM_INIT_PROC(AbilityMaxLifeBonus, SP_ability_item_life_bonus)
 BZ_ITEM_INIT_PROC(AbilityMaxManaBonus, SP_ability_item_mana_bonus)
-
-/* Consume-on-use items. */
-BZ_ITEM_PROC(AbilityStrengthMod, item_permanent_stat_command)
-BZ_ITEM_PROC(AbilityFigurineSkeleton, item_figurine_command)
-BZ_ITEM_PROC(AbilityExperienceMod, item_experience_command)
-BZ_ITEM_PROC(AbilityLevelMod, item_level_command)
-BZ_ITEM_PROC(AbilityItemDefenseAoe, item_defense_aoe_command)
-BZ_ITEM_PROC(AbilityItemChangeTOD, item_change_time_command)

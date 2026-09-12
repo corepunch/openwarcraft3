@@ -56,5 +56,5 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     thinker->freetime = G_Time() + 1000;
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityDrainNeutral, siphon_mana_execute)
-BZ_SIMPLE_SPELL_PROC(AbilityDrain, siphon_mana_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityDrainNeutral) { siphon_mana_execute(caster, st, spell); }
+BZ_SIMPLE_SPELL_PROC(AbilityDrain) { siphon_mana_execute(caster, st, spell); }

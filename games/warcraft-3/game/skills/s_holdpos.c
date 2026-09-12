@@ -30,9 +30,7 @@ BOOL S_HoldPosition(LPEDICT unit) {
     return true;
 }
 
-static void holdpos_command(LPEDICT ent) {
-    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e)
+BZ_COMMAND_PROC(AbilityHoldPosition) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, e)
         S_HoldPosition(e);
 }
-
-BZ_COMMAND_PROC(AbilityHoldPosition, holdpos_command)

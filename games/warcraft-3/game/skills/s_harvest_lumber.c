@@ -201,7 +201,6 @@ static BOOL harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
         dropoff, &ent->s.origin2, route_band, ent->collision, out);
 }
 
-
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
  * but cannot be reached.  Keep target selection in Harvest: routing reports
  * failure/exhaustion, then Harvest chooses a replacement tree.  Prefer a tree
@@ -652,7 +651,7 @@ static void wisp_harvest_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
 }
 
-intptr_t CAbilityWispHarvest(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityWispHarvest) {
     switch (msg) {
     case A_INIT:
         if (!call || !call->classname) return false;
@@ -675,15 +674,13 @@ static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
     return true;
 }
 
-static void acolyte_harvest_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityAcolyteHarvest) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = acolyte_harvest_selecttarget;
 }
 
-BZ_COMMAND_PROC(AbilityAcolyteHarvest, acolyte_harvest_command)
-
 /* ---- Return Resources: standalone command to deposit carried resources --- */
-static void return_resources_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityReturn) {
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if (ent->harvested_lumber > 0) {
             harvest_walkback(ent);
@@ -694,8 +691,6 @@ static void return_resources_command(LPEDICT clent) {
         }
     }
 }
-
-BZ_COMMAND_PROC(AbilityReturn, return_resources_command)
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
@@ -726,7 +721,7 @@ void harvest_command(LPEDICT ent) {
      * selected worker carries resources, activating it performs the same
      * no-target Return Resources behavior instead of entering target mode. */
     if (selected && (selected->harvested_lumber > 0 || selected->harvested_gold > 0)) {
-        return_resources_command(ent);
+        AbilityReturn_Command(ent);
         return;
     }
 
@@ -734,7 +729,7 @@ void harvest_command(LPEDICT ent) {
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }
 
-intptr_t CAbilityHarvest(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityHarvest) {
     switch (msg) {
     case A_INIT:
         if (!call || !call->classname) return false;

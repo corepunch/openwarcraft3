@@ -75,17 +75,6 @@ static void moon_well_execute(LPEDICT caster, spellTarget_t st, abilityitem_t co
     S_SpellHeal(target, offered);
 }
 
-/* ---- Root (Aroo): toggle rooted state ------------------------------------ */
-
-static void root_command(LPEDICT clent) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster) return;
-    caster->no_pathing = !caster->no_pathing;
-    caster->movetype = caster->no_pathing ? MOVETYPE_NONE : MOVETYPE_STEP;
-    if (caster->stand)
-        caster->stand(caster);
-}
-
 /* ---- Registration -------------------------------------------------------- */
 
 BZ_VALIDATED_SPELL_PROC(AbilityCharm, charm_validate, charm_execute)
@@ -94,4 +83,13 @@ BZ_VALIDATED_SPELL_PROC(AbilityEatTree, eat_tree_validate, eat_tree_execute)
 
 BZ_VALIDATED_SPELL_PROC(AbilityManaBattery, moon_well_validate, moon_well_execute)
 
-BZ_COMMAND_PROC(AbilityRoot, root_command)
+/* ---- Root (Aroo): toggle rooted state ------------------------------------ */
+
+BZ_COMMAND_PROC(AbilityRoot) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (!caster) return;
+    caster->no_pathing = !caster->no_pathing;
+    caster->movetype = caster->no_pathing ? MOVETYPE_NONE : MOVETYPE_STEP;
+    if (caster->stand)
+        caster->stand(caster);
+}

@@ -257,7 +257,7 @@ static ability_t abilitylist[] = {
     { "AUav", CAbilityPassive, AB_PASSIVE, SPELL_TARGET_NONE },  /* Vampiric Aura */
     { "AUfn", CAbilityFrostNova, AB_SPELL, SPELL_TARGET_NONE },  /* Frost Nova */
     { "AUfa", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
-    { "AUfu", CAbilityFrostArmorAuto, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
+    { "AUfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUdr", CAbilityDarkRitual, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Ritual */
     { "AUdd", CAbilityDeathAndDecay, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Death And Decay */
     { "Arst", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST, SPELL_TARGET_NONE },  /* Restore */
@@ -961,7 +961,7 @@ abilityitem_t S_AbilityItem(DWORD code) {
 }
 
 /* Dispatch is synchronous and retains the concrete row and authored rawcode in the typed payload. */
-intptr_t S_AbilityMessage(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(S_AbilityMessage) {
     ability_t const *ability = call && call->item ? call->item->ability : NULL;
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }

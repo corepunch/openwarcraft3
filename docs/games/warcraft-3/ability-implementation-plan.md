@@ -108,7 +108,8 @@ Ability procedures use TFT `CAbility*` class names. Look up the FourCC in
 `tft-ability-classes.txt` and name the function after its class: `CAbilityDoom`,
 `CAbilityWarStomp`, `CAbilityFrostArmor`. Do not invent names or derive them
 from rawcode abbreviations. Procedure macros prepend `C` to a PascalCase argument;
-`BZ_SIMPLE_SPELL_PROC(AbilityDoom, doom_execute)` defines the `CAbilityDoom` function.
+`BZ_SIMPLE_SPELL_PROC(AbilityDoom) { ... }` defines `CAbilityDoom` and its `AbilityDoom_Execute` body,
+whose parameters are `caster`, `st`, and `spell`.
 The rawcode-to-procedure mapping and all static flags/target/order data live only in
 `abilitylist` in `s_skills.c`. `S_AbilityItem(actual_code)` produces an `abilityitem_t` with the requested
 rawcode and resolved registry row. Validation and execution receive this item, so two aliases can share a
@@ -177,14 +178,16 @@ For a spell that uses the unified pipeline, define its procedure with the smalle
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, dealing damage over time."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDoom, doom_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityDoom) { target_status_execute(caster, st, spell); }
 ```
 
-This generates the `CAbilityDoom` function. Flags and target shape belong in its registry row. For behavior that
-needs more messages, write the switch directly and delegate unhandled messages to the TFT parent procedure:
+Put single-use execution logic directly in the body; call a shared helper when multiple abilities share it.
+The macro forward-declares `AbilityDoom_Execute` and routes `A_EXECUTE` to it. Flags and target shape belong
+in the registry row. For behavior that needs more messages, use `BZ_ABILITY_PROC` (which supplies `ent`, `msg`,
+and `call`), write the switch directly, and delegate unhandled messages to the TFT parent procedure:
 
 ```c
-intptr_t CAbilityDoom(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityDoom) {
     switch (msg) {
     case A_VALIDATE: return doom_validate(ent, call->target, call->item);
     case A_EXECUTE: doom_execute(ent, call->target, call->item); return true;
@@ -192,6 +195,16 @@ intptr_t CAbilityDoom(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) 
     }
 }
 ```
+
+Command abilities use the same body syntax. `BZ_COMMAND_PROC(AbilityMove) { ... }` forward-declares
+`AbilityMove_Command(LPEDICT clent)`, routes `A_COMMAND` to it, and supplies its function header.
+`clent` is `call->client` when supplied, otherwise the procedure's `ent`. Other messages return false.
+Use the generated `AbilityMove_Command` name for direct calls or menu callbacks.
+
+Item use follows `BZ_ITEM_PROC(AbilityItemHeal) { ... }`. It forward-declares
+`BOOL AbilityItemHeal_ItemUse(LPEDICT clent)` and supplies that function header. `A_ITEM_USE` passes the
+procedure's `ent` as `clent`; the body returns whether use succeeded so inventory can consume a charge.
+Other messages return false without running the body.
 
 ### 4. Declare and register
 

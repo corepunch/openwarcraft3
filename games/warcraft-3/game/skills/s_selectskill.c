@@ -53,10 +53,8 @@ void ui_selectskill(LPGAMECLIENT client) {
     UI_WriteTooltipFrame();
 }
 
-void selectskill_command(LPEDICT edict) {
-    UI_WRITE_LAYER(edict, ui_selectskill, LAYER_COMMANDBAR);
-    edict->client->menu.cmdbutton = selectskill_menu_selected;
-    edict->client->menu.refresh = selectskill_command;
+BZ_COMMAND_PROC(AbilitySelectSkill) {
+    UI_WRITE_LAYER(clent, ui_selectskill, LAYER_COMMANDBAR);
+    clent->client->menu.cmdbutton = selectskill_menu_selected;
+    clent->client->menu.refresh = AbilitySelectSkill_Command;
 }
-
-BZ_COMMAND_PROC(AbilitySelectSkill, selectskill_command)

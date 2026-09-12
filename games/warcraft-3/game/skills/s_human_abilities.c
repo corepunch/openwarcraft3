@@ -313,29 +313,6 @@ static void polymorph_execute(LPEDICT caster, spellTarget_t st, abilityitem_t co
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static void dispel_magic_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES) {
-            if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
-                DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
-                S_HumanStatusExpired(target, code, status_level);
-                memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
-            }
-        }
-        if (target->owner) S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 2));
-    }
-}
-
-static void flare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-    thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
-    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
-    thinker->think = human_ability_think; human_ability_think(thinker);
-}
-
 static void aerial_shackles_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
@@ -420,7 +397,7 @@ HUMAN_AUTOCAST(heal, ('A','h','e','a'), true, true)
 HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
 
 #define HUMAN_AUTOCAST_SPELL(NAME, EXECUTE, PREFIX) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
@@ -431,7 +408,7 @@ HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
         } \
     }
 #define HUMAN_VALIDATED_AUTOCAST_SPELL(NAME, VALIDATE, EXECUTE, PREFIX) \
-    intptr_t C##NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) { \
+    BZ_ABILITY_PROC(C##NAME) { \
         spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
@@ -452,19 +429,38 @@ BZ_VALIDATED_SPELL_PROC(AbilityMagicLeash, aerial_shackles_validate, aerial_shac
  */
 BZ_VALIDATED_SPELL_PROC(AbilityControlMagic, control_magic_validate, control_magic_execute)
 /* Name=Magic Defense; Untip=Stop Magic Defense */
-BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense, human_toggle_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spell); }
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
 HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_execute, spell_steal)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
 /* Name=Defend; Untip=Stop Defend */
-BZ_SIMPLE_SPELL_PROC(AbilityDefend, human_toggle_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityDefend) { human_toggle_execute(caster, st, spell); }
 /* Name=Flare; Ubertip="Launches a Dwarven flare above a target point, which reveals that area for <Afla,Dur1> seconds." */
-BZ_SIMPLE_SPELL_PROC(AbilityFlare, flare_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    LPEDICT thinker = G_Spawn();
+    thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
+    thinker->think = human_ability_think; human_ability_think(thinker);
+}
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
 HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate, human_status_execute, inner_fire)
 /* Name=Dispel Magic; Ubertip="Removes all buffs from units in a target area. Deals <Adis,DataB1> damage to summoned units." */
-BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic, dispel_magic_execute)
+BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
+        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+            if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
+                DWORD code = target->abilstatus[i].code, status_level = target->abilstatus[i].level;
+                S_HumanStatusExpired(target, code, status_level);
+                memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+            }
+        }
+        if (target->owner) S_SpellDamage(target, caster, (int)S_SpellData(spell->code, level, 2));
+    }
+}
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
 HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityHeal, heal_validate, heal_execute, heal)
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
@@ -474,7 +470,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityInvisibility, invisibility_validate, invisibility
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 /* Name=Avatar */
-intptr_t CAbilityAvatar(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityAvatar) {
     spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
     case A_VALIDATE: return avatar_validate(ent, target, call ? call->item : NULL);

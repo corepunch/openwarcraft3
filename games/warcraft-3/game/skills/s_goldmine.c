@@ -141,7 +141,6 @@ static BOOL gold_find_nearest_footprint_approach(LPEDICT worker, LPEDICT target,
         target, &worker->s.origin2, route_band, worker->collision, out);
 }
 
-
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
@@ -256,7 +255,6 @@ void S_GoldMineReleaseWorker(LPEDICT worker) {
     mine = goldmine_unregister_miner(worker);
     goldmine_wake_waiters(mine);
 }
-
 
 static void ai_walkmine(LPEDICT ent) {
     LPEDICT mine = ent ? ent->goalentity : NULL;
@@ -565,7 +563,7 @@ BOOL harvest_gold_order(LPEDICT self, LPEDICT target) {
     return true;
 }
 
-intptr_t CAbilityGoldMine(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityGoldMine) {
     return CAbilityNoop(ent, msg, call);
 }
 
@@ -583,12 +581,10 @@ static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
     return true;
 }
 
-static void entangle_goldmine_command(LPEDICT clent) {
+BZ_COMMAND_PROC(AbilityEntangle) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = entangle_goldmine_selecttarget;
 }
-
-BZ_COMMAND_PROC(AbilityEntangle, entangle_goldmine_command)
 
 /* ---- Blighted Gold Mine (Abgm): interval-based income for Undead -------- */
 static FLOAT blight_gold_per_interval;
@@ -610,7 +606,7 @@ void blight_mine_think(LPEDICT ent) {
     ent->freetime = now + (DWORD)(blight_interval_duration * 1000.0f);
 }
 
-intptr_t CAbilityBlightedGoldMine(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call) {
+BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
     (void)ent;
     if (msg != A_INIT || !call || !call->classname) return false;
     blight_gold_per_interval = G_AbilityDataName(call->classname)->level[0].data[0].number;
