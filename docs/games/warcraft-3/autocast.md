@@ -4,7 +4,7 @@
 
 OpenRealm has a small generic autocast contract in `ability_t` and currently uses it for the Repair family (`Arep`, `Aren`, `Arst`). The scheduler owns *when* an idle unit gets an automatic acquisition opportunity; the ability owns toggle state, target selection, and issuance of its ordinary order.
 
-The implementation intentionally does not turn the existing `SPELL_AUTOCAST` metadata flag into behavior for every spell. Cold Arrows and other autocast abilities still need their own targeting/execution rules.
+The implementation intentionally does not turn the existing `AB_AUTOCAST` metadata flag into behavior for every spell. Cold Arrows and other autocast abilities still need their own targeting/execution rules.
 
 ## Ability contract
 

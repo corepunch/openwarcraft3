@@ -269,8 +269,8 @@ static abilityitem_t abilitylist[] = {
     { "Acoi", &CAbilityCoupleInstant },  /* Couple Instant */
     { "Agl2", &CAbilityGoldMineOverlayed },  /* Gold Mine ability */
 
-    /* TFT base classes and intermediate types — registered so that
-     * FindAbilityByClassname can resolve every FourCC in the hierarchy. */
+    /* Inert TFT class entries preserve existing registry indices. They do not
+     * provide inherited behavior or command capability. */
     { "abil", &CAbility },
     { "AAin", &CAbilityInterfaced },
     { "AAbt", &CAbilityButton },
@@ -1398,15 +1398,30 @@ DWORD FindAbilityIndex(LPCSTR classname) {
     return 255;
 }
 
+/* Shared casts and bespoke commands expose the same capability to HUD and item callers. */
+BOOL S_AbilityHasCommand(ability_t const *ability) {
+    return ability && ((ability->flags & AB_SPELL_SIMPLE) ? ability->execute != NULL : ability->cmd != NULL);
+}
+
+/* The shared-cast bit owns dispatch; individual spells only supply their effect callbacks. */
+void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
+    if (!S_AbilityHasCommand(ability)) return;
+    if (ability->flags & AB_SPELL_SIMPLE)
+        spell_cmd(clent);
+    else
+        ability->cmd(clent);
+}
+
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
-    S_WireAbilityParents();
     S_InitHumanAbilities();
     num_updates = 0;
     FOR_LOOP(i, game.num_abilities) {
         abilityitem_t *abil = &abilitylist[i];
-        if (abil->ability->spell && !abil->alias)
-            abil->ability->spell->code = FS_SLKKey(abil->classname);
+        if ((abil->ability->flags & AB_SPELL_SIMPLE) && (!abil->ability->execute || abil->ability->cmd))
+            gi.error("InitAbilities: %s requires an effect and no custom command for AB_SPELL_SIMPLE", abil->classname);
+        if (!abil->alias)
+            abil->ability->code = FS_SLKKey(abil->classname);
         if (abil->ability->init) {
             abil->ability->init(abil->classname, abil->ability);
         }

@@ -6,7 +6,7 @@
  * Unubertip=""
  */
 
-static void immolation_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void immolation_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD code = spell->code;
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -19,16 +19,11 @@ static void immolation_execute(LPEDICT caster, spellTarget_t st, spell_info_t co
     unit_addstatus(caster, "Biml", 1);
 }
 
-static spell_info_t spell_immolation = {
+ability_t CAbilityImmolation = {
+    .flags = AB_SPELL_SIMPLE | AB_TOGGLE,
     .name = "Immolation",
     .target_type = SPELL_TARGET_NONE,
-    .flags = SPELL_TOGGLE,
     .execute = immolation_execute,
-};
-
-ability_t CAbilityImmolation = {
-    .cmd = spell_cmd,
-    .spell = &spell_immolation,
 };
 
 /* Name=Cold Arrows
@@ -37,7 +32,7 @@ ability_t CAbilityImmolation = {
  * Unubertip="Right-click to deactivate auto-casting."
  */
 
-static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD code = MAKEFOURCC('c', 'o', 'l', 'd');
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -50,22 +45,17 @@ static void cold_arrows_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     unit_addstatus(caster, "cold", 1);
 }
 
-static spell_info_t spell_cold_arrows = {
+ability_t CAbilityColdArrows = {
+    .flags = AB_SPELL_SIMPLE | AB_TOGGLE | AB_AUTOCAST,
     .name = "Cold Arrows",
     .target_type = SPELL_TARGET_NONE,
-    .flags = SPELL_TOGGLE | SPELL_AUTOCAST,
     .execute = cold_arrows_execute,
-};
-
-ability_t CAbilityColdArrows = {
-    .cmd = spell_cmd,
-    .spell = &spell_cold_arrows,
 };
 
 /* Name=War Stomp
  * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
  */
-static void war_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void war_stomp_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     DWORD damage = (DWORD)S_SpellData(spell->code, level, 1);
@@ -81,15 +71,11 @@ static void war_stomp_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
 #undef WAR_STOMP_HITS
 }
 
-static spell_info_t spell_war_stomp = {
+ability_t CAbilityStomp = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "War Stomp",
     .target_type = SPELL_TARGET_NONE,
     .execute = war_stomp_execute,
-};
-
-ability_t CAbilityStomp = {
-    .cmd = spell_cmd,
-    .spell = &spell_war_stomp,
 };
 
 /* Name=Endurance Aura
@@ -100,27 +86,23 @@ ability_t CAbilityAuraEndurance = {0};
 /* Name=Wind Walk
  * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
  */
-static void wind_walk_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void wind_walk_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     caster->s.renderfx |= RF_HIDDEN;
     unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
 }
 
-static spell_info_t spell_wind_walk = {
+ability_t CAbilityWindWalk = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Wind Walk",
     .target_type = SPELL_TARGET_NONE,
     .execute = wind_walk_execute,
 };
 
-ability_t CAbilityWindWalk = {
-    .cmd = spell_cmd,
-    .spell = &spell_wind_walk,
-};
-
 /* Name=Mana Burn
  * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
  */
-static void mana_burn_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void mana_burn_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT amount = MIN(target->mana.value, S_SpellData(spell->code, level, 1));
@@ -128,22 +110,18 @@ static void mana_burn_execute(LPEDICT caster, spellTarget_t st, spell_info_t con
     target->mana.value -= amount;
 }
 
-static spell_info_t spell_mana_burn = {
+ability_t CAbilityManaBurn = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Mana Burn",
     .target_type = SPELL_TARGET_UNIT,
     .execute = mana_burn_execute,
-};
-
-ability_t CAbilityManaBurn = {
-    .cmd = spell_cmd,
-    .spell = &spell_mana_burn,
 };
 
 /* Name=Dark Ritual
  * Ubertip="Sacrifices a friendly non-Hero unit, converting a percentage of its hit points into mana for the caster."
  * Dark Ritual converts the authored fraction of an allied non-hero's maximum
  * life into caster mana, then uses the normal damage/death path to sacrifice it. */
-static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT mana = target->health.max_value * S_SpellData(spell->code, level, 1);
@@ -152,15 +130,11 @@ static void dark_ritual_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     T_Damage(target, caster, (DWORD)MAX(1.0f, target->health.value));
 }
 
-static spell_info_t spell_dark_ritual = {
+ability_t CAbilityDarkRitual = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Dark Ritual",
     .target_type = SPELL_TARGET_UNIT,
     .execute = dark_ritual_execute,
-};
-
-ability_t CAbilityDarkRitual = {
-    .cmd = spell_cmd,
-    .spell = &spell_dark_ritual,
 };
 
 /* Name=Frost Armor
@@ -168,7 +142,7 @@ ability_t CAbilityDarkRitual = {
  * Untip="Right-click to activate auto-casting."
  * Unubertip="Right-click to deactivate auto-casting."
  */
-static void frost_armor_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void frost_armor_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
@@ -182,20 +156,18 @@ static void frost_armor_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-static spell_info_t spell_frost_armor = {
+ability_t CAbilityFrostArmor = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Frost Armor",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
 };
-
-static spell_info_t spell_frost_armor_variant = {
+ability_t CAbilityFrostArmorAuto = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Frost Armor Variant",
     .target_type = SPELL_TARGET_UNIT,
     .execute = frost_armor_execute,
 };
-
-ability_t CAbilityFrostArmor = { .cmd = spell_cmd, .spell = &spell_frost_armor };
-ability_t CAbilityFrostArmorAuto = { .cmd = spell_cmd, .spell = &spell_frost_armor_variant };
 
 static void divine_shield_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
@@ -208,7 +180,7 @@ static void divine_shield_think(LPEDICT ent) {
 /* Name=Divine Shield
  * Ubertip="Makes the Paladin invulnerable to damage for <AHds,Dur1> seconds."
  */
-static void divine_shield_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void divine_shield_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
 
@@ -220,13 +192,12 @@ static void divine_shield_execute(LPEDICT caster, spellTarget_t st, spell_info_t
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 
-static spell_info_t spell_divine_shield = {
+ability_t CAbilityDivineShield = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Divine Shield",
     .target_type = SPELL_TARGET_NONE,
     .execute = divine_shield_execute,
 };
-
-ability_t CAbilityDivineShield = { .cmd = spell_cmd, .spell = &spell_divine_shield };
 
 /* Name=Bash
  * Ubertip="Gives a chance that an attack will deal bonus damage and stun the target."
@@ -239,7 +210,7 @@ ability_t CAbilityBash = {0};
 /* Name=Entangling Roots
  * Ubertip="Roots a target enemy unit in place, preventing movement for <AEer,Dur1> seconds."
  */
-static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
     AbilityData_t const *data = G_AbilityData(spell->code);
     LPCSTR buff = data->level[level - 1].buffID;
@@ -255,19 +226,15 @@ static void entangling_roots_execute(LPEDICT caster, spellTarget_t st, spell_inf
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-static spell_info_t spell_entangling_roots = {
+ability_t CAbilityEntanglingRoots = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Entangling Roots",
     .target_type = SPELL_TARGET_UNIT,
     .execute = entangling_roots_execute,
 };
 
-ability_t CAbilityEntanglingRoots = {
-    .cmd = spell_cmd,
-    .spell = &spell_entangling_roots,
-};
-
 /* Explicit coverage marker; no command hook means this cannot create a dead button. */
-ability_t a_unimplemented = { .flags = ABILITY_PASSIVE };
+ability_t a_unimplemented = { .flags = AB_PASSIVE };
 
 /* Name=Phoenix Fire
  * Ubertip="Automatically attacks nearby enemy units with flaming projectiles."

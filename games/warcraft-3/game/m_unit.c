@@ -256,7 +256,7 @@ typedef struct {
 
 /* Warcraft order ids are not FourCCs. Keep this table restricted to stock
  * orders whose ids are established by Warcraft/Warsmash and to spell orders
- * that OpenRealm already implements through spell_info_t. Duplicate names are
+ * that OpenRealm already implements through ability_t. Duplicate names are
  * intentional when more than one stock ability shares a base order. */
 static unitOrderDef_t const unit_order_defs[] = {
     { "smart", 851971, 0 },
@@ -352,7 +352,7 @@ static DWORD unit_spell_code_for_order(LPCEDICT unit, LPCSTR order) {
     FOR_LOOP(i, sizeof(unit_order_defs) / sizeof(unit_order_defs[0])) {
         DWORD const code = unit_order_defs[i].ability;
         if (code && !strcmp(order, unit_order_defs[i].name) &&
-            G_UnitAbilityLevel(unit, code) && S_SpellInfoForCode(code)) {
+            G_UnitAbilityLevel(unit, code) && S_SpellAbilityForCode(code)) {
             return code;
         }
     }

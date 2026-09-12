@@ -32,7 +32,7 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     G_FreeEdict(missile);
 }
 
-static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD code = spell->code;
     DWORD level = S_SpellLevel(caster, code);
@@ -65,26 +65,18 @@ static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
     firebolt_missile_speed = ConfigNumber(classname, "Missilespeed");
 }
 
-static spell_info_t spell_thunderbolt = {
+ability_t CAbilityThunderBolt = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Thunder Bolt",
     .target_type = SPELL_TARGET_UNIT,
     .execute = thunderbolt_execute,
-};
-
-static spell_info_t spell_firebolt = {
-    .name = "Fire Bolt",
-    .target_type = SPELL_TARGET_UNIT,
-    .execute = thunderbolt_execute,
-};
-
-ability_t CAbilityThunderBolt = {
     .init = SP_ability_thunderbolt,
-    .cmd = spell_cmd,
-    .spell = &spell_thunderbolt,
 };
 
 ability_t CAbilityFireBolt = {
+    .flags = AB_SPELL_SIMPLE,
+    .name = "Fire Bolt",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = thunderbolt_execute,
     .init = SP_ability_firebolt,
-    .cmd = spell_cmd,
-    .spell = &spell_firebolt,
 };

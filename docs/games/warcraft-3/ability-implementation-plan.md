@@ -1,8 +1,9 @@
 # Warcraft III Ability Implementation Plan
 
 This project implements Warcraft III abilities from the authoritative game data and
-observable gameplay contract. The goal is useful, testable compatibility rather than
-recovering Blizzard's original C++ class hierarchy.
+observable gameplay contract. The goal is useful, testable compatibility. TFT's extracted
+class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-inheritance-plan.md)
+uses Quake 2-style flags, enums, shared processors and explicit callbacks without runtime inheritance.
 
 `AbilityStrings.txt` is the starting point because it states what the player is
 supposed to observe. It is not a complete specification, so every implementation
@@ -37,7 +38,7 @@ MPQ AbilityData.slk
 DDX/SLK loaders
   -> AbilityData_t and abilityLevel_t
 ability registry
-  -> ability_t and spell_info_t
+  -> ability_t
 runtime consumers
   -> damage, status, movement, combat, summons, morphs, or presentation
 ```
@@ -88,13 +89,13 @@ Start with abilities whose behavior maps directly to an existing runtime contrac
 
 | Category | Typical contract | First implementation strategy |
 | --- | --- | --- |
-| direct damage/heal | `spell_info_t` plus `spell_cmd` | apply the authored amount to validated targets |
+| direct damage/heal | `ability_t` with `AB_SPELL_SIMPLE` | apply the authored amount to validated targets |
 | timed buff/debuff | `unit_addtimedstatus` | add and expire the status through normal lifecycle code |
-| toggle | `SPELL_TOGGLE` plus status | execute the same command to add/remove the state |
+| toggle | `AB_TOGGLE` plus status | execute the same command to add/remove the state |
 | passive aura | ability modifier hooks consumed by movement/combat | calculate from active nearby owners; avoid stale recipient state |
 | attack proc | ability callback at attack resolution | evaluate chance and effect in the owning ability at damage time |
 | autocast | existing autocast hooks | acquire targets, then issue the ordinary spell order |
-| channel/wave | `SPELL_CHANNEL` and thinker | schedule ticks and cancellation explicitly |
+| channel/wave | `AB_CHANNEL` and thinker | schedule ticks and cancellation explicitly |
 | summon | summon helpers and unit rawcode | use authored `UnitID`/`Data` values and duration |
 | morph/transform | unit-type rebinding contract | preserve the edict and restore all affected unit state |
 | cargo/inventory | cargo or item lifecycle | use the existing handle and ownership rules |
@@ -109,8 +110,8 @@ Ability globals use TFT `CAbility*` class names. Look up the FourCC in
 from rawcode abbreviations. The `SPELL`, `HUMAN_SPELL`, and `CAMPAIGN_SPELL`
 macros prepend `C` to a PascalCase argument — `SPELL(AbilityDoom, ...)` produces
 `ability_t CAbilityDoom`. The rawcode-to-handler mapping lives only in `abilitylist`
-in `s_skills.c`; spell macros and direct `spell_info_t` initializers describe behavior
-without a code. `InitAbilities()` assigns `spell_info_t.code` from the registry before
+in `s_skills.c`; spell macros and direct `ability_t` initializers describe behavior
+without a code. `InitAbilities()` assigns `ability_t.code` from the registry before
 calling the entry's init hook, including on subsequent game initialization.
 
 When several rows share a spell handler, mark the additional rows `.alias = true`.
@@ -153,10 +154,10 @@ Run the audit tool to see where this ability stands:
 python3 tools/wc3_ability_class_audit.py --format=todo | grep ANdo
 ```
 
-### 2. Choose the parent class
+### 2. Identify shared behavior
 
-The parent tells you what category the ability belongs to and which shared behavior it
-inherits. Common parent chains:
+The retail parent is evidence for behavior to reproduce through flags and explicit callbacks.
+It does not determine our runtime memory layout. Common retail families:
 
 | Parent | Category | Shared behavior |
 | --- | --- | --- |
@@ -182,11 +183,11 @@ For a spell that uses the unified pipeline, use the `SPELL` macro in
 SPELL(AbilityDoom, SPELL_TARGET_UNIT, 0, doom_execute);
 ```
 
-This generates `ability_t CAbilityDoom` with `.cmd = spell_cmd`. For abilities that
+This generates one `ability_t CAbilityDoom` with `AB_SPELL_SIMPLE` and direct effect metadata. For abilities that
 don't use the spell pipeline, define the global directly:
 
 ```c
-ability_t CAbilityMyPassive = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityMyPassive = { .flags = AB_PASSIVE };
 ```
 
 ### 4. Declare and register
@@ -203,20 +204,15 @@ Uncomment or add the entry in the abilitylist in `s_skills.c`:
 { "ANdo", &CAbilityDoom },  /* Doom */
 ```
 
-### 5. Wire the parent
+### 5. Select command policy
 
-In `S_WireAbilityParents()` in `s_ability_classes.c`, set the parent pointer:
+Use `AB_SPELL_SIMPLE` for the shared cast processor and supply `.execute` plus optional `.validate` directly
+on the ability. Combine independent policies (`AB_CHANNEL`, `AB_TOGGLE`, `AB_AUTOCAST`) as needed. Leave `.cmd`
+unset for shared casts. Bespoke orders continue to use explicit command/order/lifecycle callbacks.
+`S_AbilityHasCommand` and `S_AbilityCommand` provide the common HUD, player and item entry contract.
 
-```c
-CAbilityDoom.parent = &CAbilitySimpleSpell; /* ANdo → AAsm */
-```
-
-If the TFT hierarchy says the ability inherits from a concrete ability rather than an
-abstract base class, wire it to that concrete ability:
-
-```c
-CAbilityFireBolt.parent = &CAbilityThunderBolt; /* ANfb → AHtb */
-```
+Concrete relatives can name the same callback: Fire Bolt and Thunder Bolt share their effect implementation
+while retaining distinct canonical rawcodes. There is no runtime parent wiring.
 
 ### 6. Write tests
 

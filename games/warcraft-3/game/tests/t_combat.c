@@ -1500,10 +1500,6 @@ static const char slk_ability_helpers[] =
     "C;Y4;X2;K\"Arep\"\n"
     "E\n";
 
-TEST(wc3_combat, ability_dispatch_extension_is_append_only) {
-    T_ASSERT(offsetof(ability_t, item_use) > offsetof(ability_t, spell));
-}
-
 TEST(wc3_combat, command_lookup_resolves_fourcc_ability_alias) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);

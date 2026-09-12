@@ -40,7 +40,7 @@ static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT d
     G_PublishSummonEvents(caster, image);
 }
 
-static void mirror_image_execute(LPEDICT caster, spellTarget_t target, spell_info_t const *spell) {
+static void mirror_image_execute(LPEDICT caster, spellTarget_t target, ability_t const *spell) {
     DWORD level;
     DWORD count;
     FLOAT duration;
@@ -56,13 +56,9 @@ static void mirror_image_execute(LPEDICT caster, spellTarget_t target, spell_inf
         mirror_image_spawn(caster, i, count, duration);
 }
 
-static spell_info_t spell_mirror_image = {
+ability_t CAbilityMirrorImage = {
+    .flags = AB_SPELL_SIMPLE,
     .name = "Mirror Image",
     .target_type = SPELL_TARGET_NONE,
     .execute = mirror_image_execute,
-};
-
-ability_t CAbilityMirrorImage = {
-    .cmd = spell_cmd,
-    .spell = &spell_mirror_image,
 };

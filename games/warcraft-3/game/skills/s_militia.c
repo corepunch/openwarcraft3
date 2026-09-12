@@ -438,7 +438,7 @@ void S_MilitiaExpire(LPEDICT unit) {
 
 ability_t CAbilityMilitiaConvert = {
     .cmd = call_to_arms_cmd,
-    .flags = ABILITY_SEPARATE_OFF,
+    .flags = AB_SEPARATE_OFF,
 };
 
 ability_t CAbilityMilitia = {

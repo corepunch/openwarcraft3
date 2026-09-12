@@ -110,6 +110,8 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Inventory And World Items](inventory-and-items.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Ability Coverage](architecture/ability-coverage.md)
+- [Flat C Ability Plan: Flags and Callbacks](ability-inheritance-plan.md)
+- [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Scripted Doodad Animation](doodad-animation.md)
 - [Warcraft III UI System](architecture/ui.md)

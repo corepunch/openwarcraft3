@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 /* Siphon Mana (ANdr): channeled unit-target spell.  Drains mana from the target
- * and transfers it to the caster over time.  SPELL_CHANNEL flag locks the caster
+ * and transfers it to the caster over time.  AB_CHANNEL flag locks the caster
  * in place; movement or stun cancels the drain. */
 
 void siphon_mana_think(LPEDICT ent) {
@@ -36,7 +36,7 @@ void siphon_mana_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, ability_t const *spell) {
     LPEDICT target = st.entity;
     DWORD level = S_SpellLevel(caster, spell->code);
     FLOAT mana_per_second = MAX(S_SpellData(spell->code, level, 1), S_SpellData(spell->code, level, 2));
@@ -56,23 +56,16 @@ static void siphon_mana_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     thinker->freetime = G_Time() + 1000;
 }
 
-static spell_info_t spell_siphon_mana = {
-    .name = "Siphon Mana",
-    .target_type = SPELL_TARGET_UNIT,
-    .flags = SPELL_CHANNEL,
-    .execute = siphon_mana_execute,
-};
-
-static spell_info_t spell_siphon_mana_human = {
-    .name = "Siphon Mana",
-    .target_type = SPELL_TARGET_UNIT,
-    .flags = SPELL_CHANNEL,
-    .execute = siphon_mana_execute,
-};
-
 ability_t CAbilityDrainNeutral = {
-    .cmd = spell_cmd,
-    .spell = &spell_siphon_mana,
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Siphon Mana",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = siphon_mana_execute,
 };
 
-ability_t CAbilityDrain = { .cmd = spell_cmd, .spell = &spell_siphon_mana_human };
+ability_t CAbilityDrain = {
+    .flags = AB_SPELL_SIMPLE | AB_CHANNEL,
+    .name = "Siphon Mana",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = siphon_mana_execute,
+};

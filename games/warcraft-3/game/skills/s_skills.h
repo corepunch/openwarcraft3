@@ -3,7 +3,7 @@
 
 #include "../g_local.h"
 
-/* TFT class hierarchy — abstract base classes (s_ability_classes.c) */
+/* Inert TFT registry definitions (s_ability_classes.c); no runtime inheritance. */
 extern ability_t CAbility;               /* abil  — root */
 extern ability_t CAbilityInterfaced;     /* AAin */
 extern ability_t CBonusBase;             /* ABon */
@@ -71,7 +71,6 @@ extern ability_t CAbilityTankPilot;      /* Atpi */
 extern ability_t CAbilityTarget;         /* Atrg */
 extern ability_t CAbilityCouple;         /* Acou */
 extern ability_t CAbilityCargo;          /* Acrg */
-void S_WireAbilityParents(void);
 
 extern ability_t CAbilityHarvest;
 extern ability_t CAbilityMove;
@@ -291,7 +290,7 @@ typedef enum {
 	ABILITY_NUMBER_RANGE
 } abilityNumber_t;
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback);
-spell_info_t const *S_SpellInfoForCode(DWORD code);
+ability_t const *S_SpellAbilityForCode(DWORD code);
 DWORD S_SpellLevel(LPEDICT caster, DWORD code);
 FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
@@ -328,7 +327,7 @@ void S_SpellCancelChannel(LPEDICT caster);
 
 /* Unified spell pipeline — replaces per-spell command boilerplate.
  * Single entry point for all spell abilities; handles target setup,
- * validation, and execution via the spell_info_t attached to ability_t. */
+ * validation, and execution via callbacks directly on ability_t. */
 void spell_cmd(LPEDICT clent);
 void spell_run_frame(LPEDICT ent);
 void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self);

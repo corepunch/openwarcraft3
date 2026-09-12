@@ -1,5 +1,10 @@
 # Warcraft III Demo and TFT Ability Class Registries
 
+For translating the recovered behavior into C flags and explicit callbacks, see the
+[flat C ability plan](ability-inheritance-plan.md). The proposed runtime does not reproduce the parent tree.
+The [binary behavior inspection](ability-inheritance-binary.md) records constructors, virtual slots,
+shared cast lifecycle, and the demo's absence of Holy Bolt.
+
 ## Extracting the reference
 
 ```sh
