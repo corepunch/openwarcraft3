@@ -67,7 +67,7 @@ static FLOAT angle_wrap(FLOAT a) {
 
 /* A unit is actively executing a ground move order (right-click move). */
 BOOL unit_is_walking(LPCEDICT ent) {
-    return ent->currentmove && ent->currentmove->ability == &a_move;
+    return ent->currentmove && ent->currentmove->ability == &CAbilityMove;
 }
 
 /* Location orders own a legal ground endpoint; interaction orders route to an
@@ -75,9 +75,9 @@ BOOL unit_is_walking(LPCEDICT ent) {
 static BOOL unit_routes_to_location(LPCEDICT ent) {
     if (!ent->currentmove)
         return false;
-    if (ent->currentmove->ability == &a_move || ent->currentmove->ability == &a_patrol)
+    if (ent->currentmove->ability == &CAbilityMove || ent->currentmove->ability == &CAbilityPatrol)
         return true;
-    return ent->currentmove->ability == &a_attack && ent->goalentity == ent->movement.attackmove_waypoint;
+    return ent->currentmove->ability == &CAbilityAttack && ent->goalentity == ent->movement.attackmove_waypoint;
 }
 
 /* Unit's effective current move speed.  Group moves travel at the slowest
@@ -1153,7 +1153,7 @@ static void ai_follow_walk(LPEDICT ent) {
     unit_moveindirection(ent);
 }
 
-static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, &a_move };
+static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, &CAbilityMove };
 
 void order_follow_resume(LPEDICT self) {
     LPEDICT target;
@@ -1188,7 +1188,7 @@ void order_follow(LPEDICT self, LPEDICT target) {
     order_follow_resume(self);
 }
 
-static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };
+static umove_t move_move_hold = { "stand", NULL, NULL, &CAbilityMove };
 
 BOOL move_is_terminal_hold(LPCEDICT ent) {
     return ent && ent->currentmove == &move_move_hold;
@@ -1264,7 +1264,7 @@ static void ai_move_walk(LPEDICT ent) {
     }
 }
 
-static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
+static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &CAbilityMove };
 
 /* Identify the ordinary walk move so spell approach orders can detect replacement. */
 BOOL move_is_active_order_walk(LPCEDICT ent) {
@@ -1363,6 +1363,6 @@ void move_command(LPEDICT ent) {
     ent->client->menu.supports_order_queue = true;
 }
 
-ability_t a_move = {
+ability_t CAbilityMove = {
     .cmd = move_command,
 };

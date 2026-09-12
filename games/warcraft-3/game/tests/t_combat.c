@@ -624,21 +624,21 @@ TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) 
 
 TEST(wc3_combat, runentity_ability_index_from_currentmove) {
     /* Use order_move to place the entity into the walk state.  The walk
-     * umove_t has ability == &a_move, whose index in abilitylist[] is
-     * non-zero (a_stop is at index 0).  This ensures the assertion
+     * umove_t has ability == &CAbilityMove, whose index in abilitylist[] is
+     * non-zero (CAbilityStop is at index 0).  This ensures the assertion
      * would catch G_RunEntity hard-coding s.ability = 0. */
     LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
     VECTOR2 dest     = MAKE(VECTOR2, 100.0f, 100.0f);
     LPEDICT waypoint = Waypoint_add(&dest);
-    order_move(ent, waypoint);  /* sets currentmove->ability = &a_move */
+    order_move(ent, waypoint);  /* sets currentmove->ability = &CAbilityMove */
     T_NOT_NULL(ent->currentmove);
     T_NOT_NULL(ent->currentmove->ability);
 
     G_RunEntity(ent);
 
     DWORD expected = GetAbilityIndex(ent->currentmove->ability);
-    T_ASSERT(expected != 0);  /* a_move is not the first entry (a_stop is) */
+    T_ASSERT(expected != 0);  /* CAbilityMove is not the first entry (CAbilityStop is) */
     T_EQ((int)ent->s.ability, (int)expected);
 }
 
@@ -997,7 +997,7 @@ TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
 
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
 }
 
 /* unit_learnability (used by the SelectHeroSkill native): learning an ability
@@ -1558,8 +1558,8 @@ TEST(wc3_combat, gold_mine_data_remains_authoritative_in_ability_rows) {
     T_FEQ(AB_Data("Agld", 1, 1), 12500.0f, 0.01f);
     T_FEQ(AB_Data("Agld", 1, 2), 1.0f, 0.01f);
     T_FEQ(AB_Data("Agld", 1, 3), 1.0f, 0.01f);
-    T_NULL(a_goldmine.init);
-    T_NULL(a_goldmine_overlayed.init);
+    T_NULL(CAbilityGoldMine.init);
+    T_NULL(CAbilityGoldMineOverlayed.init);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }

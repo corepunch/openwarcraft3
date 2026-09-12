@@ -23,7 +23,7 @@ static void ai_patrol_walk(LPEDICT ent) {
     }
 }
 
-static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, &a_patrol };
+static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, &CAbilityPatrol };
 
 void order_patrol_resume(LPEDICT self) {
     if (S_GoldMineWorkerIsInside(self))
@@ -66,6 +66,6 @@ static void patrol_command(LPEDICT ent) {
     ent->client->menu.on_location_selected = patrol_selectlocation;
 }
 
-ability_t a_patrol = {
+ability_t CAbilityPatrol = {
     .cmd = patrol_command,
 };

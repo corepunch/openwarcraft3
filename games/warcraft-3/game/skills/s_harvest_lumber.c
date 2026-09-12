@@ -536,10 +536,10 @@ static void ai_cooldown(LPEDICT ent) {
     unit_runwait(ent, harvest_swing);
 }
 
-static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &a_harvest };
-static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, &a_harvest };
-static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, &a_harvest };
-static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, &a_harvest };
+static umove_t harvest_move_walk = { "walk", ai_walktree, NULL, &CAbilityHarvest };
+static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, &CAbilityHarvest };
+static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, &CAbilityHarvest };
+static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, &CAbilityHarvest };
 
 void harvest_cooldown(LPEDICT ent) {
     if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
@@ -618,7 +618,7 @@ static void ai_wisp_mine(LPEDICT ent) {
     }
 }
 
-static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, &a_wisp_harvest };
+static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, &CAbilityWispHarvest };
 
 static void ai_wisp_walktree(LPEDICT ent) {
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
@@ -630,7 +630,7 @@ static void ai_wisp_walktree(LPEDICT ent) {
     }
 }
 
-static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, &a_wisp_harvest };
+static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, &CAbilityWispHarvest };
 
 void wisp_harvest_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
@@ -657,7 +657,7 @@ static void SP_ability_wisp_harvest(LPCSTR classname, ability_t *self) {
     wisp_interval_count = (DWORD)G_AbilityDataName(classname)->level[0].data[1].number;
 }
 
-ability_t a_wisp_harvest = {
+ability_t CAbilityWispHarvest = {
     .init = SP_ability_wisp_harvest,
     .cmd = wisp_harvest_command,
 };
@@ -678,7 +678,7 @@ static void acolyte_harvest_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = acolyte_harvest_selecttarget;
 }
 
-ability_t a_acolyte_harvest = {
+ability_t CAbilityAcolyteHarvest = {
     .cmd = acolyte_harvest_command,
 };
 
@@ -695,7 +695,7 @@ static void return_resources_command(LPEDICT clent) {
     }
 }
 
-ability_t a_return_resources = {
+ability_t CAbilityReturn = {
     .cmd = return_resources_command,
 };
 
@@ -745,7 +745,7 @@ void SP_ability_harvest(LPCSTR classname, ability_t *self) {
     HARVEST_SEARCH_RANGE = G_AbilityDataName(classname)->level[0].area;
 }
 
-ability_t a_harvest = {
+ability_t CAbilityHarvest = {
     .init = SP_ability_harvest,
     .cmd = harvest_command,
     .is_toggle_on = harvest_is_toggle_on,

@@ -59,6 +59,6 @@ void selectskill_command(LPEDICT edict) {
     edict->client->menu.refresh = selectskill_command;
 }
 
-ability_t a_selectskill = {
+ability_t CAbilitySelectSkill = {
     .cmd = selectskill_command,
 };

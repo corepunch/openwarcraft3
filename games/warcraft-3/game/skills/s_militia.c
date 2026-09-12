@@ -133,9 +133,9 @@ static BOOL militia_prepare_approach(LPEDICT worker, LPEDICT hall) {
 
 static returnResource_t militia_previous_resource(LPEDICT worker) {
     if (!worker) return 0;
-    if (worker->harvested_gold || (worker->currentmove && worker->currentmove->ability == &a_goldmine))
+    if (worker->harvested_gold || (worker->currentmove && worker->currentmove->ability == &CAbilityGoldMine))
         return RETURN_RESOURCE_GOLD;
-    if (worker->harvested_lumber || (worker->currentmove && worker->currentmove->ability == &a_harvest))
+    if (worker->harvested_lumber || (worker->currentmove && worker->currentmove->ability == &CAbilityHarvest))
         return RETURN_RESOURCE_LUMBER;
     return 0;
 }
@@ -265,7 +265,7 @@ static void ai_militia_pair_walk(LPEDICT worker) {
     unit_moveindirection(worker);
 }
 
-static umove_t militia_move_walk = { "walk", ai_militia_pair_walk, NULL, &a_militia };
+static umove_t militia_move_walk = { "walk", ai_militia_pair_walk, NULL, &CAbilityMilitia };
 
 BOOL S_MilitiaTargetOrder(LPEDICT worker, LPCSTR order, LPEDICT hall) {
     DWORD worker_ability;
@@ -436,12 +436,12 @@ void S_MilitiaExpire(LPEDICT unit) {
     else if (unit->currentmove) unit_setanimation(unit, unit->currentmove->animation);
 }
 
-ability_t a_call_to_arms = {
+ability_t CAbilityMilitiaConvert = {
     .cmd = call_to_arms_cmd,
     .flags = ABILITY_SEPARATE_OFF,
 };
 
-ability_t a_militia = {
+ability_t CAbilityMilitia = {
     .cmd = militia_cmd,
     .is_toggle_on = militia_toggle_on,
 };

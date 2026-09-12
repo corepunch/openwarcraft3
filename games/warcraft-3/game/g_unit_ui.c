@@ -308,7 +308,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
      * from Astd inherit the same visibility rule. */
-    if (ability == &a_stand_down && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
+    if (ability == &CAbilityStandDown && (!S_CargoIsBurrow(ent) || ent->cargo.count == 0)) return;
     memcpy(&rawcode, code, sizeof(rawcode));
     if (G_HasCommandRawcode(buttons, *count, rawcode)) return;
     idx = *count;

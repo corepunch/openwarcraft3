@@ -64,7 +64,7 @@ static spell_info_t spell_mirror_image = {
     .execute = mirror_image_execute,
 };
 
-ability_t a_mirror_image = {
+ability_t CAbilityMirrorImage = {
     .cmd = spell_cmd,
     .spell = &spell_mirror_image,
 };

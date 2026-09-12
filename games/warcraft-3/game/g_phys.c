@@ -23,9 +23,9 @@
 
 /* IS_HOLLOW is shared and lives in g_local.h. */
 #define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
-#define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &a_move)
+#define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &CAbilityMove)
 
-extern ability_t a_move;
+extern ability_t CAbilityMove;
 extern void spell_run_frame(LPEDICT ent);
 
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {

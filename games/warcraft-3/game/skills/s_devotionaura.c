@@ -16,7 +16,7 @@ static spell_info_t spell_devotionaura = {
     .execute = devotionaura_execute,
 };
 
-ability_t a_devotionaura = {
+ability_t CAbilityAuraDevotion = {
     .cmd = spell_cmd,
     .spell = &spell_devotionaura,
 };

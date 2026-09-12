@@ -11,9 +11,9 @@ static FLOAT ConfigNumber(LPCSTR classname, LPCSTR field) { LPCSTR value = FindC
 
 static void thunderbolt_projectile_hit(LPEDICT missile);
 
-static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &a_thunderbolt };
-static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &a_firebolt };
-static umove_t spell_cast_move = { "spell", ai_idle, NULL, &a_thunderbolt };
+static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &CAbilityThunderBolt };
+static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &CAbilityFireBolt };
+static umove_t spell_cast_move = { "spell", ai_idle, NULL, &CAbilityThunderBolt };
 
 static FLOAT bolt_missile_speed(DWORD code) {
     FLOAT speed = code == ID_FIRE_BOLT ? firebolt_missile_speed : thunderbolt_missile_speed;
@@ -80,13 +80,13 @@ static spell_info_t spell_firebolt = {
     .execute = thunderbolt_execute,
 };
 
-ability_t a_thunderbolt = {
+ability_t CAbilityThunderBolt = {
     .init = SP_ability_thunderbolt,
     .cmd = spell_cmd,
     .spell = &spell_thunderbolt,
 };
 
-ability_t a_firebolt = {
+ability_t CAbilityFireBolt = {
     .init = SP_ability_firebolt,
     .cmd = spell_cmd,
     .spell = &spell_firebolt,

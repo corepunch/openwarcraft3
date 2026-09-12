@@ -74,38 +74,38 @@ static void campaign_morph_execute(LPEDICT caster, spellTarget_t st, spell_info_
 
 #define CAMPAIGN_SPELL(NAME, CODE, TARGET, FLAGS, EXECUTE) \
     static spell_info_t spell_##NAME = { .code = MAKEFOURCC CODE, .name = #NAME, .target_type = TARGET, .flags = FLAGS, .execute = EXECUTE }; \
-    ability_t a_##NAME = { .cmd = spell_cmd, .spell = &spell_##NAME }
+    ability_t C##NAME = { .cmd = spell_cmd, .spell = &spell_##NAME }
 
-CAMPAIGN_SPELL(attribute_bonus, ('A','a','m','k'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
-CAMPAIGN_SPELL(spawn_tentacle, ('A','C','t','n'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(avatar_campaign, ('A','N','a','v'), SPELL_TARGET_NONE, 0, campaign_morph_execute);
-CAMPAIGN_SPELL(shockwave_campaign, ('A','N','s','h'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
-CAMPAIGN_SPELL(war_stomp_campaign, ('A','O','w','2'), SPELL_TARGET_NONE, 0, campaign_stomp_execute);
-CAMPAIGN_SPELL(feral_spirit_campaign, ('A','C','s','7'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(spirit_beast, ('A','C','s','8'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(reincarnation_campaign, ('A','N','r','2'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
-CAMPAIGN_SPELL(feedback, ('A','f','b','b'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
-CAMPAIGN_SPELL(abolish_magic, ('A','n','d','m'), SPELL_TARGET_POINT, 0, campaign_dispel_execute);
-CAMPAIGN_SPELL(submerge_myrmidon, ('A','s','b','1'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
-CAMPAIGN_SPELL(submerge_royal_guard, ('A','s','b','2'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
-CAMPAIGN_SPELL(submerge_snap_dragon, ('A','s','b','3'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
-CAMPAIGN_SPELL(ensnare, ('A','N','e','n'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(frost_armor_campaign, ('A','C','f','u'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(parasite, ('A','N','p','a'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(cyclone_campaign, ('A','c','n','y'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(summoning_ritual, ('A','h','n','l'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(summon_quilbeast_campaign, ('A','r','s','q'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(summon_misha, ('A','r','s','g'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(stampede_campaign, ('A','r','s','p'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(battle_roar, ('A','N','b','r'), SPELL_TARGET_NONE, 0, campaign_battle_roar_execute);
-CAMPAIGN_SPELL(storm_bolt_campaign, ('A','N','s','b'), SPELL_TARGET_UNIT, 0, campaign_storm_bolt_execute);
-CAMPAIGN_SPELL(breath_of_fire_campaign, ('A','N','c','f'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
-CAMPAIGN_SPELL(drunken_haze_campaign, ('A','c','d','h'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(storm_earth_fire, ('A','c','e','f'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(healing_wave_campaign, ('A','N','h','w'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(hex_campaign, ('A','N','h','x'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
-CAMPAIGN_SPELL(serpent_ward, ('A','r','s','w'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
-CAMPAIGN_SPELL(shockwave_cairne, ('A','O','s','2'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
-CAMPAIGN_SPELL(endurance_aura_campaign, ('A','O','r','2'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
-CAMPAIGN_SPELL(reincarnation_cairne, ('A','O','r','3'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
-CAMPAIGN_SPELL(voodoo_spirits, ('A','O','l','s'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityAttributeModSkill, ('A','a','m','k'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilitySpawnTentacle, ('A','C','t','n'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityAvatarCampaign, ('A','N','a','v'), SPELL_TARGET_NONE, 0, campaign_morph_execute);
+CAMPAIGN_SPELL(AbilityShockwaveCampaign, ('A','N','s','h'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
+CAMPAIGN_SPELL(AbilityWarStompCampaign, ('A','O','w','2'), SPELL_TARGET_NONE, 0, campaign_stomp_execute);
+CAMPAIGN_SPELL(AbilityFeralSpiritCampaign, ('A','C','s','7'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilitySpiritBeast, ('A','C','s','8'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityReincarnationCampaign, ('A','N','r','2'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityFeedback, ('A','f','b','b'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityAbolishMagic, ('A','n','d','m'), SPELL_TARGET_POINT, 0, campaign_dispel_execute);
+CAMPAIGN_SPELL(AbilitySubmergeMyrmidon, ('A','s','b','1'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilitySubmergeRoyalGuard, ('A','s','b','2'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilitySubmergeSnapDragon, ('A','s','b','3'), SPELL_TARGET_NONE, SPELL_TOGGLE, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityEnsnare, ('A','N','e','n'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilityFrostArmorCampaign, ('A','C','f','u'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilityParasiteCampaign, ('A','N','p','a'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilityCycloneCampaign, ('A','c','n','y'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilitySummoningRitual, ('A','h','n','l'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilitySummonQuilbeastCampaign, ('A','r','s','q'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilitySummonMisha, ('A','r','s','g'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityStampedeCampaign, ('A','r','s','p'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityBattleRoar, ('A','N','b','r'), SPELL_TARGET_NONE, 0, campaign_battle_roar_execute);
+CAMPAIGN_SPELL(AbilityStormBoltCampaign, ('A','N','s','b'), SPELL_TARGET_UNIT, 0, campaign_storm_bolt_execute);
+CAMPAIGN_SPELL(AbilityBreathOfFireCampaign, ('A','N','c','f'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
+CAMPAIGN_SPELL(AbilityDrunkenHazeCampaign, ('A','c','d','h'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilityStormEarthFire, ('A','c','e','f'), SPELL_TARGET_NONE, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityHealingWaveCampaign, ('A','N','h','w'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilityHexCampaign, ('A','N','h','x'), SPELL_TARGET_UNIT, 0, campaign_status_execute);
+CAMPAIGN_SPELL(AbilitySerpentWard, ('A','r','s','w'), SPELL_TARGET_POINT, 0, campaign_summon_execute);
+CAMPAIGN_SPELL(AbilityShockwaveCairne, ('A','O','s','2'), SPELL_TARGET_POINT, 0, campaign_area_damage_execute);
+CAMPAIGN_SPELL(AbilityEnduranceAuraCampaign, ('A','O','r','2'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityReincarnationCairne, ('A','O','r','3'), SPELL_TARGET_NONE, 0, campaign_toggle_execute);
+CAMPAIGN_SPELL(AbilityVoodooSpirits, ('A','O','l','s'), SPELL_TARGET_NONE, 0, campaign_summon_execute);

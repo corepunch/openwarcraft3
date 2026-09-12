@@ -2,7 +2,7 @@
 
 void holylight_done(LPEDICT self);
 
-static umove_t move_heal = { "stand channel", ai_idle, holylight_done, &a_holylight };
+static umove_t move_heal = { "stand channel", ai_idle, holylight_done, &CAbilityHolyBolt };
 
 void holylight_done(LPEDICT self) {
     self->stand(self);
@@ -43,7 +43,7 @@ static spell_info_t spell_holylight = {
     .execute = holylight_execute,
 };
 
-ability_t a_holylight = {
+ability_t CAbilityHolyBolt = {
     .cmd = spell_cmd,
     .spell = &spell_holylight,
 };

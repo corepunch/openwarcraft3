@@ -35,6 +35,6 @@ static void holdpos_command(LPEDICT ent) {
         S_HoldPosition(e);
 }
 
-ability_t a_holdpos = {
+ability_t CAbilityHoldPosition = {
     .cmd = holdpos_command,
 };

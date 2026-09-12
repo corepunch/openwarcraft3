@@ -237,7 +237,7 @@ static spell_info_t spell_starfall = {
 /* Name=Blizzard
  * Ubertip="Calls down an icy storm that damages enemy units in a target area."
  */
-ability_t a_blizzard = {
+ability_t CAbilityBlizzard = {
     .cmd = spell_cmd,
     .spell = &spell_blizzard,
 };
@@ -245,7 +245,7 @@ ability_t a_blizzard = {
 /* Name=Carrion Swarm
  * Ubertip="Sends a wave of bats that damages enemy units in a line."
  */
-ability_t a_carrion_swarm = {
+ability_t CAbilityCarrionSwarm = {
     .cmd = spell_cmd,
     .spell = &spell_carrion_swarm,
 };
@@ -253,7 +253,7 @@ ability_t a_carrion_swarm = {
 /* Name=Shockwave
  * Ubertip="A wave of force that ripples outward, causing <AOsh,DataA1> damage to land units in a line."
  */
-ability_t a_shockwave = {
+ability_t CAbilityShockwave = {
     .cmd = spell_cmd,
     .spell = &spell_shockwave,
 };
@@ -261,7 +261,7 @@ ability_t a_shockwave = {
 /* Name=Rain of Fire
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
-ability_t a_rain_of_fire = {
+ability_t CAbilityRainOfFire = {
     .cmd = spell_cmd,
     .spell = &spell_rain_of_fire,
 };
@@ -314,7 +314,7 @@ static spell_info_t spell_death_and_decay = {
 /* Name=Death and Decay
  * Ubertip="Damages enemy units in a target area over time."
  */
-ability_t a_death_and_decay = { .cmd = spell_cmd, .spell = &spell_death_and_decay };
+ability_t CAbilityDeathAndDecay = { .cmd = spell_cmd, .spell = &spell_death_and_decay };
 
 static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -349,11 +349,11 @@ static spell_info_t spell_frost_nova = {
 /* Name=Thunder Clap
  * Ubertip="Slams the ground, damaging and slowing nearby enemy units."
  */
-ability_t a_thunder_clap = { .cmd = spell_cmd, .spell = &spell_thunder_clap };
+ability_t CAbilityThunderClap = { .cmd = spell_cmd, .spell = &spell_thunder_clap };
 /* Name=Frost Nova
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
-ability_t a_frost_nova = { .cmd = spell_cmd, .spell = &spell_frost_nova };
+ability_t CAbilityFrostNova = { .cmd = spell_cmd, .spell = &spell_frost_nova };
 
 static void tranquility_think(LPEDICT ent) {
     DWORD now = G_Time();
@@ -400,7 +400,7 @@ static spell_info_t spell_tranquility = {
 /* Name=Tranquility
  * Ubertip="Heals nearby friendly units over time."
  */
-ability_t a_tranquility = {
+ability_t CAbilityTranquility = {
     .cmd = spell_cmd,
     .spell = &spell_tranquility,
 };
@@ -408,7 +408,7 @@ ability_t a_tranquility = {
 /* Name=Starfall
  * Ubertip="Calls down falling stars that damage nearby enemy units over time."
  */
-ability_t a_starfall = {
+ability_t CAbilityStarfall = {
     .cmd = spell_cmd,
     .spell = &spell_starfall,
 };
@@ -418,7 +418,7 @@ static void channel_test_command(LPEDICT clent) {
     S_SpellCursorSplat(clent, 200.0f);
 }
 
-/* a_channel_test remains a non-spell ability for ad-hoc testing. */
-ability_t a_channel_test = {
+/* CAbilityChannel remains a non-spell ability for ad-hoc testing. */
+ability_t CAbilityChannel = {
     .cmd = channel_test_command,
 };

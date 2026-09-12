@@ -13,7 +13,7 @@ static void SP_ability_neutral_building(LPCSTR classname, ability_t *self) {
     (void)classname; (void)self;
 }
 
-ability_t a_neutral_building = {
+ability_t CAbilityNeutral = {
     .init = SP_ability_neutral_building,
 };
 
@@ -23,12 +23,12 @@ static void shop_stub_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
 }
 
-ability_t a_shop_purchase_item = {
+ability_t CAbilityPurchaseItem = {
     .cmd = shop_stub_command,
 };
 
 /* Shop Sharing (Aall): allows allies to use the shop. */
-ability_t a_shop_sharing = {0};
+ability_t CAbilityAllied = {0};
 
 /* Inventory (AInv): passive capability; inv1 supplies capacity up to the six-slot UI/storage limit. */
-ability_t a_inventory = {0};
+ability_t CAbilityInventory = {0};

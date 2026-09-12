@@ -27,7 +27,7 @@ static spell_info_t spell_immolation = {
     .execute = immolation_execute,
 };
 
-ability_t a_immolation = {
+ability_t CAbilityImmolation = {
     .cmd = spell_cmd,
     .spell = &spell_immolation,
 };
@@ -59,7 +59,7 @@ static spell_info_t spell_cold_arrows = {
     .execute = cold_arrows_execute,
 };
 
-ability_t a_cold_arrows = {
+ability_t CAbilityColdArrows = {
     .cmd = spell_cmd,
     .spell = &spell_cold_arrows,
 };
@@ -90,7 +90,7 @@ static spell_info_t spell_war_stomp = {
     .execute = war_stomp_execute,
 };
 
-ability_t a_war_stomp = {
+ability_t CAbilityStomp = {
     .cmd = spell_cmd,
     .spell = &spell_war_stomp,
 };
@@ -98,7 +98,7 @@ ability_t a_war_stomp = {
 /* Name=Endurance Aura
  * Ubertip="Increases nearby friendly units' movement speed and attack rate."
  */
-ability_t a_aura_endurance = {0};
+ability_t CAbilityAuraEndurance = {0};
 
 /* Name=Wind Walk
  * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
@@ -116,7 +116,7 @@ static spell_info_t spell_wind_walk = {
     .execute = wind_walk_execute,
 };
 
-ability_t a_wind_walk = {
+ability_t CAbilityWindWalk = {
     .cmd = spell_cmd,
     .spell = &spell_wind_walk,
 };
@@ -139,7 +139,7 @@ static spell_info_t spell_mana_burn = {
     .execute = mana_burn_execute,
 };
 
-ability_t a_mana_burn = {
+ability_t CAbilityManaBurn = {
     .cmd = spell_cmd,
     .spell = &spell_mana_burn,
 };
@@ -164,7 +164,7 @@ static spell_info_t spell_dark_ritual = {
     .execute = dark_ritual_execute,
 };
 
-ability_t a_dark_ritual = {
+ability_t CAbilityDarkRitual = {
     .cmd = spell_cmd,
     .spell = &spell_dark_ritual,
 };
@@ -202,8 +202,8 @@ static spell_info_t spell_frost_armor_variant = {
     .execute = frost_armor_execute,
 };
 
-ability_t a_frost_armor = { .cmd = spell_cmd, .spell = &spell_frost_armor };
-ability_t a_frost_armor_variant = { .cmd = spell_cmd, .spell = &spell_frost_armor_variant };
+ability_t CAbilityFrostArmor = { .cmd = spell_cmd, .spell = &spell_frost_armor };
+ability_t CAbilityFrostArmorAuto = { .cmd = spell_cmd, .spell = &spell_frost_armor_variant };
 
 static void divine_shield_think(LPEDICT ent) {
     LPEDICT caster = ent->owner;
@@ -235,13 +235,13 @@ static spell_info_t spell_divine_shield = {
     .execute = divine_shield_execute,
 };
 
-ability_t a_divine_shield = { .cmd = spell_cmd, .spell = &spell_divine_shield };
+ability_t CAbilityDivineShield = { .cmd = spell_cmd, .spell = &spell_divine_shield };
 
 /* Name=Bash
  * Ubertip="Gives a chance that an attack will deal bonus damage and stun the target."
  * TODO: no command handler; the attack-resolution path must consume this passive.
  */
-ability_t a_bash = {0};
+ability_t CAbilityBash = {0};
 
 /* Entangling Roots applies the authored timed buff; movement owns the root
  * consumer so expiry naturally restores the unit without a second cleanup path. */
@@ -271,7 +271,7 @@ static spell_info_t spell_entangling_roots = {
     .execute = entangling_roots_execute,
 };
 
-ability_t a_entangling_roots = {
+ability_t CAbilityEntanglingRoots = {
     .cmd = spell_cmd,
     .spell = &spell_entangling_roots,
 };
@@ -283,22 +283,22 @@ ability_t a_unimplemented = { .flags = ABILITY_PASSIVE };
  * Ubertip="Automatically attacks nearby enemy units with flaming projectiles."
  * TODO: passive attack-resolution behavior is not implemented here.
  */
-ability_t a_phoenix_fire = {0};
+ability_t CAbilityPhoenixFire = {0};
 /* Name=Invulnerable
  * Ubertip="This unit cannot be damaged."
  */
-ability_t a_invulnerable = {0};
+ability_t CAbilityInvulnerable = {0};
 
 /* Harvest Lumber and Couple Instant: non-spell abilities with stub command handlers. */
 static void stub_cancel_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
 }
 
-ability_t a_harvest_lumber = {
+ability_t CAbilityHarvestLumber = {
     .cmd = stub_cancel_command,
 };
 
 
-ability_t a_couple_instant = {
+ability_t CAbilityCoupleInstant = {
     .cmd = stub_cancel_command,
 };

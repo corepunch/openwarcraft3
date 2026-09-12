@@ -307,7 +307,7 @@ TEST(wc3_spell, campaign_ability_rawcodes_are_registered_explicitly) {
 		ability_t const *ability = FindAbilityByClassname(rawcodes[i]);
 		DWORD code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
 		T_NOT_NULL(ability);
-		if (!strcmp(rawcodes[i], "ANha")) T_EQ(ability, &a_harvest);
+		if (!strcmp(rawcodes[i], "ANha")) T_EQ(ability, &CAbilityHarvest);
 		else {
 			T_NE(ability, &a_unimplemented);
 			T_NOT_NULL(ability->cmd);
@@ -721,9 +721,9 @@ TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
 		"Abdt", "Arev", "Aawa", "Adet", "AHer", "Aalr", "Afih", "Afin", "Afio", "Afir", "Afiu", "Aloc", "Attu",
 	};
 	static struct { LPCSTR code; ability_t const *ability; } const commands[] = {
-		{ "AEbu", &a_build }, { "AGbu", &a_build }, { "AHbu", &a_build }, { "ANbu", &a_build },
-		{ "AObu", &a_build }, { "ARal", &a_rally }, { "AUbu", &a_build }, { "Aatk", &a_attack },
-		{ "Amov", &a_move }, { "Atdp", &a_drop }, { "Atlp", &a_load },
+		{ "AEbu", &CAbilityBuild }, { "AGbu", &CAbilityBuild }, { "AHbu", &CAbilityBuild }, { "ANbu", &CAbilityBuild },
+		{ "AObu", &CAbilityBuild }, { "ARal", &CAbilityRally }, { "AUbu", &CAbilityBuild }, { "Aatk", &CAbilityAttack },
+		{ "Amov", &CAbilityMove }, { "Atdp", &CAbilityCargoDrop }, { "Atlp", &CAbilityCargoLoad },
 	};
 	ability_t const *poison = FindAbilityByClassname("AEpa");
 
@@ -734,14 +734,14 @@ TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
 	}
 	FOR_LOOP(i, sizeof(commands) / sizeof(commands[0]))
 		T_EQ(FindAbilityByClassname(commands[i].code), commands[i].ability);
-	T_EQ(FindAbilityByClassname("Afih"), &a_on_fire);
-	T_EQ(FindAbilityByClassname("Afin"), &a_on_fire);
-	T_EQ(FindAbilityByClassname("Afio"), &a_on_fire);
-	T_EQ(FindAbilityByClassname("Afir"), &a_on_fire);
-	T_EQ(FindAbilityByClassname("Afiu"), &a_on_fire);
-	T_EQ(a_on_fire.level_changed, FindAbilityByClassname("Afir")->level_changed);
-	T_NOT_NULL(a_on_fire.level);
-	T_NOT_NULL(a_on_fire.level_changed);
+	T_EQ(FindAbilityByClassname("Afih"), &CAbilityOnFireHuman);
+	T_EQ(FindAbilityByClassname("Afin"), &CAbilityOnFireHuman);
+	T_EQ(FindAbilityByClassname("Afio"), &CAbilityOnFireHuman);
+	T_EQ(FindAbilityByClassname("Afir"), &CAbilityOnFireHuman);
+	T_EQ(FindAbilityByClassname("Afiu"), &CAbilityOnFireHuman);
+	T_EQ(CAbilityOnFireHuman.level_changed, FindAbilityByClassname("Afir")->level_changed);
+	T_NOT_NULL(CAbilityOnFireHuman.level);
+	T_NOT_NULL(CAbilityOnFireHuman.level_changed);
 	T_NOT_NULL(poison);
 	T_NOT_NULL(poison->spell);
 	T_EQ((int)poison->spell->code, (int)MAKEFOURCC('A', 'E', 'p', 'a'));
@@ -757,7 +757,7 @@ TEST(wc3_spell, intrinsic_on_fire_level_zero_clears_effect) {
 	building.s.effect_flags = EFX_MODEL;
 	building.s.flags = EF_BUILDING;
 	building.health.value = building.health.max_value = 1000.0f;
-	S_RefreshAbilityLevel(&building, &a_on_fire);
+	S_RefreshAbilityLevel(&building, &CAbilityOnFireHuman);
 	T_EQ(building.s.effect, 0);
 	T_EQ(building.s.effect_flags, 0);
 }
@@ -816,9 +816,9 @@ TEST(wc3_spell, beastmaster_summons_use_force_of_nature_contract) {
 	ability_t const *quilbeast = FindAbilityByClassname("ANsq");
 	ability_t const *hawk = FindAbilityByClassname("ANsw");
 
-	T_ASSERT(bear == &a_summon_bear);
-	T_ASSERT(quilbeast == &a_summon_quilbeast);
-	T_ASSERT(hawk == &a_summon_hawk);
+	T_ASSERT(bear == &CAbilitySummonGrizzly);
+	T_ASSERT(quilbeast == &CAbilitySummonQuillbeast);
+	T_ASSERT(hawk == &CAbilitySummonWarEagle);
 	T_EQ((int)bear->spell->code, (int)MAKEFOURCC('A', 'N', 's', 'g'));
 	T_EQ((int)quilbeast->spell->code, (int)MAKEFOURCC('A', 'N', 's', 'q'));
 	T_EQ((int)hawk->spell->code, (int)MAKEFOURCC('A', 'N', 's', 'w'));

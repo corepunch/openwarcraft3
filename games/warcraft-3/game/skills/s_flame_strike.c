@@ -76,9 +76,9 @@ static spell_info_t spell_flame_strike_human = {
     .execute = flame_strike_execute,
 };
 
-ability_t a_flame_strike = {
+ability_t CAbilityFlameStrikeNeutral = {
     .cmd = spell_cmd,
     .spell = &spell_flame_strike,
 };
 
-ability_t a_flame_strike_human = { .cmd = spell_cmd, .spell = &spell_flame_strike_human };
+ability_t CAbilityFlameStrike = { .cmd = spell_cmd, .spell = &spell_flame_strike_human };

@@ -35,7 +35,7 @@ static DWORD repair_find_code(LPEDICT ent, ability_t const *wanted, DWORD prefer
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *handler = FindAbilityForCommand(ability_name);
         DWORD code;
-        if (handler != &a_repair && handler != &a_repair_generic) continue;
+        if (handler != &CAbilityRepair && handler != &CAbilityRepairGeneric) continue;
         if (wanted && handler != wanted) continue;
         code = FS_SLKKey(ability_name);
         if (preferred && code == preferred) return code;
@@ -53,7 +53,7 @@ static BOOL repair_primary_active(LPEDICT building) {
     if (!building) return false;
     worker = building->construction.primary_builder;
     return worker && worker->inuse && !(worker->svflags & SVF_DEADMONSTER) && worker->build == building &&
-           worker->currentmove && worker->currentmove->ability == &a_repair;
+           worker->currentmove && worker->currentmove->ability == &CAbilityRepair;
 }
 
 static void repair_release(LPEDICT ent) {
@@ -77,7 +77,7 @@ void S_CancelRepair(LPEDICT ent) {
 
     if (!ent || !ent->buildwork.ability) return;
     ability = repair_handler(ent->buildwork.ability);
-    if (ability != &a_repair && ability != &a_repair_generic) return;
+    if (ability != &CAbilityRepair && ability != &CAbilityRepairGeneric) return;
     building = ent->build;
     goal = ent->goalentity;
     /* A replacement order installs its goal before unit_setmove() cancels the
@@ -209,7 +209,7 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
         /* DataD is the extra-worker power-build ratio. The primary Human
          * builder always contributes at 1.0 and must not be rejected merely
          * because DataD is zero/missing for additional workers. */
-        return handler == &a_repair && data && target->construction.paused &&
+        return handler == &CAbilityRepair && data && target->construction.paused &&
                (primary || data->level[0].data[3].number > 0.0f);
     }
     return target->health.value < target->health.max_value;
@@ -243,7 +243,7 @@ static void repair_set_work(LPEDICT ent) {
     if (!ent || !building) return;
     ent->goalentity = building;
     move_reset_progress(ent);
-    if (repair_handler(ent->buildwork.ability) == &a_repair_generic)
+    if (repair_handler(ent->buildwork.ability) == &CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_work);
     else
         unit_setmove(ent, &repair_move_work);
@@ -281,7 +281,7 @@ static BOOL repair_set_walk(LPEDICT ent) {
         repair_stop_reason(ent, "no_approach");
         return false;
     }
-    if (repair_handler(ent->buildwork.ability) == &a_repair_generic)
+    if (repair_handler(ent->buildwork.ability) == &CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_walk);
     else
         unit_setmove(ent, &repair_move_walk);
@@ -462,11 +462,11 @@ static void ai_repair_legacy(LPEDICT ent) {
     }
 }
 
-static umove_t repair_move_walk = { "walk", ai_repair_walk, NULL, &a_repair };
-static umove_t repair_move_work = { "stand work", ai_repair, NULL, &a_repair };
-static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, &a_repair_generic };
-static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, &a_repair_generic };
-static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, &a_repair };
+static umove_t repair_move_walk = { "walk", ai_repair_walk, NULL, &CAbilityRepair };
+static umove_t repair_move_work = { "stand work", ai_repair, NULL, &CAbilityRepair };
+static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, &CAbilityRepairGeneric };
+static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, &CAbilityRepairGeneric };
+static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, &CAbilityRepair };
 
 static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary) {
     VECTOR2 origin;
@@ -523,7 +523,7 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
 }
 
 void repair_build_primary(LPEDICT ent, LPEDICT building) {
-    DWORD code = repair_find_code(ent, &a_repair, 0);
+    DWORD code = repair_find_code(ent, &CAbilityRepair, 0);
     if (!code || !repair_begin(ent, building, code, true)) {
         if (building && building->construction.primary_builder == ent)
             building->construction.primary_builder = NULL;
@@ -552,7 +552,7 @@ void repair_build_legacy(LPEDICT ent, LPEDICT building) {
 }
 
 BOOL G_UnitHasHumanRepair(LPEDICT ent) {
-    return repair_find_code(ent, &a_repair, 0) != 0;
+    return repair_find_code(ent, &CAbilityRepair, 0) != 0;
 }
 
 BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
@@ -563,13 +563,13 @@ BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
     if (!ent || !target) return false;
     if (preferred) {
         wanted = repair_handler(preferred);
-        if (wanted != &a_repair && wanted != &a_repair_generic) return false;
+        if (wanted != &CAbilityRepair && wanted != &CAbilityRepairGeneric) return false;
     }
     code = repair_find_code(ent, wanted, preferred);
     if (!code) return false;
 
     if (target->construction.active) {
-        if (repair_handler(code) != &a_repair) return false;
+        if (repair_handler(code) != &CAbilityRepair) return false;
         if (!repair_primary_active(target)) {
             target->construction.primary_builder = NULL;
             primary = true;
@@ -613,7 +613,7 @@ static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD c
     handler = repair_handler(code);
     data = G_AbilityData(code);
     if (target->construction.active) {
-        if (handler != &a_repair) return "construction_requires_human_repair";
+        if (handler != &CAbilityRepair) return "construction_requires_human_repair";
         if (!target->construction.paused) return "construction_not_paused";
         if (!repair_primary_active(target)) primary = true;
         if (!primary && (!data || data->level[0].data[3].number <= 0.0f)) return "no_power_build_ratio";
@@ -781,7 +781,7 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
     if (!clent || !clent->client || !target) return false;
     code = clent->client->menu.ability_code;
     handler = repair_handler(code);
-    if (handler != &a_repair && handler != &a_repair_generic) return false;
+    if (handler != &CAbilityRepair && handler != &CAbilityRepairGeneric) return false;
     if (!target->inuse || M_IsDead(target) || !G_UnitIsBuilding(target->class_id) ||
         target->s.player != clent->client->ps.number) {
         return false;
@@ -792,7 +792,7 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
         return false;
     }
     if (target->construction.active &&
-        (handler != &a_repair || !target->construction.paused)) {
+        (handler != &CAbilityRepair || !target->construction.paused)) {
         G_ShowCommandErrorText(clent, "That building is currently under construction.");
         return false;
     }
@@ -813,14 +813,14 @@ static void repair_command(LPEDICT clent) {
     clent->client->menu.supports_order_queue = true;
 }
 
-ability_t a_repair = {
+ability_t CAbilityRepair = {
     .cmd = repair_command,
     .autocast_is_on = repair_autocast_is_on,
     .autocast_set = repair_autocast_set,
     .autocast_acquire = repair_autocast_acquire,
 };
 
-ability_t a_repair_generic = {
+ability_t CAbilityRepairGeneric = {
     .cmd = repair_command,
     .autocast_is_on = repair_autocast_is_on,
     .autocast_set = repair_autocast_set,

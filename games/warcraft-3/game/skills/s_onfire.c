@@ -98,7 +98,7 @@ static void onfire_level_changed(LPEDICT ent, DWORD level) {
 static void onfire_enabled(LPEDICT ent) { onfire_level_changed(ent, onfire_level(ent)); }
 
     /* Retail synthesizes one race-specific CAbilityOnFire for buildings instead of listing it in UnitAbilities.slk. */
-    ability_t a_on_fire = {
+    ability_t CAbilityOnFireHuman = {
         .flags = ABILITY_PASSIVE,
         .enabled = onfire_enabled,
         .disabled = onfire_disabled,

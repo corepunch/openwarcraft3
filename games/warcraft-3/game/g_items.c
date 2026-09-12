@@ -321,7 +321,7 @@ static void G_PickupItemThink(LPEDICT unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, &a_inventory };
+static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, &CAbilityInventory };
 
 BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
     if (!G_CanPickupItem(unit, item) || (unit->aiflags & AI_IMMOBILE)) {
@@ -425,7 +425,7 @@ static void G_DropItemThink(LPEDICT unit) {
 }
 
 static umove_t item_move_drop = {
-    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .ability = &a_inventory
+    .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .ability = &CAbilityInventory
 };
 
 BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {

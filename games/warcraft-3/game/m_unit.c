@@ -119,7 +119,7 @@ void unit_stand(LPEDICT self) {
 void G_SetHealth(LPEDICT ent, FLOAT value) {
     BYTE const old = compress_stat(&ent->health);
     ent->health.value = value;
-    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health)) S_RefreshAbilityLevel(ent, &a_on_fire);
+    if ((ent->s.flags & EF_BUILDING) && old != compress_stat(&ent->health)) S_RefreshAbilityLevel(ent, &CAbilityOnFireHuman);
 }
 
 void G_AddHealth(LPEDICT ent, FLOAT value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }

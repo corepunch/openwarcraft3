@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 // Disabled until stop owns a custom stand move; Linux -Wall warns on unused static hooks.
-// static umove_t stop_stand = { "stand", ai_stand, NULL, &a_stop};
+// static umove_t stop_stand = { "stand", ai_stand, NULL, &CAbilityStop};
 
 void order_stop(LPEDICT ent) {
     if (S_GoldMineWorkerIsInside(ent))
@@ -23,6 +23,6 @@ static void stop_command(LPEDICT ent) {
     }
 }
 
-ability_t a_stop = {
+ability_t CAbilityStop = {
     .cmd = stop_command,
 };

@@ -417,10 +417,10 @@ static void ai_minegold(LPEDICT ent) {
 static void ai_waittoenter(LPEDICT ent) {
 }
 
-static umove_t harvestgold_move_walk = { "walk", ai_walkmine, NULL, &a_goldmine };
-static umove_t harvestgold_move_walkback = { "walk", ai_goldmine_walkback, NULL, &a_goldmine };
-static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &a_goldmine };
-static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &a_goldmine };
+static umove_t harvestgold_move_walk = { "walk", ai_walkmine, NULL, &CAbilityGoldMine };
+static umove_t harvestgold_move_walkback = { "walk", ai_goldmine_walkback, NULL, &CAbilityGoldMine };
+static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &CAbilityGoldMine };
+static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &CAbilityGoldMine };
 
 BOOL harvest_gold_return_to(LPEDICT ent, LPEDICT dropoff) {
     if (!ent || !dropoff || !ent->harvested_gold ||
@@ -565,10 +565,10 @@ BOOL harvest_gold_order(LPEDICT self, LPEDICT target) {
     return true;
 }
 
-ability_t a_goldmine = {0};
+ability_t CAbilityGoldMine = {0};
 
 /* ---- Overlayed Gold Mine (Agl2): same as basic mine with overlay -------- */
-ability_t a_goldmine_overlayed = {0};
+ability_t CAbilityGoldMineOverlayed = {0};
 
 /* ---- Entangle Gold Mine (Aent): NE transforms ownership of a mine ------- */
 static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
@@ -589,12 +589,12 @@ static void entangle_goldmine_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = entangle_goldmine_selecttarget;
 }
 
-ability_t a_entangle_goldmine = {
+ability_t CAbilityEntangle = {
     .cmd = entangle_goldmine_command,
 };
 
 /* ---- Entangled Mine (Aegm): passive marker on the mine unit ------------- */
-ability_t a_entangled_mine = {0};
+ability_t CAbilityEntangledGoldMine = {0};
 
 /* ---- Blighted Gold Mine (Abgm): interval-based income for Undead -------- */
 static FLOAT blight_gold_per_interval;
@@ -621,6 +621,6 @@ static void SP_ability_blighted_goldmine(LPCSTR classname, ability_t *self) {
     blight_interval_duration = G_AbilityDataName(classname)->level[0].data[1].number;
 }
 
-ability_t a_blighted_goldmine = {
+ability_t CAbilityBlightedGoldMine = {
     .init = SP_ability_blighted_goldmine,
 };

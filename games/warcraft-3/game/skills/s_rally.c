@@ -222,6 +222,6 @@ static void rally_command(LPEDICT clent) {
     clent->client->menu.on_location_selected = rally_selectlocation;
 }
 
-ability_t a_rally = {
+ability_t CAbilityRally = {
     .cmd = rally_command,
 };

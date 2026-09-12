@@ -605,6 +605,12 @@ typedef struct ability_s {
     LPCSTR const *orders; /* NULL-terminated order names */
     BOOL (*order)(LPEDICT, LPCSTR);
     void (*update)(LPEDICT);
+
+    /* TFT class hierarchy: mirrors the CAbility inheritance tree from
+     * tft-ability-classes.txt. Each concrete ability points at its parent
+     * base class (e.g. CAbilityRavenForm → a_morph → a_spell → a_button →
+     * a_interfaced → a_ability). NULL terminates the chain at the root. */
+    struct ability_s const *parent;
 } ability_t;
 
 typedef struct {
@@ -1793,7 +1799,7 @@ void S_EnableAbility(LPEDICT, DWORD);
 void S_DisableAbility(LPEDICT, DWORD);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
 BOOL S_UnitPolymorphed(LPCEDICT unit);
-extern ability_t a_on_fire;
+extern ability_t CAbilityOnFireHuman;
 void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);
 BOOL M_CheckCollision(LPCVECTOR2, FLOAT);

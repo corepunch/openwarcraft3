@@ -112,21 +112,21 @@ static void root_command(LPEDICT clent) {
 
 /* ---- Registration -------------------------------------------------------- */
 
-ability_t a_charm = {
+ability_t CAbilityCharm = {
     .cmd = spell_cmd,
     .spell = &spell_charm,
 };
 
-ability_t a_eat_tree = {
+ability_t CAbilityEatTree = {
     .cmd = spell_cmd,
     .spell = &spell_eat_tree,
 };
 
-ability_t a_moon_well = {
+ability_t CAbilityManaBattery = {
     .cmd = spell_cmd,
     .spell = &spell_moon_well,
 };
 
-ability_t a_root = {
+ability_t CAbilityRoot = {
     .cmd = root_command,
 };
