@@ -517,6 +517,601 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Aimp", &a_bounce },  /* Impaling Bolt — CAbilityBounce nightelf */
     // TODO: { "Ansp", &a_neutral_spell },  /* Neutral Spies — CAbilityNeutralSpell creeps */
 
+    /* AbilityData rows without a generated AbilityStrings entry. */
+    // TODO: { "AAns", &a_unknown },  /* Neutral Spell */
+    // TODO: { "ACac", &a_unknown },  /* Aura - Command (Creep) */
+    // TODO: { "ACad", &a_unknown },  /* Animate Dead (creep) */
+    // TODO: { "ACah", &a_unknown },  /* Thorns Aura (creep) */
+    // TODO: { "ACam", &a_unknown },  /* Anti-magic Shield (creep) */
+    // TODO: { "ACat", &a_unknown },  /* Aura - Trueshot (Creep) */
+    // TODO: { "ACav", &a_unknown },  /* Aura - Devotion (Creep) */
+    // TODO: { "ACba", &a_unknown },  /* Aura - Brilliance (creep) */
+    // TODO: { "ACbb", &a_unknown },  /* Bloodlust (creep, Hotkey B) */
+    // TODO: { "ACbc", &a_unknown },  /* Breath of Fire(Creep) */
+    // TODO: { "ACbf", &a_unknown },  /* Breath of Frost(Creep) */
+    // TODO: { "ACbh", &a_unknown },  /* Bash (creep) */
+    // TODO: { "ACbk", &a_unknown },  /* Black Arrow (melee, creep) */
+    // TODO: { "ACbl", &a_unknown },  /* Bloodlust (Creep) */
+    // TODO: { "ACbn", &a_unknown },  /* Banish(Creep) */
+    // TODO: { "ACbz", &a_unknown },  /* Blizzard (creep) */
+    // TODO: { "ACc2", &a_unknown },  /* Crushing Wave (Dragon Turtle) */
+    // TODO: { "ACc3", &a_unknown },  /* Crushing Wave (Lesser) */
+    // TODO: { "ACca", &a_unknown },  /* Carrion Swarm (creep) */
+    // TODO: { "ACcb", &a_unknown },  /* Frost Bolt */
+    // TODO: { "ACce", &a_unknown },  /* Cleaving Attack (Creep) */
+    // TODO: { "ACch", &a_unknown },  /* Charm */
+    // TODO: { "ACcl", &a_unknown },  /* Chain Lightning (creep) */
+    // TODO: { "ACcn", &a_unknown },  /* Cannibalize (creep) */
+    // TODO: { "ACcr", &a_unknown },  /* Cripple (creep) */
+    // TODO: { "ACcs", &a_unknown },  /* Curse (creep) */
+    // TODO: { "ACct", &a_unknown },  /* Critical Strike (creep) */
+    // TODO: { "ACcv", &a_unknown },  /* Crushing Wave */
+    // TODO: { "ACcw", &a_unknown },  /* Cold Arrows (creep) */
+    // TODO: { "ACcy", &a_unknown },  /* Cyclone (creep) */
+    // TODO: { "ACd2", &a_unknown },  /* Abolish Magic (Creep, 1,2 pos) */
+    // TODO: { "ACdc", &a_unknown },  /* Death Coil (creep) */
+    // TODO: { "ACde", &a_unknown },  /* Devour Magic(creep) */
+    // TODO: { "ACdm", &a_unknown },  /* Abolish Magic (Creep) */
+    // TODO: { "ACdr", &a_unknown },  /* Drain Life(Creep) */
+    // TODO: { "ACds", &a_unknown },  /* Divine Shield (creep) */
+    // TODO: { "ACdv", &a_unknown },  /* Devour (Dragon Creep) */
+    // TODO: { "ACen", &a_unknown },  /* Ensnare (Creep) */
+    // TODO: { "ACes", &a_unknown },  /* Evasion (creep 100%) */
+    // TODO: { "ACev", &a_unknown },  /* Evasion (creep) */
+    // TODO: { "ACf2", &a_unknown },  /* Frost Armor (creep,autocast) */
+    // TODO: { "ACf3", &a_unknown },  /* Finger of Pain (2,1 Button) */
+    // TODO: { "ACfa", &a_unknown },  /* Frost Armor (creep,old) */
+    // TODO: { "ACfb", &a_unknown },  /* Fire Bolt (creep) */
+    // TODO: { "ACfd", &a_unknown },  /* Finger of Pain */
+    // TODO: { "ACff", &a_unknown },  /* Faerie Fire (creep) */
+    // TODO: { "ACfl", &a_unknown },  /* Forked Lightning(creep) */
+    // TODO: { "ACfn", &a_unknown },  /* Frost Nova (creep) */
+    // TODO: { "ACfr", &a_unknown },  /* Force of Nature (creep) */
+    // TODO: { "ACfs", &a_unknown },  /* Flame Strike (Creep) */
+    // TODO: { "AChv", &a_unknown },  /* Healing Wave(Creep) */
+    // TODO: { "AChw", &a_unknown },  /* Healing Ward (creep) */
+    // TODO: { "AChx", &a_unknown },  /* Hex (Creep) */
+    // TODO: { "ACif", &a_unknown },  /* Inner Fire (Creep) */
+    // TODO: { "ACim", &a_unknown },  /* Immolation (creep) */
+    // TODO: { "ACls", &a_unknown },  /* Lightning Shield (creep) */
+    // TODO: { "ACm2", &a_unknown },  /* Magic Immunity (Archimonde) */
+    // TODO: { "ACm3", &a_unknown },  /* Magic Immunity (Dragons) */
+    // TODO: { "ACmf", &a_unknown },  /* Mana Shield(Creep) */
+    // TODO: { "ACmi", &a_unknown },  /* Magic Immunity (Creep) */
+    // TODO: { "ACmo", &a_unknown },  /* Monsoon(creep) */
+    // TODO: { "ACmp", &a_unknown },  /* Impale(Creep) */
+    // TODO: { "ACnr", &a_unknown },  /* Neutral Regen (health only) */
+    // TODO: { "ACpa", &a_unknown },  /* Parasite(eredar) */
+    // TODO: { "ACps", &a_unknown },  /* Possession (creep) */
+    // TODO: { "ACpu", &a_unknown },  /* Purge (Creep) */
+    // TODO: { "ACpv", &a_unknown },  /* Pulverize (Sea Giant) */
+    // TODO: { "ACpy", &a_unknown },  /* Polymorph (creep) */
+    // TODO: { "ACr1", &a_unknown },  /* Roar (creep) -- Skeletal Orc */
+    // TODO: { "ACr2", &a_unknown },  /* Rejuvination (Furbolg) */
+    // TODO: { "ACrd", &a_unknown },  /* Raise Dead (Creep) */
+    // TODO: { "ACrf", &a_unknown },  /* Rain of Fire (creep) */
+    // TODO: { "ACrg", &a_unknown },  /* Rain of Fire (creep,greater) */
+    // TODO: { "ACrj", &a_unknown },  /* Rejuvination (creep) */
+    // TODO: { "ACrk", &a_unknown },  /* Resistant Skin (creep) */
+    // TODO: { "ACrn", &a_unknown },  /* Reincarnation (creep) */
+    // TODO: { "ACro", &a_unknown },  /* Roar (creep) */
+    // TODO: { "ACs9", &a_unknown },  /* Feral Spirit (creep - pig) */
+    // TODO: { "ACsa", &a_unknown },  /* Searing Arrows (creep) */
+    // TODO: { "ACsf", &a_unknown },  /* Feral Spirit (creep) */
+    // TODO: { "ACsh", &a_unknown },  /* Shockwave (Creep) */
+    // TODO: { "ACsi", &a_unknown },  /* Silence(Creep) */
+    // TODO: { "ACsk", &a_unknown },  /* Resistant Skin(3,1 pos, creep) */
+    // TODO: { "ACsl", &a_unknown },  /* Sleep (creep) */
+    // TODO: { "ACsm", &a_unknown },  /* Siphon Mana (Creep) */
+    // TODO: { "ACsp", &a_unknown },  /* Creep Sleep */
+    // TODO: { "ACss", &a_unknown },  /* Shadow Strike(Creep) */
+    // TODO: { "ACst", &a_unknown },  /* Shockwave (Trap) */
+    // TODO: { "ACsw", &a_unknown },  /* Slow (Creep) */
+    // TODO: { "ACt2", &a_unknown },  /* Thunder Clap (Thunder Lizard) */
+    // TODO: { "ACtb", &a_unknown },  /* Thunder Bolt (Creep) */
+    // TODO: { "ACtc", &a_unknown },  /* Thunder Clap (Creep) */
+    // TODO: { "ACua", &a_unknown },  /* Unholy Aura (creep) */
+    // TODO: { "ACuf", &a_unknown },  /* Unholy Frenzy (creep) */
+    // TODO: { "ACvp", &a_unknown },  /* Vampiric Aura (creep) */
+    // TODO: { "ACvs", &a_unknown },  /* Venom Spears (Creep) */
+    // TODO: { "ACwb", &a_unknown },  /* Web (creep) */
+    // TODO: { "ACwe", &a_unknown },  /* Summon Sea Elemental */
+    // TODO: { "AEIl", &a_unknown },  /* Illidan - Metamorphosis */
+    // TODO: { "AEsb", &a_unknown },  /* Cenarius - Beefy Starfall */
+    // TODO: { "AEst", &a_unknown },  /* Priestess - Scout */
+    // TODO: { "AEvi", &a_unknown },  /* Evil Illidan - Metamorphosis */
+    // TODO: { "AHta", &a_unknown },  /* Reveal(Arcane Tower) */
+    // TODO: { "AI2m", &a_unknown },  /* 200 mana bonus */
+    // TODO: { "AIa1", &a_unknown },  /* AgilityBonus (+1) */
+    // TODO: { "AIa3", &a_unknown },  /* AgilityBonus (+3) */
+    // TODO: { "AIa4", &a_unknown },  /* AgilityBonus (+4) */
+    // TODO: { "AIa6", &a_unknown },  /* AgilityBonus (+6) */
+    // TODO: { "AIaa", &a_unknown },  /* AttackMod */
+    // TODO: { "AIad", &a_unknown },  /* ItemAuraDevotion */
+    // TODO: { "AIae", &a_unknown },  /* ItemAuraEndurance */
+    // TODO: { "AIan", &a_unknown },  /* Animate Dead */
+    // TODO: { "AIar", &a_unknown },  /* ItemAuraTrueshot */
+    // TODO: { "AIau", &a_unknown },  /* ItemAuraUnholy */
+    // TODO: { "AIav", &a_unknown },  /* ItemAuraVampiric */
+    // TODO: { "AIaz", &a_unknown },  /* AgilityBonus (+10) */
+    // TODO: { "AIba", &a_unknown },  /* ItemAuraBrilliance */
+    // TODO: { "AIbb", &a_unknown },  /* Build Tiny Blacksmith */
+    // TODO: { "AIbf", &a_unknown },  /* Build Tiny Farm */
+    // TODO: { "AIbg", &a_unknown },  /* Build Tiny Great Hall */
+    // TODO: { "AIbh", &a_unknown },  /* Build Tiny Altar */
+    // TODO: { "AIbk", &a_unknown },  /* Blink (Item) */
+    // TODO: { "AIbl", &a_unknown },  /* Build Tiny Castle */
+    // TODO: { "AIbm", &a_unknown },  /* MaxManaBonus (Most) */
+    // TODO: { "AIbr", &a_unknown },  /* Build Tiny Lumber Mill */
+    // TODO: { "AIbs", &a_unknown },  /* Build Tiny Barracks */
+    // TODO: { "AIbt", &a_unknown },  /* Build Tiny Scout Tower */
+    // TODO: { "AIbx", &a_unknown },  /* Bash (item) */
+    // TODO: { "AIcb", &a_unknown },  /* Orb of Corruption */
+    // TODO: { "AIcd", &a_unknown },  /* ItemAuraCommand */
+    // TODO: { "AIcf", &a_unknown },  /* ItemCloakOfFlames */
+    // TODO: { "AIcl", &a_unknown },  /* Chain Lightning (item) */
+    // TODO: { "AIcm", &a_unknown },  /* Control Magic (item) */
+    // TODO: { "AIcs", &a_unknown },  /* Critical Strike (item) */
+    // TODO: { "AIcy", &a_unknown },  /* Cyclone */
+    // TODO: { "AId0", &a_unknown },  /* DefenseBonus (+10) */
+    // TODO: { "AId1", &a_unknown },  /* DefenseBonus (+1) */
+    // TODO: { "AId2", &a_unknown },  /* DefenseBonus (+2) */
+    // TODO: { "AId3", &a_unknown },  /* DefenseBonus (+3) */
+    // TODO: { "AId4", &a_unknown },  /* DefenseBonus (+4) */
+    // TODO: { "AId5", &a_unknown },  /* DefenseBonus (+5) */
+    // TODO: { "AId7", &a_unknown },  /* DefenseBonus (+7) */
+    // TODO: { "AId8", &a_unknown },  /* DefenseBonus (+8) */
+    // TODO: { "AIdb", &a_unknown },  /* ItemDefenseAoe (+ Healing) */
+    // TODO: { "AIdc", &a_unknown },  /* ItemDispelChain */
+    // TODO: { "AIdd", &a_unknown },  /* Defend (Item) */
+    // TODO: { "AIdf", &a_unknown },  /* Orb of Darkness */
+    // TODO: { "AIdi", &a_unknown },  /* ItemDispelAoe */
+    // TODO: { "AIdm", &a_unknown },  /* ItemDamageAoe */
+    // TODO: { "AIdn", &a_unknown },  /* Shadow Orb Ability */
+    // TODO: { "AIdp", &a_unknown },  /* Death Pact (item) */
+    // TODO: { "AIds", &a_unknown },  /* ItemDispelAoeWithCooldown */
+    // TODO: { "AIdv", &a_unknown },  /* Divine Shield (Item) */
+    // TODO: { "AIe2", &a_unknown },  /* ExperienceMod greater */
+    // TODO: { "AIev", &a_unknown },  /* Evasion */
+    // TODO: { "AIfa", &a_unknown },  /* FlareGun */
+    // TODO: { "AIfb", &a_unknown },  /* Orb of Fire */
+    // TODO: { "AIfd", &a_unknown },  /* FigurineRedDrake */
+    // TODO: { "AIfe", &a_unknown },  /* Flag (Undead) */
+    // TODO: { "AIff", &a_unknown },  /* FigurineFurbolg */
+    // TODO: { "AIfg", &a_unknown },  /* Cloud of Fog (Item) */
+    // TODO: { "AIfh", &a_unknown },  /* FigurineFelHound */
+    // TODO: { "AIfl", &a_unknown },  /* Flag */
+    // TODO: { "AIfm", &a_unknown },  /* Flag (Human) */
+    // TODO: { "AIfn", &a_unknown },  /* Flag (Night Elf) */
+    // TODO: { "AIfo", &a_unknown },  /* Flag (Orc) */
+    // TODO: { "AIfr", &a_unknown },  /* FigurineRockGolem */
+    // TODO: { "AIft", &a_unknown },  /* Frostguard - frost melee */
+    // TODO: { "AIfu", &a_unknown },  /* FigurineDoomGuard */
+    // TODO: { "AIfw", &a_unknown },  /* Searing Blade - fire melee */
+    // TODO: { "AIfx", &a_unknown },  /* Flag (Orc Battle Standard) */
+    // TODO: { "AIfz", &a_unknown },  /* Finger of Death (item) */
+    // TODO: { "AIgd", &a_unknown },  /* Orb of Guldan */
+    // TODO: { "AIgf", &a_unknown },  /* FortificationGlyph */
+    // TODO: { "AIgm", &a_unknown },  /* AgilityMod +2 */
+    // TODO: { "AIgo", &a_unknown },  /* GiveGold */
+    // TODO: { "AIgu", &a_unknown },  /* UltraVisionGlyph */
+    // TODO: { "AIgx", &a_unknown },  /* Aura - Regeneration (item) */
+    // TODO: { "AIh1", &a_unknown },  /* ItemHeal (Lesser) */
+    // TODO: { "AIh2", &a_unknown },  /* ItemHeal (Greater) */
+    // TODO: { "AIh3", &a_unknown },  /* ItemHeal (Least) */
+    // TODO: { "AIha", &a_unknown },  /* ItemHealAoe */
+    // TODO: { "AIhb", &a_unknown },  /* ItemHealAoeGreater */
+    // TODO: { "AIhl", &a_unknown },  /* Holy Light (item) */
+    // TODO: { "AIhw", &a_unknown },  /* Healing Ward */
+    // TODO: { "AIhx", &a_unknown },  /* ItemHeal (Leastest) */
+    // TODO: { "AIi1", &a_unknown },  /* IntelligenceBonus (+1) */
+    // TODO: { "AIi3", &a_unknown },  /* IntelligenceBonus (+3) */
+    // TODO: { "AIi4", &a_unknown },  /* IntelligenceBonus (+4) */
+    // TODO: { "AIi6", &a_unknown },  /* IntelligenceBonus (+6) */
+    // TODO: { "AIil", &a_unknown },  /* ItemIllusion */
+    // TODO: { "AIin", &a_unknown },  /* ItemInferno */
+    // TODO: { "AIir", &a_unknown },  /* FigurineIceRevenant */
+    // TODO: { "AIl1", &a_unknown },  /* MaxLifeBonus (Lesser) */
+    // TODO: { "AIl2", &a_unknown },  /* MaxLifeBonus (Greater) */
+    // TODO: { "AIlb", &a_unknown },  /* Orb of Lightning(old) */
+    // TODO: { "AIlf", &a_unknown },  /* MaxLifeBonus (Least) */
+    // TODO: { "AIll", &a_unknown },  /* Orb of Lightning */
+    // TODO: { "AIlp", &a_unknown },  /* LightningPurge */
+    // TODO: { "AIls", &a_unknown },  /* Lightning Shield */
+    // TODO: { "AIlu", &a_unknown },  /* GiveLumber */
+    // TODO: { "AIlx", &a_unknown },  /* Shaman Claws - lightning melee */
+    // TODO: { "AIlz", &a_unknown },  /* MaxLifeBonus (Leastest) */
+    // TODO: { "AIm1", &a_unknown },  /* ItemManaRestore (Lesser) */
+    // TODO: { "AIm2", &a_unknown },  /* ItemManaRestore (Greater) */
+    // TODO: { "AImb", &a_unknown },  /* MaxManaBonus (Least) */
+    // TODO: { "AImh", &a_unknown },  /* Permanent Hit point Bonus */
+    // TODO: { "AImo", &a_unknown },  /* ItemMonsterLure */
+    // TODO: { "AImr", &a_unknown },  /* ItemManaRestoreAoe */
+    // TODO: { "AIms", &a_unknown },  /* MoveSpeedBonus */
+    // TODO: { "AImt", &a_unknown },  /* Staff o' Teleportation */
+    // TODO: { "AImv", &a_unknown },  /* MaxManaBonus (Leastest, Really) */
+    // TODO: { "AImx", &a_unknown },  /* Magic Immunity */
+    // TODO: { "AImz", &a_unknown },  /* MaxManaBonus (Leastest) */
+    // TODO: { "AInd", &a_unknown },  /* Animate Dead (item, special) */
+    // TODO: { "AInm", &a_unknown },  /* StrengthMod +2 */
+    // TODO: { "AIob", &a_unknown },  /* Orb of Frost */
+    // TODO: { "AIos", &a_unknown },  /* Slow */
+    // TODO: { "AIp1", &a_unknown },  /* Potion of Rejuv I */
+    // TODO: { "AIp2", &a_unknown },  /* Potion of Rejuv II */
+    // TODO: { "AIp3", &a_unknown },  /* Potion of Rejuv III */
+    // TODO: { "AIp4", &a_unknown },  /* Potion of Rejuv IV */
+    // TODO: { "AIp5", &a_unknown },  /* Scroll of Rejuv I */
+    // TODO: { "AIp6", &a_unknown },  /* Scroll of Rejuv II */
+    // TODO: { "AIpb", &a_unknown },  /* Orb of Venom */
+    // TODO: { "AIpg", &a_unknown },  /* Purge(orb) */
+    // TODO: { "AIpl", &a_unknown },  /* Potion of Mana Regen(lesser) */
+    // TODO: { "AIpm", &a_unknown },  /* ItemPlaceMine */
+    // TODO: { "AIpr", &a_unknown },  /* Potion of Mana Regen(greater) */
+    // TODO: { "AIps", &a_unknown },  /* Purge(Totem, SP) */
+    // TODO: { "AIpv", &a_unknown },  /* ItemPotionVampirism */
+    // TODO: { "AIpx", &a_unknown },  /* Permanent Hit point Bonus (small) */
+    // TODO: { "AIpz", &a_unknown },  /* Penguin Squeek */
+    // TODO: { "AIra", &a_unknown },  /* ItemRestoreAoe */
+    // TODO: { "AIrb", &a_unknown },  /* Rune of Rebirth */
+    // TODO: { "AIrc", &a_unknown },  /* ItemReincarnation */
+    // TODO: { "AIrd", &a_unknown },  /* Raise Dead (Item) */
+    // TODO: { "AIre", &a_unknown },  /* ItemRestore */
+    // TODO: { "AIri", &a_unknown },  /* ItemRandomItem */
+    // TODO: { "AIrl", &a_unknown },  /* Potion of Life Regen */
+    // TODO: { "AIrm", &a_unknown },  /* ItemRegenMana */
+    // TODO: { "AIrn", &a_unknown },  /* ItemRegenMana lesser */
+    // TODO: { "AIrr", &a_unknown },  /* Roar */
+    // TODO: { "AIrs", &a_unknown },  /* Resurrection */
+    // TODO: { "AIrt", &a_unknown },  /* ItemRecall */
+    // TODO: { "AIrv", &a_unknown },  /* ItemRevealMap */
+    // TODO: { "AIrx", &a_unknown },  /* Resurrection - Item */
+    // TODO: { "AIs1", &a_unknown },  /* StrengthBonus (+1) */
+    // TODO: { "AIs2", &a_unknown },  /* Attack Speed Increase(greater) */
+    // TODO: { "AIs3", &a_unknown },  /* StrengthBonus (+3) */
+    // TODO: { "AIs4", &a_unknown },  /* StrengthBonus (+4) */
+    // TODO: { "AIs6", &a_unknown },  /* StrengthBonus (+6) */
+    // TODO: { "AIsa", &a_unknown },  /* ItemSpeedAoe */
+    // TODO: { "AIsb", &a_unknown },  /* Orb of Spells */
+    // TODO: { "AIse", &a_unknown },  /* Silence(Item) */
+    // TODO: { "AIsh", &a_unknown },  /* Summon Headhunter (item) */
+    // TODO: { "AIsi", &a_unknown },  /* SightBonus */
+    // TODO: { "AIsl", &a_unknown },  /* Scroll of Life Regen */
+    // TODO: { "AIso", &a_unknown },  /* SoulTrap */
+    // TODO: { "AIsp", &a_unknown },  /* ItemSpeed */
+    // TODO: { "AIsr", &a_unknown },  /* Runed Bracers */
+    // TODO: { "AIsw", &a_unknown },  /* Sentry Ward */
+    // TODO: { "AIsx", &a_unknown },  /* Attack Speed Increase */
+    // TODO: { "AIsz", &a_unknown },  /* Slow Poison (item) */
+    // TODO: { "AIt6", &a_unknown },  /* AttackBonus */
+    // TODO: { "AIt9", &a_unknown },  /* AttackBonus */
+    // TODO: { "AIta", &a_unknown },  /* ItemDetectAoe */
+    // TODO: { "AItb", &a_unknown },  /* Dust of Appearance */
+    // TODO: { "AItc", &a_unknown },  /* AttackBonus */
+    // TODO: { "AItf", &a_unknown },  /* AttackBonus */
+    // TODO: { "AItg", &a_unknown },  /* AttackBonus +1 */
+    // TODO: { "AIth", &a_unknown },  /* AttackBonus +2 */
+    // TODO: { "AIti", &a_unknown },  /* AttackBonus +4 */
+    // TODO: { "AItj", &a_unknown },  /* AttackBonus +5 */
+    // TODO: { "AItk", &a_unknown },  /* AttackBonus +7 */
+    // TODO: { "AItl", &a_unknown },  /* AttackBonus +8 */
+    // TODO: { "AItm", &a_unknown },  /* IntelligenceMod +2 */
+    // TODO: { "AItn", &a_unknown },  /* AttackBonus +10 */
+    // TODO: { "AItp", &a_unknown },  /* ItemTownPortal */
+    // TODO: { "AItx", &a_unknown },  /* AttackBonus +20 */
+    // TODO: { "AIuf", &a_unknown },  /* Unholy Frenzy (item) */
+    // TODO: { "AIuv", &a_unknown },  /* ItemUltravision */
+    // TODO: { "AIuw", &a_unknown },  /* FigurineUrsaWarrior */
+    // TODO: { "AIv1", &a_unknown },  /* ItemInvis (Lesser) */
+    // TODO: { "AIv2", &a_unknown },  /* ItemInvis (Greater) */
+    // TODO: { "AIva", &a_unknown },  /* Vampiric attack */
+    // TODO: { "AIvl", &a_unknown },  /* ItemInvul */
+    // TODO: { "AIvu", &a_unknown },  /* ItemInvul */
+    // TODO: { "AIwb", &a_unknown },  /* ItemWeb */
+    // TODO: { "AIwm", &a_unknown },  /* Watery Minion (item) */
+    // TODO: { "AIx1", &a_unknown },  /* (All + 1) */
+    // TODO: { "AIx2", &a_unknown },  /* (All + 2) */
+    // TODO: { "AIx3", &a_unknown },  /* (All + 3) */
+    // TODO: { "AIx4", &a_unknown },  /* (All + 4) */
+    // TODO: { "AIx5", &a_unknown },  /* Crown of Kings (All + 5) */
+    // TODO: { "AIxk", &a_unknown },  /* Beserk (item) */
+    // TODO: { "AIxs", &a_unknown },  /* Anti-magic Shield */
+    // TODO: { "AIzb", &a_unknown },  /* Orb of Freezing */
+    // TODO: { "ANak", &a_unknown },  /* Orb of Annihilation (Quill Spray) */
+    // TODO: { "ANb2", &a_unknown },  /* Bash (maul , SP Bear, level 3) */
+    // TODO: { "ANbh", &a_unknown },  /* Bash (Beastmaster Bear) */
+    // TODO: { "ANbl", &a_unknown },  /* Blink(Beastmaster Bear) */
+    // TODO: { "ANbs", &a_unknown },  /* Orb of Darkness (Black Arrow) */
+    // TODO: { "ANc1", &a_unknown },  /* Tinkerer - Cluster Rockets (Level 1) */
+    // TODO: { "ANc2", &a_unknown },  /* Tinkerer - Cluster Rockets (Level 2) */
+    // TODO: { "ANc3", &a_unknown },  /* Tinkerer - Cluster Rockets (Level 3) */
+    // TODO: { "ANcr", &a_unknown },  /* Alchemist - Chemical Rage */
+    // TODO: { "ANcs", &a_unknown },  /* Tinkerer - Cluster Rockets (Level 0) */
+    // TODO: { "ANd1", &a_unknown },  /* Tinkerer - Demolish (Level 1) */
+    // TODO: { "ANd2", &a_unknown },  /* Tinkerer - Demolish (Level 2) */
+    // TODO: { "ANd3", &a_unknown },  /* Tinkerer - Demolish (Level 3) */
+    // TODO: { "ANdc", &a_unknown },  /* Malganis - Dark Conversion */
+    // TODO: { "ANde", &a_unknown },  /* Tinkerer - Demolish (Level 0) */
+    // TODO: { "ANdp", &a_unknown },  /* Dark Portal */
+    // TODO: { "ANef", &a_unknown },  /* Brewmaster - Storm, Earth and Fire */
+    // TODO: { "ANeg", &a_unknown },  /* Tinkerer - Engineering Upgrade */
+    // TODO: { "ANfa", &a_unknown },  /* Sea Witch - Frost Arrows */
+    // TODO: { "ANfd", &a_unknown },  /* Finger of Death */
+    // TODO: { "ANfy", &a_unknown },  /* Factory */
+    // TODO: { "ANg1", &a_unknown },  /* Tinkerer - Robo-Goblin (Level 1) */
+    // TODO: { "ANg2", &a_unknown },  /* Tinkerer - Robo-Goblin (Level 2) */
+    // TODO: { "ANg3", &a_unknown },  /* Tinkerer - Robo-Goblin (Level 3) */
+    // TODO: { "ANhs", &a_unknown },  /* Alchemist - Healing Spray */
+    // TODO: { "ANia", &a_unknown },  /* Firelord - Incinerate */
+    // TODO: { "ANic", &a_unknown },  /* Firelord - Incinerate */
+    // TODO: { "ANin", &a_unknown },  /* Inferno */
+    // TODO: { "ANlm", &a_unknown },  /* Firelord - Summon Lava Spawn */
+    // TODO: { "ANmo", &a_unknown },  /* Monsoon */
+    // TODO: { "ANmr", &a_unknown },  /* Mind Rot */
+    // TODO: { "ANpi", &a_unknown },  /* Permanent Immolation */
+    // TODO: { "ANpr", &a_unknown },  /* Preservation */
+    // TODO: { "ANr3", &a_unknown },  /* Rain of Chaos(Button 0,2) */
+    // TODO: { "ANrc", &a_unknown },  /* Rain of Chaos */
+    // TODO: { "ANre", &a_unknown },  /* Neutral Regen (mana only) */
+    // TODO: { "ANrg", &a_unknown },  /* Tinkerer - Robo-Goblin (Level 0) */
+    // TODO: { "ANrn", &a_unknown },  /* Mannoroth - Reincarnation */
+    // TODO: { "ANs1", &a_unknown },  /* Tinkerer - Summon Factory (Level 1) */
+    // TODO: { "ANs2", &a_unknown },  /* Tinkerer - Summon Factory (Level 2) */
+    // TODO: { "ANs3", &a_unknown },  /* Tinkerer - Summon Factory (Level 3) */
+    // TODO: { "ANsa", &a_unknown },  /* Sanctuary */
+    // TODO: { "ANse", &a_unknown },  /* Spell Shield AOE */
+    // TODO: { "ANsl", &a_unknown },  /* Malganis - Soul Preservation */
+    // TODO: { "ANso", &a_unknown },  /* Firelord - Soul Burn */
+    // TODO: { "ANss", &a_unknown },  /* Spell Shield */
+    // TODO: { "ANsy", &a_unknown },  /* Tinkerer - Summon Factory (Level 0) */
+    // TODO: { "ANt2", &a_unknown },  /* Thorny Shield (Dragon Turtle) */
+    // TODO: { "ANta", &a_unknown },  /* Taunt(Creep) */
+    // TODO: { "ANth", &a_unknown },  /* Thorny Shield (Creep) */
+    // TODO: { "ANtm", &a_unknown },  /* Alchemist - Transmute */
+    // TODO: { "ANtr", &a_unknown },  /* Detect(War Eagle) */
+    // TODO: { "ANvc", &a_unknown },  /* Firelord - Volcano */
+    // TODO: { "ANwk", &a_unknown },  /* Wind Walk */
+    // TODO: { "ANwm", &a_unknown },  /* Watery Minion */
+    // TODO: { "AOsw", &a_unknown },  /* Shadow Hunter - Serpent Ward */
+    // TODO: { "APdi", &a_unknown },  /* PowerupDispelAoe */
+    // TODO: { "APh1", &a_unknown },  /* PowerupHealAoeLesser */
+    // TODO: { "APh2", &a_unknown },  /* PowerupHealAoe */
+    // TODO: { "APh3", &a_unknown },  /* PowerupHealAoeGreater */
+    // TODO: { "APmg", &a_unknown },  /* RuneManaRestoreGreaterAoe */
+    // TODO: { "APmr", &a_unknown },  /* RuneManaRestoreAoe */
+    // TODO: { "APra", &a_unknown },  /* RuneRestoreAoe */
+    // TODO: { "APrl", &a_unknown },  /* Rune of Lesser Resurrection */
+    // TODO: { "APrr", &a_unknown },  /* Rune of Greater Resurrection */
+    // TODO: { "APsa", &a_unknown },  /* RuneSpeedAoe */
+    // TODO: { "APwt", &a_unknown },  /* Rune of the Watcher */
+    // TODO: { "AUds", &a_unknown },  /* Dark Summoning */
+    // TODO: { "Aabr", &a_unknown },  /* Aura - Regeneration (Statue) */
+    // TODO: { "Aabs", &a_unknown },  /* Absorb Mana */
+    // TODO: { "Aadm", &a_unknown },  /* Abolish Magic */
+    // TODO: { "Aakb", &a_unknown },  /* Aura - War Drums */
+    // TODO: { "Aam2", &a_unknown },  /* Anti-magic Shield (Matrix) */
+    // TODO: { "Aams", &a_unknown },  /* Anti-magic Shield */
+    // TODO: { "Aap1", &a_unknown },  /* Aura - Plague (Abomination) */
+    // TODO: { "Aap2", &a_unknown },  /* Aura - Plague (Plague Ward) */
+    // TODO: { "Aap3", &a_unknown },  /* Aura - Plague (Creep) */
+    // TODO: { "Aap4", &a_unknown },  /* Aura - Plague (Creep gfx) */
+    // TODO: { "Aasl", &a_unknown },  /* Aura - Slow */
+    // TODO: { "Aast", &a_unknown },  /* Ancestral Spirit */
+    // TODO: { "Aave", &a_unknown },  /* Avenger Form */
+    // TODO: { "Abdl", &a_unknown },  /* Blight Dispel (Large) */
+    // TODO: { "Abds", &a_unknown },  /* Blight Dispel (Small) */
+    // TODO: { "Abgl", &a_unknown },  /* Blight Growth (Large) */
+    // TODO: { "Abgs", &a_unknown },  /* Blight Growth (Small) */
+    // TODO: { "Ablo", &a_unknown },  /* Bloodlust */
+    // TODO: { "Ablp", &a_unknown },  /* BlightPlacement */
+    // TODO: { "Abof", &a_unknown },  /* Balls of Fire */
+    // TODO: { "Abrf", &a_unknown },  /* Bearform */
+    // TODO: { "Absk", &a_unknown },  /* Beserk */
+    // TODO: { "Abu2", &a_unknown },  /* Burrow(scarab lvl 2) */
+    // TODO: { "Abu3", &a_unknown },  /* Burrow(scarab lvl 3) */
+    // TODO: { "Abu5", &a_unknown },  /* Burrow(Barbed Arachnathid) */
+    // TODO: { "Abur", &a_unknown },  /* Burrow */
+    // TODO: { "Acan", &a_unknown },  /* Cannibalize */
+    // TODO: { "Acdb", &a_unknown },  /* Chen- Drunken Brawler */
+    // TODO: { "Achd", &a_unknown },  /* Cargo Hold Death */
+    // TODO: { "Ache", &a_unknown },  /* Chain Dispel */
+    // TODO: { "Achl", &a_unknown },  /* Chaos Cargo Load */
+    // TODO: { "Acht", &a_unknown },  /* Howl of Terror */
+    // TODO: { "Acn2", &a_unknown },  /* Cannibalize (Abomination) */
+    // TODO: { "Aco2", &a_unknown },  /* Couple Instant (Archer) */
+    // TODO: { "Aco3", &a_unknown },  /* Couple Instant (Hippogryph) */
+    // TODO: { "Acoa", &a_unknown },  /* Couple (Archer) */
+    // TODO: { "Acoh", &a_unknown },  /* Couple (Hippogryph) */
+    // TODO: { "Acor", &a_unknown },  /* Corrosive Breath */
+    // TODO: { "Acpf", &a_unknown },  /* Corporeal Form */
+    // TODO: { "Acri", &a_unknown },  /* Cripple */
+    // TODO: { "Acrs", &a_unknown },  /* Curse */
+    // TODO: { "Acyc", &a_unknown },  /* Cyclone */
+    // TODO: { "Adch", &a_unknown },  /* Disenchant(old) */
+    // TODO: { "Adcn", &a_unknown },  /* Disenchant(new) */
+    // TODO: { "Adda", &a_unknown },  /* Death Damage (sapper) */
+    // TODO: { "Adec", &a_unknown },  /* Decouple */
+    // TODO: { "Adev", &a_unknown },  /* Devour */
+    // TODO: { "Adsm", &a_unknown },  /* Dispel Magic (creep) */
+    // TODO: { "Adt1", &a_unknown },  /* Detect (Sentry Ward) */
+    // TODO: { "Adtg", &a_unknown },  /* Detect (general) */
+    // TODO: { "Adtn", &a_unknown },  /* Detonate */
+    // TODO: { "Advc", &a_unknown },  /* Cargo Hold (Devour) */
+    // TODO: { "Advm", &a_unknown },  /* Devour Magic */
+    // TODO: { "Aegr", &a_unknown },  /* Elune's Grace */
+    // TODO: { "Aenr", &a_unknown },  /* Entangling Roots (creep) */
+    // TODO: { "Aens", &a_unknown },  /* Ensnare */
+    // TODO: { "Aenw", &a_unknown },  /* Entangling Seaweed */
+    // TODO: { "Aesn", &a_unknown },  /* Sentinel */
+    // TODO: { "Aesr", &a_unknown },  /* Sentinel (no research) */
+    // TODO: { "Aetf", &a_unknown },  /* Ethereal Form */
+    // TODO: { "Aeth", &a_unknown },  /* Ghost (Visible) */
+    // TODO: { "Aetl", &a_unknown },  /* Ethereal */
+    // TODO: { "Aexh", &a_unknown },  /* Exhume */
+    // TODO: { "Aeye", &a_unknown },  /* Sentry Ward */
+    // TODO: { "Afa2", &a_unknown },  /* Faerie Fire */
+    // TODO: { "Afae", &a_unknown },  /* Faerie Fire */
+    // TODO: { "Afak", &a_unknown },  /* Orb of Annihilation */
+    // TODO: { "Afbt", &a_unknown },  /* Feedback(Arcane Tower) */
+    // TODO: { "Afod", &a_unknown },  /* Finger of Death */
+    // TODO: { "Afr2", &a_unknown },  /* Frost Attack (1,2) */
+    // TODO: { "Afra", &a_unknown },  /* Frost Attack */
+    // TODO: { "Afrb", &a_unknown },  /* Frost Breath */
+    // TODO: { "Afrz", &a_unknown },  /* Freezing Breath */
+    // TODO: { "Afzy", &a_unknown },  /* Frenzy */
+    // TODO: { "Agho", &a_unknown },  /* Ghost */
+    // TODO: { "Agra", &a_unknown },  /* Grab Tree */
+    // TODO: { "Agyd", &a_unknown },  /* Graveyard */
+    // TODO: { "Ahid", &a_unknown },  /* Shadow Meld (Akama) */
+    // TODO: { "Ahr2", &a_unknown },  /* Harvest Lumber (Arch ghouls) */
+    // TODO: { "Ahr3", &a_unknown },  /* Harvest Lumber (shredder) */
+    // TODO: { "Ahrp", &a_unknown },  /* Repair (Human) */
+    // TODO: { "Ahwd", &a_unknown },  /* Healing Ward */
+    // TODO: { "Aien", &a_unknown },  /* Inventory(2 slot unit) Night Elf */
+    // TODO: { "Aihn", &a_unknown },  /* Inventory(2 slot unit) Human */
+    // TODO: { "Aimp", &a_unknown },  /* Impaling Bolt */
+    // TODO: { "Aion", &a_unknown },  /* Inventory(2 slot unit) Orc */
+    // TODO: { "Aiun", &a_unknown },  /* Inventory(2 slot unit) Undead */
+    // TODO: { "Alam", &a_unknown },  /* Sacrifice (Acolyte) */
+    // TODO: { "Aliq", &a_unknown },  /* Liquid Fire */
+    // TODO: { "Alit", &a_unknown },  /* Lightning Attack */
+    // TODO: { "Alsh", &a_unknown },  /* Lightning Shield */
+    // TODO: { "Amb2", &a_unknown },  /* Mana Battery (Obsidian Statue) */
+    // TODO: { "Ambb", &a_unknown },  /* Mana Burn (Hotkey B) */
+    // TODO: { "Ambd", &a_unknown },  /* Mana Burn (demon) */
+    // TODO: { "Amec", &a_unknown },  /* MechanicalCritter */
+    // TODO: { "Amed", &a_unknown },  /* Meat Drop */
+    // TODO: { "Amel", &a_unknown },  /* Meat Load */
+    // TODO: { "Amfl", &a_unknown },  /* Mana Flare */
+    // TODO: { "Amgl", &a_unknown },  /* Moon Glaive */
+    // TODO: { "Amgr", &a_unknown },  /* Moon Glaive (No research) */
+    // TODO: { "Amim", &a_unknown },  /* Magic Immunity */
+    // TODO: { "Amin", &a_unknown },  /* Mine */
+    // TODO: { "Amnb", &a_unknown },  /* Mana Burn (demon) */
+    // TODO: { "Amnx", &a_unknown },  /* Death Damage (mine) */
+    // TODO: { "Amnz", &a_unknown },  /* Death Damage (mine BIG) */
+    // TODO: { "Andt", &a_unknown },  /* Neutral Detection (Reveal ability) */
+    // TODO: { "Ane2", &a_unknown },  /* Neutral Building (any unit) */
+    // TODO: { "Anh1", &a_unknown },  /* Heal (Creep Normal) */
+    // TODO: { "Anh2", &a_unknown },  /* Heal (Creep High) */
+    // TODO: { "Anhe", &a_unknown },  /* Heal (Creep Normal) */
+    // TODO: { "Ansk", &a_unknown },  /* Hardened Skin(Naga Turtle) */
+    // TODO: { "Ansp", &a_unknown },  /* Neutral Spies */
+    // TODO: { "Aoar", &a_unknown },  /* Aura - Regeneration (Ward) */
+    // TODO: { "Apak", &a_unknown },  /* Inventory (Pack Mule) */
+    // TODO: { "Apg2", &a_unknown },  /* Purge */
+    // TODO: { "Apig", &a_unknown },  /* Permanent Immolation (graphic) */
+    // TODO: { "Apiv", &a_unknown },  /* Permanent Invisibility */
+    // TODO: { "Apmf", &a_unknown },  /* Permanent Immolation (flying) */
+    // TODO: { "Apo2", &a_unknown },  /* Orb of Venom (Poison Attack) */
+    // TODO: { "Apoi", &a_unknown },  /* Poison Attack */
+    // TODO: { "Apos", &a_unknown },  /* Possession */
+    // TODO: { "Aprg", &a_unknown },  /* Purge */
+    // TODO: { "Aps2", &a_unknown },  /* Possession (Channeling) */
+    // TODO: { "Apsh", &a_unknown },  /* Phase Shift */
+    // TODO: { "Apts", &a_unknown },  /* Plague Toss */
+    // TODO: { "Ara2", &a_unknown },  /* Roar */
+    // TODO: { "Arai", &a_unknown },  /* Raise Dead */
+    // TODO: { "Arbr", &a_unknown },  /* Reinforced Burrows */
+    // TODO: { "Arej", &a_unknown },  /* Rejuvination */
+    // TODO: { "Arel", &a_unknown },  /* Regen Life */
+    // TODO: { "Aret", &a_unknown },  /* Retrain */
+    // TODO: { "Argd", &a_unknown },  /* Return (Gold) */
+    // TODO: { "Argl", &a_unknown },  /* Return (Gold & Lumber) */
+    // TODO: { "Arll", &a_unknown },  /* Regen Life */
+    // TODO: { "Arlm", &a_unknown },  /* Return (Lumber) */
+    // TODO: { "Arng", &a_unknown },  /* Revenge */
+    // TODO: { "Aro1", &a_unknown },  /* Root (Ancients) */
+    // TODO: { "Aro2", &a_unknown },  /* Root (Ancient Protector) */
+    // TODO: { "Aroa", &a_unknown },  /* Roar */
+    // TODO: { "Arpb", &a_unknown },  /* Replenish (Life & Mana) */
+    // TODO: { "Arpl", &a_unknown },  /* Replenish (Life) */
+    // TODO: { "Arpm", &a_unknown },  /* Replenish (Mana) */
+    // TODO: { "Arsk", &a_unknown },  /* Resistant Skin */
+    // TODO: { "Asac", &a_unknown },  /* Sacrifice (Sacrificial Pit) */
+    // TODO: { "Asal", &a_unknown },  /* Pillage */
+    // TODO: { "Asd2", &a_unknown },  /* Self Destruct 2 (Clockwerk Goblins) */
+    // TODO: { "Asd3", &a_unknown },  /* Self Destruct 3 (Clockwerk Goblins) */
+    // TODO: { "Asdg", &a_unknown },  /* Self Destruct (Clockwerk Goblins) */
+    // TODO: { "Asds", &a_unknown },  /* Self Destruct */
+    // TODO: { "Ashm", &a_unknown },  /* Shadow Meld */
+    // TODO: { "Ashs", &a_unknown },  /* ShadowSight */
+    // TODO: { "Asid", &a_unknown },  /* Sell Item */
+    // TODO: { "Asla", &a_unknown },  /* Sleep Always */
+    // TODO: { "Aslp", &a_unknown },  /* Summon Lobstrok Prawns */
+    // TODO: { "Asod", &a_unknown },  /* Spawn Skeleton */
+    // TODO: { "Asou", &a_unknown },  /* SoulPossession */
+    // TODO: { "Asp1", &a_unknown },  /* Sphere (SoV Level 1) */
+    // TODO: { "Asp2", &a_unknown },  /* Sphere (SoV Level 2) */
+    // TODO: { "Asp3", &a_unknown },  /* Sphere (SoV Level 3) */
+    // TODO: { "Asp4", &a_unknown },  /* Sphere (SoV Level 4) */
+    // TODO: { "Asp5", &a_unknown },  /* Sphere (SoV Level 5) */
+    // TODO: { "Asp6", &a_unknown },  /* Sphere (SoV Level 6) */
+    // TODO: { "Aspa", &a_unknown },  /* Spider Attack */
+    // TODO: { "Aspb", &a_unknown },  /* Spell Book */
+    // TODO: { "Aspd", &a_unknown },  /* Spawn Spider */
+    // TODO: { "Aspi", &a_unknown },  /* Spiked Barricades */
+    // TODO: { "Aspl", &a_unknown },  /* Spirit Link */
+    // TODO: { "Aspo", &a_unknown },  /* Slow Poison */
+    // TODO: { "Aspp", &a_unknown },  /* Rune of Spirit Link */
+    // TODO: { "Aspt", &a_unknown },  /* Spawn Hydra Hatchling */
+    // TODO: { "Aspy", &a_unknown },  /* Spawn Hydra */
+    // TODO: { "Assk", &a_unknown },  /* Hardened Skin */
+    // TODO: { "Assp", &a_unknown },  /* Spawn Spiderling */
+    // TODO: { "Asta", &a_unknown },  /* Stasis Trap */
+    // TODO: { "Aste", &a_unknown },  /* ManaSteal */
+    // TODO: { "Astn", &a_unknown },  /* Stone Form */
+    // TODO: { "Asud", &a_unknown },  /* Sell Unit */
+    // TODO: { "Atau", &a_unknown },  /* Taunt */
+    // TODO: { "Atdg", &a_unknown },  /* TornadoDamage */
+    // TODO: { "Atol", &a_unknown },  /* Tree of life (for attaching art) */
+    // TODO: { "Atru", &a_unknown },  /* Detect (Shade) */
+    // TODO: { "Atsp", &a_unknown },  /* TornadoSpin */
+    // TODO: { "Atwa", &a_unknown },  /* TornadoWander */
+    // TODO: { "Auco", &a_unknown },  /* Unstable Concoction */
+    // TODO: { "Auhf", &a_unknown },  /* Unholy Frenzy */
+    // TODO: { "Ault", &a_unknown },  /* Ultravision */
+    // TODO: { "Auns", &a_unknown },  /* Unsummon */
+    // TODO: { "Aven", &a_unknown },  /* Venom Spears */
+    // TODO: { "Avng", &a_unknown },  /* Vengeance */
+    // TODO: { "Awan", &a_unknown },  /* Wander */
+    // TODO: { "Awar", &a_unknown },  /* Pulverize */
+    // TODO: { "Aweb", &a_unknown },  /* Web */
+    // TODO: { "Awfb", &a_unknown },  /* Fire Bolt (warlock) */
+    // TODO: { "Awh2", &a_unknown },  /* Wisp Harvest (Invulnerable) */
+    // TODO: { "Awrg", &a_unknown },  /* War Stomp (sea giant) */
+    // TODO: { "Awrh", &a_unknown },  /* War Stomp (hydra) */
+    // TODO: { "Awrp", &a_unknown },  /* Warp */
+    // TODO: { "Awrs", &a_unknown },  /* War Stomp (creep) */
+    // TODO: { "SCae", &a_unknown },  /* Aura - Endurance (Creep) */
+    // TODO: { "SCc1", &a_unknown },  /* Cyclone (Cenarius) */
+    // TODO: { "SCva", &a_unknown },  /* Vampiric attack */
+    // TODO: { "SNdc", &a_unknown },  /* Dark Conversion (Fast) */
+    // TODO: { "SNdd", &a_unknown },  /* Super Death and Decay */
+    // TODO: { "SNeq", &a_unknown },  /* Super Earthquake */
+    // TODO: { "SNin", &a_unknown },  /* Tichondrius - Inferno */
+    // TODO: { "Sbsk", &a_unknown },  /* Berserker Upgrade */
+    // TODO: { "Sbtl", &a_unknown },  /* Battlestations (Chaos) */
+    // TODO: { "Sca1", &a_unknown },  /* Chaos (Grunt) */
+    // TODO: { "Sca2", &a_unknown },  /* Chaos (Raider) */
+    // TODO: { "Sca3", &a_unknown },  /* Chaos (Shaman) */
+    // TODO: { "Sca4", &a_unknown },  /* Chaos (Kodo) */
+    // TODO: { "Sca5", &a_unknown },  /* Chaos (Peon) */
+    // TODO: { "Sca6", &a_unknown },  /* Chaos (Grom) */
+    // TODO: { "Sch2", &a_unknown },  /* Cargo Hold (Meat Wagon) */
+    // TODO: { "Sch3", &a_unknown },  /* Cargo Hold (Transport) */
+    // TODO: { "Sch4", &a_unknown },  /* Cargo Hold (Tank) */
+    // TODO: { "Sch5", &a_unknown },  /* Cargo Hold (Ship) */
+    // TODO: { "Scri", &a_unknown },  /* Cripple (Warlock) */
+    // TODO: { "Sdro", &a_unknown },  /* Drop */
+    // TODO: { "Slo2", &a_unknown },  /* Load (Entangled Gold Mine) */
+    // TODO: { "Slo3", &a_unknown },  /* Load (Navies) */
+    // TODO: { "Sloa", &a_unknown },  /* Load (Burrow) */
+    // TODO: { "Srtt", &a_unknown },  /* Tank Upgrade */
+    // TODO: { "Sshm", &a_unknown },  /* Shadow Meld (Instant) */
+    // TODO: { "Stpm", &a_unknown },  /* Pilot Tank (Mortar Team) */
+    // TODO: { "Stpr", &a_unknown },  /* PIlot Tank (Rifleman) */
+    // TODO: { "Suhf", &a_unknown },  /* Unholy Frenzy (Warlock) */
+
     /* END GENERATED TODO ABILITIES */
 };
 
