@@ -348,6 +348,79 @@ TEST(wc3_spell, hero_passives_use_authored_data_and_runtime_consumers) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, regeneration_auras_use_alias_object_data_and_maximum_resources) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y4;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"levels\"\n"
+		"C;Y2;X1;K\"ACnr\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+		"C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\n"
+		"C;Y3;X1;K\"ANre\"\nC;Y3;X2;K\"Aarm\"\nC;Y3;X3;K\"ground,friend,organic\"\n"
+		"C;Y3;X4;K\"500\"\nC;Y3;X5;K\"0.02\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\n"
+		"C;Y4;X1;K\"Aabr\"\nC;Y4;X2;K\"Aabr\"\nC;Y4;X3;K\"ground,friend,organic\"\n"
+		"C;Y4;X4;K\"500\"\nC;Y4;X5;K\"3\"\nC;Y4;X6;K\"0\"\nC;Y4;X7;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT health_source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+	LPEDICT mana_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+	LPEDICT blight_source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+	UnitAbilities_t static_abilities = { .abilList = "ACnr" };
+	health_source->s.player = mana_source->s.player = blight_source->s.player = target->s.player = 0;
+	health_source->targtype = mana_source->targtype = blight_source->targtype = target->targtype = TARG_GROUND;
+	health_source->data.UnitAbilities = &static_abilities;
+	mana_source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','N','r','e'), .level = 1);
+	blight_source->abilities.added[0] = MAKEFOURCC('A','a','b','r'); ARRAY_COUNT(blight_source->abilities.added) = 1;
+	target->health.max_value = 1000.0f; target->health.value = 500.0f;
+	target->mana.max_value = 400.0f; target->mana.value = 100.0f;
+
+	T_FEQ(S_RegenerationHealthAura(target), 13.0f, 0.001f);
+	T_FEQ(S_RegenerationManaAura(target), 8.0f, 0.001f);
+	target->s.origin2.x = 501.0f;
+	T_FEQ(S_RegenerationHealthAura(target), 0.0f, 0.001f);
+	T_FEQ(S_RegenerationManaAura(target), 0.0f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_family_member) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y3;X7\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\nC;Y1;X7;K\"levels\"\n"
+		"C;Y2;X1;K\"ACn1\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+		"C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\nC;Y2;X7;K\"1\"\n"
+		"C;Y3;X1;K\"ACn2\"\nC;Y3;X2;K\"Aoar\"\nC;Y3;X3;K\"ground,friend,organic\"\n"
+		"C;Y3;X4;K\"500\"\nC;Y3;X5;K\"0.02\"\nC;Y3;X6;K\"1\"\nC;Y3;X7;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT first = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+	LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+
+	first->s.player = second->s.player = target->s.player = 0;
+	first->targtype = second->targtype = target->targtype = TARG_GROUND;
+	first->abilities.added[0] = MAKEFOURCC('A','C','n','1'); ARRAY_COUNT(first->abilities.added) = 1;
+	second->abilities.added[0] = MAKEFOURCC('A','C','n','2'); ARRAY_COUNT(second->abilities.added) = 1;
+	target->health.max_value = 1000.0f; target->health.value = 500.0f;
+
+	T_FEQ(S_RegenerationHealthAura(target), 20.0f, 0.001f);
+	target->targtype = TARG_MECHANICAL;
+	T_FEQ(S_RegenerationHealthAura(target), 0.0f, 0.001f);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
+TEST(wc3_spell, regeneration_aura_base_codes_are_registered_passives) {
+	static LPCSTR const codes[] = { "Aoar", "Aabr", "Aarm" };
+	FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
+		ability_t const *ability = FindAbilityByClassname(codes[i]);
+		T_NOT_NULL(ability);
+		T_ASSERT(ability->flags & ABILITY_PASSIVE);
+	}
+}
+
 TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"

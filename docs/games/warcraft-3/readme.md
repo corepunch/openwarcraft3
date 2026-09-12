@@ -121,6 +121,8 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Map Renderer](architecture/map-renderer.md)
 - [Hero Ability Progression](hero-abilities.md)
 - [Ability Identity and Cooldown Ownership](ability-inheritance-plan.md#rawcode-and-procedure-identity)
+- [Ability Cooldowns](ability-cooldowns.md)
+- [Regeneration Auras And Fountains](regeneration-auras.md)
 - [Cinematics](cinematics.md)
 - [Time Of Day](time-of-day.md)
 - [Hero Revival](hero-revival.md)
