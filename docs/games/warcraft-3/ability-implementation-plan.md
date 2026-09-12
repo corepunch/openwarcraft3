@@ -1,4 +1,4 @@
-# Warcraft III Ability Implementation Plan
+# Adding Warcraft III Abilities
 
 This project implements Warcraft III abilities from the authoritative game data and
 observable gameplay contract. The goal is useful, testable compatibility. TFT's extracted
@@ -10,7 +10,8 @@ supposed to observe. It is not a complete specification, so every implementation
 record separates confirmed facts, reasonable deductions, and unresolved behavior.
 
 Ability-owned behavior is the default architecture: keep the full behavior in its ability module and reach it through
-generic dispatch. See [ownership](#ability-owned-orders-and-persistent-behavior) and [testing](#testing) before adding code.
+generic dispatch. Start with [Adding a New Ability](#adding-a-new-ability); see [ownership](#ability-owned-orders-and-persistent-behavior)
+and [testing](#testing) before adding code.
 
 ## Sources Of Truth
 
@@ -118,7 +119,7 @@ Display text is fetched through authored ability profiles/strings and map overri
 `G_AbilityData` / `G_AbilityLevel` by the actual rawcode.
 
 Register concrete `AbilityData.alias` row IDs and `AbilityData.code` implementation IDs, plus necessary internal
-commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-inheritance-plan.md#behavior-and-identity)
+commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-inheritance-plan.md#rawcode-and-procedure-identity)
 and [data-backed registry](ability-inheritance-plan.md#data-backed-registry) for lookup and verification details.
 
 
@@ -150,7 +151,7 @@ Look up the FourCC in `tft-ability-classes.txt` to find its TFT class name and p
 Run the audit tool to see where this ability stands:
 
 ```sh
-python3 tools/wc3_ability_class_audit.py --format=todo | grep ANdo
+python3 tools/wc3_ability_class_audit.py --format=todo | rg ANdo
 ```
 
 ### 2. Identify shared behavior
@@ -170,9 +171,29 @@ It does not determine our runtime memory layout. Common retail families:
 | `CAbilityPersistentBonus` (APbo) | Item stat bonuses | passive bonus applied/removed on equip |
 | `CPower` (powr) | Fundamental abilities (Move, Attack) | always present on units |
 
+Before implementation, record the expected inputs, target rules, timing, result, and inverse/cleanup behavior from
+the data. Add the smallest representative fixture and a failing test through production dispatch for missing or
+incorrect behavior. See [Testing](#testing); rawcode registration alone is not a behavioral test.
+
 ### 3. Define the ability
 
-For a spell that uses the unified pipeline, define its procedure with the smallest applicable procedure macro:
+Work in the owning `games/warcraft-3/game/skills/s_*.c` file and include `s_skills.h`.
+Choose the macro by the messages the behavior needs:
+
+| Form | Body parameters / return | Dispatch contract |
+| --- | --- | --- |
+| `BZ_SIMPLE_SPELL_PROC(AbilityName) { ... }` | `caster`, `st`, `spell`; `void` | `A_EXECUTE` calls the body and returns true; other messages delegate to `CAbilitySimpleSpell` |
+| `BZ_COMMAND_PROC(AbilityName) { ... }` | `clent`; `void` | handles `A_COMMAND`; other messages return false |
+| `BZ_ITEM_PROC(AbilityName) { ... }` | `clent`; `BOOL` | handles `A_ITEM_USE`; body success permits charge consumption; other messages return false |
+| `BZ_ABILITY_PROC(CAbilityName) { ... }` | `ent`, `msg`, `call`; `intptr_t` | explicit switch for custom validation, lifecycle, orders, updates, or other messages |
+
+The three body macros take **one name argument**. They generate a public `CAbilityName` procedure and a
+file-local helper (`AbilityName_Execute`, `AbilityName_Command`, or `AbilityName_ItemUse`). The macro supplies
+both the helper's static forward declaration and its definition header. Do not add a separate helper declaration,
+manual signature, second callback argument, or semicolon between the macro and its body. Use `AbilityName`
+without the leading `C` for these macros; `BZ_ABILITY_PROC` takes the full `CAbilityName`.
+
+For a spell that uses the shared pipeline:
 
 ```c
 /* Name=Doom
@@ -181,30 +202,41 @@ For a spell that uses the unified pipeline, define its procedure with the smalle
 BZ_SIMPLE_SPELL_PROC(AbilityDoom) { target_status_execute(caster, st, spell); }
 ```
 
-Put single-use execution logic directly in the body; call a shared helper when multiple abilities share it.
+Put single-use execution logic directly in the body; keep a named helper only for behavior shared by multiple
+procedures. If rawcodes have identical behavior and dispatch policy, point their registry rows at one procedure.
+For example, `AUfa` and `AUfu` both use `CAbilityFrostArmor`; there is no separate `CAbilityFrostArmorAuto`
+wrapper. Keep each requested rawcode in `abilityitem_t.code` so authored data remains distinct. A shared
+procedure does not itself add autocast support; that requires the appropriate policy and message handlers.
 The macro forward-declares `AbilityDoom_Execute` and routes `A_EXECUTE` to it. Flags and target shape belong
 in the registry row. For behavior that needs more messages, use `BZ_ABILITY_PROC` (which supplies `ent`, `msg`,
-and `call`), write the switch directly, and delegate unhandled messages to the TFT parent procedure:
+and `call`), write the switch directly, and delegate unhandled messages to the TFT parent procedure.
 
-```c
-BZ_ABILITY_PROC(CAbilityDoom) {
-    switch (msg) {
-    case A_VALIDATE: return doom_validate(ent, call->target, call->item);
-    case A_EXECUTE: doom_execute(ent, call->target, call->item); return true;
-    default: return CAbilitySimpleSpell(ent, msg, call);
-    }
-}
-```
+See [Holy Light's complete procedure](../../../games/warcraft-3/game/skills/s_holylight.c) for custom
+`A_VALIDATE`/`A_EXECUTE` cases and explicit parent delegation. Read `call`'s union member only inside the
+corresponding message case, handle absent payloads as required, and never retain borrowed payload pointers.
+A handled false result is final; delegate only messages the procedure does not handle.
+
+`BZ_VALIDATED_SPELL_PROC(NAME, VALIDATE, EXECUTE)` still takes three arguments and defines the whole
+procedure. It remains available for existing shared validation/execution helpers; it does not take a trailing
+body like the three one-argument macros. Use an explicit procedure when additional message handling is needed.
 
 Command abilities use the same body syntax. `BZ_COMMAND_PROC(AbilityMove) { ... }` forward-declares
 `AbilityMove_Command(LPEDICT clent)`, routes `A_COMMAND` to it, and supplies its function header.
 `clent` is `call->client` when supplied, otherwise the procedure's `ent`. Other messages return false.
-Use the generated `AbilityMove_Command` name for direct calls or menu callbacks.
+Use the generated `AbilityMove_Command` name for same-file direct calls or menu callbacks. For example,
+`AbilityBuild_Command` installs itself as `client->menu.refresh`. These helpers are file-local; cross-module
+ability dispatch goes through the procedure contract.
+
+```c
+BZ_COMMAND_PROC(AbilityCancel) { CMD_CancelCommand(clent); }
+```
 
 Item use follows `BZ_ITEM_PROC(AbilityItemHeal) { ... }`. It forward-declares
 `BOOL AbilityItemHeal_ItemUse(LPEDICT clent)` and supplies that function header. `A_ITEM_USE` passes the
 procedure's `ent` as `clent`; the body returns whether use succeeded so inventory can consume a charge.
-Other messages return false without running the body.
+Other messages return false without running the body. See [item implementations](../../../games/warcraft-3/game/skills/s_item.c)
+for success and rejection paths. Unlike the command macro, the item macro passes `ent` directly and does not
+select `call->client`. Preserve false returns when the effect cannot apply, such as healing a full-health unit.
 
 ### 4. Declare and register
 
@@ -214,17 +246,32 @@ Add an extern declaration to `s_skills.h`:
 BZ_ABILITY_PROC(CAbilityDoom);
 ```
 
-Uncomment or add the entry in the abilitylist in `s_skills.c`:
+Add the concrete row to `abilitylist` in `s_skills.c`, preserving its authored rawcode:
 
 ```c
 { "ANdo", CAbilityDoom, AB_SPELL, SPELL_TARGET_UNIT },  /* Doom */
 ```
 
+When promoting an inactive `// TODO:` entry, add a complete active row with the procedure, flags, and target
+shape; the TODO line is an inventory entry, not a ready-to-uncomment initializer. Register concrete `AbilityData`
+aliases/implementation codes and necessary internal commands, not abstract TFT helper classes.
+Regenerate the AbilityStrings grouping after editing the active mapping, then run its check mode:
+
+```sh
+python3 tools/generate_ability_registry.py --write
+python3 tools/generate_ability_registry.py
+```
+
+These commands require the extracted `data/strings/*AbilityStrings.txt` inputs. The generator preserves your
+handler mapping and removes corresponding inactive TODO entries; it does not implement or choose behavior.
+
 ### 5. Select command policy
 
 Use `AB_SPELL` for the shared cast processor and handle `A_EXECUTE` plus optional `A_VALIDATE` in the procedure.
 Combine independent policies (`AB_CHANNEL`, `AB_TOGGLE`, `AB_AUTOCAST`) in the registry row. Bespoke orders use
-`AB_COMMAND`/`A_COMMAND`; lifecycle and persistent behavior use their corresponding messages.
+`AB_COMMAND`/`A_COMMAND`; consumable item effects use `AB_ITEM`/`A_ITEM_USE`.
+For named immediate orders, supply `ability_t.orders` and handle `A_ORDER`. For persistent per-unit work,
+register `AB_UPDATE` and handle `A_UPDATE`. Lifecycle messages belong in the owning procedure.
 `S_AbilityHasCommand` and `S_AbilityCommand` provide the common HUD, player and item entry contract.
 
 Concrete relatives can call the same helper or parent procedure: Fire Bolt and Thunder Bolt share effect code
@@ -240,10 +287,20 @@ path, duration/expiry, and save/load.
 
 ```sh
 python3 tools/wc3_ability_class_audit.py --format=coverage
-python3 tools/wc3_ability_class_audit.py --format=hierarchy | grep -A2 ANdo
+python3 tools/wc3_ability_class_audit.py --format=hierarchy | rg -A2 ANdo
 ```
 
-The audit tool should show the ability as implemented (not TODO or missing).
+The audit verifies active registration against the extracted TFT reference. It does not prove behavior,
+correct procedure sharing, or autocast support. Check both the registry mapping and focused gameplay assertions.
+
+```sh
+make game
+make test-wc3-engine WC3_PATTERN='wc3_spell.*'
+make test
+```
+
+The focused WC3 target runs the generated fixture archive in both classic and TFT modes. Choose the suite that
+covers the actual behavior (`wc3_unit.*`, inventory, or another owner) as needed; finish with the full suite.
 
 ## Behavior Record
 
@@ -264,7 +321,7 @@ Example:
 /* Name=War Stomp
  * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
  */
-static void war_stomp_execute(...)
+BZ_SIMPLE_SPELL_PROC(AbilityStomp) { /* ability-owned implementation */ }
 ```
 
 For an inverse/toggle path:
@@ -343,9 +400,16 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 
 | Campaign entry | Registry status | Result |
 | --- | --- | --- |
-| `AOw2` War Stomp | registered as unsupported | `AOws` is implemented, but the Cairne campaign variant needs its own spell descriptor |
-| `ANsh` / `AOs2` Shockwave | registered as unsupported | campaign variants need code-specific spell descriptors |
-| `ANcf` Breath of Fire | registered as unsupported | `ANbf` is implemented, but the campaign row needs its own spell descriptor |
+| `AOw2` War Stomp | `CAbilityWarStompCampaign` | campaign procedure reads its requested rawcode |
+| `ANsh` / `AOs2` Shockwave | `CAbilityShockwaveCampaign` / `CAbilityShockwaveCairne` | shared campaign area-damage helper, separate rawcodes |
+| `ANcf` Breath of Fire | `CAbilityBreathOfFireCampaign` | shared campaign area-damage helper |
+| `Acdh`, `ANhw`, `ANhx` | campaign Drunken Haze, Healing Wave, and Hex procedures | currently share `campaign_status_execute`; verify each gameplay contract |
+| `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp`, `Acef`, `Arsw`, `AOls` | campaign summon procedures | share `campaign_summon_execute` with authored rawcodes |
+| `ANbr`, `ANsb` | `CAbilityBattleRoar`, `CAbilityStormBoltCampaign` | dedicated execution bodies |
+| `AOr2`, `AOr3` | `CAbilityEnduranceAuraCampaign`, `CAbilityReincarnationCairne` | currently share `campaign_toggle_execute`; verify passive/lifecycle requirements |
+
+These are registration and code-path observations, not a completeness claim. Verify the behavior in
+`skills/s_campaign_abilities.c` with focused tests before consolidating a campaign row with a standard procedure.
 
 ## Human Ability Audit
 
@@ -390,20 +454,11 @@ Useful checks:
 ```sh
 build/bin/ability_audit -data 'data/Warcraft III' -roc -raw Adef
 build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Adef
-build/bin/openwarcraft3-tests +dedicated 1 +test 'wc3_spell.*' +com_frame_limit 100
-build/bin/openwarcraft3-tests +dedicated 1 +test 'wc3_save.*' +com_frame_limit 100
+make test-wc3-engine WC3_PATTERN='wc3_spell.*'
+make test-wc3-engine WC3_PATTERN='wc3_save.*'
 ```
-| `Acdh` Drunken Haze | registered as unsupported | `ANdh` is implemented, but the campaign row needs its own spell descriptor |
-| `ANhw` Healing Wave | registered as unsupported | `AOhw` is implemented, but the campaign row needs its own spell descriptor |
-| `ANhx` Hex | registered as unsupported | `AOhx` is implemented, but the campaign row needs its own spell descriptor |
-| `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp` | registered as unsupported | campaign summon behavior is not yet implemented |
-| `ANbr`, `ANsb`, `Acef`, `Arsw`, `AOr2`, `AOr3`, `AOls` | registered as unsupported | no matching implementation exists yet |
-
-This is a rawcode coverage result, not proof that the standard handlers are
-behaviorally complete. For example, the campaign tooltip for Breath of Fire
-requires Drunken Haze ignition, while the current `ANbf` handler applies only
-the initial area damage. Each such gap needs a focused behavior test before the
-campaign rawcode is aliased to a standard handler.
+Registration does not establish that a handler meets every tooltip requirement. Campaign/standard sharing
+requires focused tests for differences such as Breath of Fire's interaction with Drunken Haze.
 
 The remaining questions should be handled independently:
 
@@ -508,8 +563,8 @@ See also:
 This is the direction for new gameplay work and for refactoring behavior encountered in general-purpose files.
 Split behavior by the ability that owns it; do not grow `g_monster.c`, `m_unit.c`, or `g_ai.c` with individual spell rules.
 Keep an ability's order strings, validation, state transitions, animation moves, completion functions, and timed effects in its
-`skills/s_*.c` owner. For immediate orders outside the spell pipeline, register `ability_t.orders` and `.order`;
-for effects that outlive an active order, use `.update`. `s_skills.c` owns generic dispatch and deduplicates shared
+`skills/s_*.c` owner. For immediate orders outside the spell pipeline, register `ability_t.orders` and handle `A_ORDER`;
+for effects that outlive an active order, register `AB_UPDATE` and handle `A_UPDATE`. `s_skills.c` owns generic dispatch and deduplicates shared
 update handlers at initialization. Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
 See [Raven Form](unit-animation-properties.md) for the order/update contract and persistence tests.
 

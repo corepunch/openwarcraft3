@@ -88,22 +88,17 @@ for registry metadata. `AB_SPELL`, `AB_COMMAND`, `AB_ITEM`, `AB_UPDATE`, `AB_CHA
 
 A concrete procedure handles only its own behavior and delegates unhandled messages to its shared parent:
 
-```c
-intptr_t CAbilityHolyBolt(LPEDICT caster, abilityMsg_t msg, abilityCall_t const *call) {
-    spellTarget_t const *target = call ? call->target : NULL;
+Define it with `BZ_ABILITY_PROC(CAbilityHolyBolt)`, which supplies `ent`, `msg`, and `call`.
+[Holy Light's implementation](../../../games/warcraft-3/game/skills/s_holylight.c) handles `A_VALIDATE` and
+`A_EXECUTE`, reads `call->target` within those cases, and ends its switch with:
 
-    switch (msg) {
-    case A_VALIDATE:
-        /* Holy Bolt target rules. */
-        return target && target->entity != caster;
-    case A_EXECUTE:
-        /* Holy Bolt effect. */
-        return true;
-    default:
-        return CAbilitySimpleSpell(caster, msg, call);
-    }
-}
+```c
+default: return CAbilitySimpleSpell(ent, msg, call);
 ```
+
+For simple execution, command, or item-use bodies, use the one-argument macros documented in
+[Adding a New Ability](ability-implementation-plan.md#adding-a-new-ability). They generate file-local helpers
+and the public message procedure; no separate callback argument or manual function header is needed.
 
 Delegation is based on the TFT inheritance reference. For example, `AHhb` maps to `CAbilityHolyBolt`, whose
 retail parent is `CAbilitySimpleSpell`; the leaf therefore calls `CAbilitySimpleSpell` for unhandled messages.
