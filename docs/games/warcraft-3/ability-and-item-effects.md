@@ -70,6 +70,9 @@ The following existing abilities now use the common resolver rather than owning 
 - Holy Light: `WC3_EFFECT_TARGET` on the affected unit.
 - Blink: `WC3_EFFECT_SPECIAL` before relocation and `WC3_EFFECT_AREA_EFFECT` after relocation.
 - Devotion Aura: persistent `WC3_EFFECT_TARGET` on the caster.
+- regeneration auras (`Aoar`, `Aabr`, `Aarm`, including Fountain aliases): the
+  selected recipient `buffID` supplies persistent `WC3_EFFECT_TARGET` art while the
+  recipient remains inside the live aura.
 - Natural Neutral Hostile creep sleep: persistent hidden `ACsp` `WC3_EFFECT_TARGET`
   attached at `overhead`; wake/behavior replacement destroys the effect through
   the same independent-effect lifecycle.  See [Neutral Creep Sleep](creep-sleep.md).

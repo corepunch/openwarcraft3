@@ -412,6 +412,47 @@ TEST(wc3_spell, regeneration_aura_filters_mechanical_targets_and_uses_strongest_
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_range) {
+	const char slk[] =
+		"ID;PWXL;N;EBB;Y2;X8\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+		"C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"DataB1\"\n"
+		"C;Y1;X7;K\"BuffID1\"\nC;Y1;X8;K\"levels\"\n"
+		"C;Y2;X1;K\"ACnr\"\nC;Y2;X2;K\"Aoar\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+		"C;Y2;X4;K\"500\"\nC;Y2;X5;K\"0.01\"\nC;Y2;X6;K\"1\"\n"
+		"C;Y2;X7;K\"Biml\"\nC;Y2;X8;K\"1\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+	LPEDICT source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+	LPEDICT overlay = NULL;
+
+	source->s.player = target->s.player = 0;
+	source->targtype = target->targtype = TARG_GROUND;
+	source->abilities.added[0] = MAKEFOURCC('A','C','n','r');
+	ARRAY_COUNT(source->abilities.added) = 1;
+	target->health.max_value = target->health.value = 1000.0f;
+
+	S_UpdateRegenerationAuraEffects(target);
+	FOR_LOOP(i, globals.num_edicts) {
+		LPEDICT effect = g_edicts + i;
+		if (effect->inuse && effect->owner == target && effect->goalentity == target &&
+			effect->summon_ability == MAKEFOURCC('A','o','a','r')) {
+			overlay = effect;
+			break;
+		}
+	}
+	T_NOT_NULL(overlay);
+	T_ASSERT(overlay->s.model != 0);
+	T_EQ(overlay->movetype, MOVETYPE_LINK);
+
+	target->s.origin2.x = 501.0f;
+	S_UpdateRegenerationAuraEffects(target);
+	T_ASSERT(overlay->goalentity == NULL);
+
+	G_SetSLKRows("AbilityData", old);
+	free_slk_rows(rows);
+}
+
 TEST(wc3_spell, regeneration_aura_base_codes_are_registered_passives) {
 	static LPCSTR const codes[] = { "Aoar", "Aabr", "Aarm" };
 	FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {

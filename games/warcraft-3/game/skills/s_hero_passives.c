@@ -22,6 +22,18 @@ typedef struct {
     DWORD level;
 } auraAbilityRef_t;
 
+typedef struct {
+    LPEDICT source;
+    auraAbilityRef_t life_orc;
+    auraAbilityRef_t life_blight;
+    auraAbilityRef_t mana;
+} regenAuraSource_t;
+
+static regenAuraSource_t regen_sources[MAX_ENTITIES];
+static DWORD regen_source_count;
+static DWORD regen_cache_frame = UINT_MAX;
+static LPCVOID regen_cache_ability_data;
+
 static auraAbilityRef_t actor_aura_ability(LPEDICT ent, DWORD base_code) {
     auraAbilityRef_t result = {0};
     char alias_name[5] = {0};
@@ -121,12 +133,51 @@ static BOOL aura_allows_target(LPEDICT source, LPEDICT target, LPCSTR targets) {
     return true;
 }
 
-static FLOAT regen_aura_bonus(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
-    FLOAT bonus = 0.0f;
+typedef struct {
+    FLOAT amount;
+    DWORD alias;
+    DWORD buff;
+} regenerationAuraInfo_t;
 
+static DWORD aura_buff_code(LPCSTR buff_id) {
+    DWORD code = 0;
+    if (buff_id && strlen(buff_id) >= 4) memcpy(&code, buff_id, 4);
+    return code;
+}
+
+/* Discover regeneration providers once per simulation frame; target checks
+ * still run per unit because range, alliances, and invulnerability are live. */
+static void regen_aura_cache_update(void) {
+    LPCVOID ability_data = G_AbilityData(ID_REGEN_LIFE_ORC);
+    if (level.framenum && regen_cache_frame == level.framenum && regen_cache_ability_data == ability_data)
+        return;
+    regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT source = g_edicts + i;
-        auraAbilityRef_t const ability = actor_aura_ability(source, base_code);
+        regenAuraSource_t *entry = regen_sources + regen_source_count;
+
+        entry->source = g_edicts + i;
+        entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
+        entry->life_blight = actor_aura_ability(entry->source, ID_REGEN_LIFE_BLIGHT);
+        entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
+        if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias) regen_source_count++;
+    }
+    regen_cache_frame = level.framenum;
+    regen_cache_ability_data = ability_data;
+}
+
+static auraAbilityRef_t regen_aura_ref(regenAuraSource_t const *entry, DWORD base_code) {
+    if (base_code == ID_REGEN_LIFE_ORC) return entry->life_orc;
+    if (base_code == ID_REGEN_LIFE_BLIGHT) return entry->life_blight;
+    return entry->mana;
+}
+
+static regenerationAuraInfo_t regen_aura_info(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
+    regenerationAuraInfo_t result = {0};
+
+    regen_aura_cache_update();
+    FOR_LOOP(i, regen_source_count) {
+        LPEDICT source = regen_sources[i].source;
+        auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         FLOAT amount;
 
@@ -140,9 +191,59 @@ static FLOAT regen_aura_bonus(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
         amount = row->data[0].number;
         if (row->data[1].number != 0.0f && use_maximum)
             amount *= base_code == ID_REGEN_MANA ? unit->mana.max_value : unit->health.max_value;
-        bonus = MAX(bonus, amount);
+        if (amount > result.amount) {
+            result.amount = amount;
+            result.alias = ability.alias;
+            result.buff = aura_buff_code(row->buffID);
+        }
     }
-    return bonus;
+    return result;
+}
+
+static FLOAT regen_aura_bonus(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
+    return regen_aura_info(unit, base_code, use_maximum).amount;
+}
+
+static BOOL is_regen_aura_overlay(LPCEDICT effect, LPCEDICT unit, DWORD base_code) {
+    return effect && effect->inuse && effect->owner == unit && effect->goalentity == unit &&
+           effect->summon_ability == base_code;
+}
+
+static void sync_regen_aura_overlay(LPEDICT unit, DWORD base_code, regenerationAuraInfo_t const *info) {
+    DWORD effect_code = info ? info->buff : 0;
+    LPCSTR art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
+
+    /* Buff rows may carry only the icon while the alias owns TargetArt. Keep
+     * the authored buff presentation when present, then fall back to the
+     * ability alias so a valid aura cannot become visually silent. */
+    if ((!art || !*art) && info) {
+        effect_code = info->alias;
+        art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
+    }
+    DWORD desired_model = art && *art ? G_RegisterModel(art) : 0;
+    LPEDICT keep = NULL;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (!is_regen_aura_overlay(effect, unit, base_code)) continue;
+        if (!keep && desired_model && effect->s.model == desired_model) {
+            keep = effect;
+            continue;
+        }
+        G_DestroyEffect(effect);
+    }
+
+    if (!keep && desired_model) {
+        LPEDICT effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0,
+                                                    unit, NULL, false);
+        if (effect) {
+            /* Effect edicts are not summoned units; this otherwise-unused rawcode
+             * field is a stable lifecycle tag that survives save/load and lets
+             * each regeneration family own exactly one recipient overlay. */
+            effect->owner = unit;
+            effect->summon_ability = base_code;
+        }
+    }
 }
 
 FLOAT S_RegenerationHealthAura(LPEDICT unit) {
@@ -152,6 +253,16 @@ FLOAT S_RegenerationHealthAura(LPEDICT unit) {
 
 FLOAT S_RegenerationManaAura(LPEDICT unit) {
     return regen_aura_bonus(unit, ID_REGEN_MANA, true);
+}
+
+void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
+    regenerationAuraInfo_t const health = regen_aura_info(unit, ID_REGEN_LIFE_ORC, true);
+    regenerationAuraInfo_t const blight = regen_aura_info(unit, ID_REGEN_LIFE_BLIGHT, true);
+    regenerationAuraInfo_t const mana = regen_aura_info(unit, ID_REGEN_MANA, true);
+
+    sync_regen_aura_overlay(unit, ID_REGEN_LIFE_ORC, &health);
+    sync_regen_aura_overlay(unit, ID_REGEN_LIFE_BLIGHT, &blight);
+    sync_regen_aura_overlay(unit, ID_REGEN_MANA, &mana);
 }
 
 static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
