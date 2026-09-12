@@ -1,6 +1,6 @@
 /* Inert TFT registry entries retain their existing indices for command/HUD identity.
  * These are unsupported definitions, not runtime base classes. Shared spell behavior
- * is selected by AB_SPELL_SIMPLE on each implemented ability; the TFT tree stays offline. */
+ * is selected by AB_SPELL on each implemented ability; the TFT tree stays offline. */
 #include "s_skills.h"
 
 ability_t CAbility = {0};

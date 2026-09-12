@@ -88,7 +88,7 @@ static void root_command(LPEDICT clent) {
 /* ---- Registration -------------------------------------------------------- */
 
 ability_t CAbilityCharm = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Charm",
     .target_type = SPELL_TARGET_UNIT,
     .validate = charm_validate,
@@ -96,7 +96,7 @@ ability_t CAbilityCharm = {
 };
 
 ability_t CAbilityEatTree = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Eat Tree",
     .target_type = SPELL_TARGET_UNIT,
     .validate = eat_tree_validate,
@@ -104,7 +104,7 @@ ability_t CAbilityEatTree = {
 };
 
 ability_t CAbilityManaBattery = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Moon Well",
     .target_type = SPELL_TARGET_UNIT,
     .validate = moon_well_validate,

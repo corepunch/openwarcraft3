@@ -42,7 +42,7 @@ The implemented flat definition uses the agreed macro and callback naming:
 
 ```c
 ability_t CAbilityHolyBolt = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Holy Light",
     .target_type = SPELL_TARGET_UNIT,
     .validate = CAbilityHolyBolt_Validate,
@@ -50,12 +50,12 @@ ability_t CAbilityHolyBolt = {
 };
 ```
 
-`AB_SPELL_SIMPLE` is one bit: the TFT registry has `CAbilitySimpleSpell` but no independent Simple family.
+`AB_SPELL` is one bit: the TFT registry has `CAbilitySimpleSpell` but no independent Simple family.
 There is no `AB_SIMPLE` bit or redundant `AB_SPELL` requirement. Combine independent policies normally, for example
-`AB_SPELL_SIMPLE | AB_AUTOCAST` or `AB_SPELL_SIMPLE | AB_CHANNEL`.
+`AB_SPELL | AB_AUTOCAST` or `AB_SPELL | AB_CHANNEL`.
 
 `g_local.h` defines one flags field: `AB_PASSIVE` (bit 0), `AB_TOGGLE` (1), `AB_CHANNEL` (2),
-`AB_AUTOCAST` (3), `AB_SPELL_SIMPLE` (4), `AB_NO_SMART` (5), and `AB_SEPARATE_OFF` (16).
+`AB_AUTOCAST` (3), `AB_SPELL` (4), `AB_NO_SMART` (5), and `AB_SEPARATE_OFF` (16).
 All literal definitions and the SPELL/HUMAN_SPELL/CAMPAIGN_SPELL macros store their data directly in `ability_t`.
 Holy Bolt has no `.cmd` wrapper or separate descriptor. `InitAbilities` rejects shared-cast entries with no
 execute callback or a conflicting custom command.
@@ -87,7 +87,7 @@ those operations to be owned by runtime objects named after retail base classes.
 
 1. Resolve the issued rawcode to the ability definition through the existing alias-aware lookup. Keep the actual
    rawcode in the cast context so custom Holy Bolt variants use their own costs, level data, cooldown and art.
-2. For `flags & AB_SPELL_SIMPLE`, enter the shared cast command/target path. The leaf no longer needs `.cmd`.
+2. For `flags & AB_SPELL`, enter the shared cast command/target path. The leaf no longer needs `.cmd`.
    Abilities outside this path continue through explicit `.cmd`, `.order`, item-use and lifecycle callbacks.
    During migration, flag-driven casting and a bespoke command path are mutually exclusive entry strategies;
    reject ambiguous registrations instead of inventing precedence. A special command can deliberately invoke the
@@ -118,7 +118,7 @@ its existing membership, item, order, autocast and persistent-update hooks. Ever
 `ability_t const *`; no parallel spell descriptor or inherited function table remains.
 
 `S_AbilityHasCommand` and `S_AbilityCommand` serve `g_unit_ui.c`, `g_commands.c`, and `g_items.c`.
-`AB_SPELL_SIMPLE` selects `spell_cmd`; bespoke commands still use `.cmd`. `S_SpellAbilityForCode`
+`AB_SPELL` selects `spell_cmd`; bespoke commands still use `.cmd`. `S_SpellAbilityForCode`
 resolves a rawcode through the existing alias-aware registry and returns the same flat definition only when
 it has the shared-cast flag and an effect. AI/script and autocast paths keep their existing targeting entry points.
 `InitAbilities` assigns canonical codes from non-alias registry rows. Aliases never overwrite them.

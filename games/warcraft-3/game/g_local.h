@@ -521,7 +521,7 @@ typedef struct {
 #define AB_TOGGLE       (1u << 1)  // bit 1; reversible on/off action; used in ability flags
 #define AB_CHANNEL      (1u << 2)  // bit 2; channel lifecycle policy; used in ability flags
 #define AB_AUTOCAST     (1u << 3)  // bit 3; independent automatic activation policy; used in ability flags
-#define AB_SPELL_SIMPLE (1u << 4)  // bit 4; shared casting path; selects generic command and effect dispatch
+#define AB_SPELL        (1u << 4)  // bit 4; shared casting path; selects generic command and effect dispatch
 #define AB_NO_SMART     (1u << 5)  // bit 5; excludes Smart target acquisition; used in ability flags
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 

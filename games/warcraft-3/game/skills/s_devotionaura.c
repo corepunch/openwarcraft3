@@ -10,7 +10,7 @@ static void devotionaura_execute(LPEDICT caster, spellTarget_t st, ability_t con
 }
 
 ability_t CAbilityAuraDevotion = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Devotion Aura",
     .target_type = SPELL_TARGET_NONE,
     .execute = devotionaura_execute,

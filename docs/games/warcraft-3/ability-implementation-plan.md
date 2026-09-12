@@ -89,7 +89,7 @@ Start with abilities whose behavior maps directly to an existing runtime contrac
 
 | Category | Typical contract | First implementation strategy |
 | --- | --- | --- |
-| direct damage/heal | `ability_t` with `AB_SPELL_SIMPLE` | apply the authored amount to validated targets |
+| direct damage/heal | `ability_t` with `AB_SPELL` | apply the authored amount to validated targets |
 | timed buff/debuff | `unit_addtimedstatus` | add and expire the status through normal lifecycle code |
 | toggle | `AB_TOGGLE` plus status | execute the same command to add/remove the state |
 | passive aura | ability modifier hooks consumed by movement/combat | calculate from active nearby owners; avoid stale recipient state |
@@ -183,7 +183,7 @@ For a spell that uses the unified pipeline, use the `SPELL` macro in
 SPELL(AbilityDoom, SPELL_TARGET_UNIT, 0, doom_execute);
 ```
 
-This generates one `ability_t CAbilityDoom` with `AB_SPELL_SIMPLE` and direct effect metadata. For abilities that
+This generates one `ability_t CAbilityDoom` with `AB_SPELL` and direct effect metadata. For abilities that
 don't use the spell pipeline, define the global directly:
 
 ```c
@@ -206,7 +206,7 @@ Uncomment or add the entry in the abilitylist in `s_skills.c`:
 
 ### 5. Select command policy
 
-Use `AB_SPELL_SIMPLE` for the shared cast processor and supply `.execute` plus optional `.validate` directly
+Use `AB_SPELL` for the shared cast processor and supply `.execute` plus optional `.validate` directly
 on the ability. Combine independent policies (`AB_CHANNEL`, `AB_TOGGLE`, `AB_AUTOCAST`) as needed. Leave `.cmd`
 unset for shared casts. Bespoke orders continue to use explicit command/order/lifecycle callbacks.
 `S_AbilityHasCommand` and `S_AbilityCommand` provide the common HUD, player and item entry contract.

@@ -372,7 +372,7 @@ static void area_buff_execute(LPEDICT caster, spellTarget_t st, ability_t const 
 }
 
 #define SPELL(NAME, TARGET, FLAGS, EXECUTE) \
-    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL_SIMPLE | (FLAGS), .execute = EXECUTE }
+    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL | (FLAGS), .execute = EXECUTE }
 
 /* Name=Mass Teleport
  * Ubertip="Teleports the caster and nearby friendly units to a target location."
@@ -431,7 +431,7 @@ SPELL(AbilitySilence, SPELL_TARGET_POINT, 0, area_status_execute);
  */
 SPELL(AbilityAnimateDead, SPELL_TARGET_NONE, 0, animate_dead_execute);
 ability_t CAbilityDeathCoil = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Death Coil",
     .target_type = SPELL_TARGET_UNIT,
     .validate = death_coil_validate,
@@ -506,7 +506,7 @@ static void searing_arrows_execute(LPEDICT caster, spellTarget_t st, ability_t c
 }
 
 ability_t CAbilityFlamingArrows = {
-    .flags = AB_SPELL_SIMPLE | AB_TOGGLE | AB_AUTOCAST,
+    .flags = AB_SPELL | AB_TOGGLE | AB_AUTOCAST,
     .name = "Searing Arrows",
     .target_type = SPELL_TARGET_NONE,
     .execute = searing_arrows_execute,

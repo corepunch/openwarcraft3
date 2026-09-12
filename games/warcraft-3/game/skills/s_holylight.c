@@ -36,7 +36,7 @@ static void CAbilityHolyBolt_Execute(LPEDICT caster, spellTarget_t st, ability_t
 }
 
 ability_t CAbilityHolyBolt = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Holy Light",
     .target_type = SPELL_TARGET_UNIT,
     .validate = CAbilityHolyBolt_Validate,

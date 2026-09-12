@@ -73,7 +73,7 @@ static void campaign_morph_execute(LPEDICT caster, spellTarget_t st, ability_t c
 }
 
 #define CAMPAIGN_SPELL(NAME, TARGET, FLAGS, EXECUTE) \
-    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL_SIMPLE | (FLAGS), .execute = EXECUTE }
+    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL | (FLAGS), .execute = EXECUTE }
 
 CAMPAIGN_SPELL(AbilityAttributeModSkill, SPELL_TARGET_NONE, 0, campaign_toggle_execute);
 CAMPAIGN_SPELL(AbilitySpawnTentacle, SPELL_TARGET_POINT, 0, campaign_summon_execute);

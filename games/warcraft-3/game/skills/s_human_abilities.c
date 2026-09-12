@@ -413,7 +413,7 @@ HUMAN_AUTOCAST(heal, ('A','h','e','a'), true, true)
 HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
 
 #define HUMAN_SPELL(NAME, TARGET, FLAGS, VALIDATE, EXECUTE) \
-    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL_SIMPLE | (FLAGS), .validate = VALIDATE, .execute = EXECUTE }
+    ability_t C##NAME = { .name = #NAME, .target_type = TARGET, .flags = AB_SPELL | (FLAGS), .validate = VALIDATE, .execute = EXECUTE }
 
 /* Name=Aerial Shackles
  * Ubertip="Magically binds a target enemy air unit, so that it cannot move or attack and takes <Amls,DataA1> damage per second. Lasts <Amls,Dur1> seconds."
@@ -447,7 +447,7 @@ HUMAN_SPELL(AbilityInvisibility, SPELL_TARGET_UNIT, 0, invisibility_validate, in
 HUMAN_SPELL(AbilityPolymorph, SPELL_TARGET_UNIT, 0, polymorph_validate, polymorph_execute);
 /* Name=Avatar */
 ability_t CAbilityAvatar = {
-    .flags = AB_SPELL_SIMPLE,
+    .flags = AB_SPELL,
     .name = "Avatar",
     .target_type = SPELL_TARGET_NONE,
     .validate = avatar_validate,

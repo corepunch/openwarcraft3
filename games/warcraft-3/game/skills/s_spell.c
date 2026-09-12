@@ -63,7 +63,7 @@ ability_t const *S_SpellAbilityForCode(DWORD code) {
      * and use the normal alias-aware command resolver so custom abilities
      * inherit their registered base handler as well. */
     ability = FindAbilityForCommand(GetClassName(code));
-    return ability && (ability->flags & AB_SPELL_SIMPLE) && ability->execute ? ability : NULL;
+    return ability && (ability->flags & AB_SPELL) && ability->execute ? ability : NULL;
 }
 
 DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
