@@ -296,6 +296,10 @@ implementation while waiting to recover the original `CAbilityWarStomp` hierarch
 
 ## Disassembly: Optional Evidence
 
+For the demo's actual FOURCC-to-class registrations, use the
+[Python extractor and offset reference](demo-ability-classes.md). Its generated
+mapping includes internal type IDs; it does not guess object-data aliases.
+
 Use `Game.dll` when it answers a specific unresolved question, not as the default
 implementation workflow. Good questions include:
 
