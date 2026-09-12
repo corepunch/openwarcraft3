@@ -172,7 +172,7 @@ static void SP_ability_cargo_hold(LPCSTR classname, ability_t *self) {
     (void)self;
 }
 
-ability_t a_cargo_hold = {
+ability_t CAbilityCargoHold = {
     .init = SP_ability_cargo_hold,
 };
 
@@ -234,7 +234,7 @@ static void load_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = load_selecttarget;
 }
 
-ability_t a_load = {
+ability_t CAbilityCargoLoad = {
     .cmd = load_command,
 };
 
@@ -311,7 +311,7 @@ static void ai_cargo_board_walk(LPEDICT unit) {
     unit_moveindirection(unit);
 }
 
-static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, &a_battlestations };
+static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, &CAbilityBattlestations };
 
 BOOL S_CargoOrderBoard(LPEDICT unit, LPEDICT transport) {
     if (!cargo_board_target_valid(unit, transport)) return false;
@@ -384,7 +384,7 @@ static void battlestations_command(LPEDICT clent) {
     Get_Commands_f(clent);
 }
 
-ability_t a_battlestations = {
+ability_t CAbilityBattlestations = {
     .cmd = battlestations_command,
 };
 
@@ -403,22 +403,22 @@ static void drop_command(LPEDICT clent) {
     clent->client->menu.on_location_selected = drop_selectlocation;
 }
 
-ability_t a_drop = {
+ability_t CAbilityCargoDrop = {
     .cmd = drop_command,
 };
 
 /* ---- Drop Instant (Adri): instant drop ---------------------------------- */
-ability_t a_drop_instant = {
+ability_t CAbilityCargoDropInstant = {
     .cmd = drop_command,
 };
 
 /* ---- Cargo Hold Burrow (Abun): Orc burrow variant ----------------------- */
-ability_t a_cargo_hold_burrow = {
+ability_t CAbilityBunker = {
     .init = SP_ability_cargo_hold,
 };
 
 /* ---- Cargo Hold Entangled Mine (Aenc): NE entangled mine cargo ----------- */
-ability_t a_cargo_hold_entangled_mine = {
+ability_t CAbilityEntangleCargo = {
     .init = SP_ability_cargo_hold,
 };
 
@@ -443,6 +443,6 @@ static void stand_down_command(LPEDICT clent) {
     Get_Commands_f(clent);
 }
 
-ability_t a_stand_down = {
+ability_t CAbilityStandDown = {
     .cmd = stand_down_command,
 };

@@ -74,9 +74,9 @@ static spell_info_t spell_siphon_mana_human = {
     .execute = siphon_mana_execute,
 };
 
-ability_t a_siphon_mana = {
+ability_t CAbilityDrainNeutral = {
     .cmd = spell_cmd,
     .spell = &spell_siphon_mana,
 };
 
-ability_t a_siphon_mana_human = { .cmd = spell_cmd, .spell = &spell_siphon_mana_human };
+ability_t CAbilityDrain = { .cmd = spell_cmd, .spell = &spell_siphon_mana_human };

@@ -1,0 +1,288 @@
+/* TFT ability class hierarchy — base class definitions.
+ *
+ * Mirrors the CAbility* inheritance tree extracted from Game.dll
+ * (tft-ability-classes.txt). Each concrete ability_t sets its .parent
+ * to one of these base classes (or to another concrete ability that
+ * serves as an intermediate base). The chain terminates at CAbility
+ * whose .parent is NULL.
+ *
+ * Hierarchy (ability-only subset):
+ *
+ *   CAbility (abil)
+ *   ├── CAbilityInterfaced (AAin)
+ *   │   ├── CAbilityBaseBuild (ABbs)
+ *   │   │   └── CAbilityBuild (ABld), CAbilityBuildQueue (ABqu), ...
+ *   │   ├── CAbilityHero (AHer)
+ *   │   ├── CAbilityInventory (AInv)
+ *   │   └── CAbilityRally (ARal)
+ *   ├── CBonusBase (ABon)
+ *   │   ├── CAbilityPersistentBonus (APbo)
+ *   │   │   └── CAbilityRegenBase (AREB)
+ *   │   └── CAbilityAura (aura)
+ *   └── CPower (powr)
+ *       ├── CAbilityButton (AAbt)
+ *       │   ├── CAbilitySpell (AAsp)
+ *       │   │   ├── CAbilitySimpleSpell (AAsm)
+ *       │   │   │   ├── CAbilityModalSpell (AAms)
+ *       │   │   │   │   └── CAbilityAutoTargetSpell (AAat)
+ *       │   │   │   │       └── CAbilityRangerArrow (AHRa)
+ *       │   │   │   └── (most concrete spells)
+ *       │   │   ├── CAbilityMorph (Amor)
+ *       │   │   └── CAbilityWaterElemental (AHwe) — summon spells
+ *       │   ├── CAbilityPassive (APas)
+ *       │   └── CAbilityNeutralSpell (AAns)
+ *       ├── CAbilityAttack (Aatk)
+ *       ├── CAbilityMove (Amov)
+ *       ├── CAbilityCargoHold (Acar)
+ *       └── CPower (Ahrb)
+ */
+
+#include "s_skills.h"
+
+/* ── abstract base classes (no gameplay behavior of their own) ── */
+
+ability_t CAbility          = {0};                                     /* abil  — root */
+ability_t CAbilityInterfaced = { .parent = &CAbility };                /* AAin */
+ability_t CBonusBase         = { .parent = &CAbility };                /* ABon */
+ability_t CPower             = { .parent = &CAbilityInterfaced };      /* powr */
+ability_t CAbilityButton     = { .parent = &CPower };                  /* AAbt */
+ability_t CAbilitySpell      = { .parent = &CAbilityButton };          /* AAsp */
+ability_t CAbilitySimpleSpell = { .parent = &CAbilitySpell,
+                                   .cmd = spell_cmd };                 /* AAsm */
+ability_t CAbilityModalSpell = { .parent = &CAbilitySimpleSpell };     /* AAms */
+ability_t CAbilityAutoTargetSpell = { .parent = &CAbilityModalSpell }; /* AAat */
+ability_t CAbilityRangerArrow = { .parent = &CAbilityAutoTargetSpell };/* AHRa */
+ability_t CAbilityPassive    = { .parent = &CAbilityButton,
+                                  .flags = ABILITY_PASSIVE };          /* APas */
+ability_t CAbilityNeutralSpell = { .parent = &CAbilityButton };        /* AAns */
+ability_t CAbilityMorph      = { .parent = &CAbilitySpell };           /* Amor */
+ability_t CAbilityPersistentBonus = { .parent = &CBonusBase };         /* APbo */
+ability_t CAbilityRegenBase  = { .parent = &CAbilityPersistentBonus }; /* AREB */
+ability_t CAbilityAura       = { .parent = &CBonusBase };              /* aura */
+ability_t CAbilityBaseBuild  = { .parent = &CAbilityInterfaced };      /* ABbs */
+
+/* ── parent wiring for concrete abilities ──
+ *
+ * Sets the .parent pointer on every registered concrete ability_t
+ * to match the TFT class hierarchy. Called once from InitAbilities
+ * after all ability globals are initialized. Abilities whose parent
+ * is another concrete ability (e.g. CAbilityFireBolt → CAbilityThunderBolt)
+ * point directly at that concrete global — no intermediate abstract class
+ * is needed.
+ */
+
+void S_WireAbilityParents(void) {
+    /* ── engine commands & fundamental powers → CPower ── */
+    CAbilityStop.parent = &CPower;
+    CAbilityMove.parent = &CPower;
+    CAbilityAttack.parent = &CPower;
+    CAbilityHoldPosition.parent = &CPower;
+    CAbilityPatrol.parent = &CPower;
+    CAbilityCancel.parent = &CPower;
+    CAbilityCargoHold.parent = &CPower;
+    CAbilityAcolyteHarvest.parent = &CPower;
+
+    /* ── interfaced (UI-carrying) abilities ── */
+    CAbilityHero.parent = &CAbilityInterfaced;
+    CAbilityInventory.parent = &CAbilityInterfaced;
+    CAbilityRally.parent = &CAbilityInterfaced;
+    CAbilityAwaken.parent = &CAbilityInterfaced;
+    CAbilitySelectSkill.parent = &CAbilityInterfaced;
+
+    /* ── build hierarchy → CAbilityBaseBuild ── */
+    CAbilityBuild.parent = &CAbilityBaseBuild;
+    CAbilityTrain.parent = &CAbilityBaseBuild;
+    CAbilityRevive.parent = &CAbilityBaseBuild;
+
+    /* ── bonus / aura / regen hierarchy ── */
+    CAbilityInvulnerable.parent = &CBonusBase;
+    CAbilitySphere.parent = &CBonusBase;
+    CAbilityAuraDevotion.parent = &CAbilityAura;
+    CAbilityAuraBrilliance.parent = &CAbilityAura;
+    CAbilityAuraEndurance.parent = &CAbilityAura;
+    CAbilityAuraTrueshot.parent = &CAbilityAura;
+    CAbilityAuraSpell.parent = &CAbilitySpell; /* Aasp parent=AAsp */
+    CAbilityAuraUnholy.parent = &CAbilityAura;
+    CAbilityAuraVampiric.parent = &CAbilityAura;
+    CAbilityAttackBonus.parent = &CAbilityPersistentBonus;
+    CAbilityDefenseBonus.parent = &CAbilityPersistentBonus;
+    CAbilityMaxLifeBonus.parent = &CAbilityPersistentBonus;
+    CAbilityMaxManaBonus.parent = &CAbilityPersistentBonus;
+    CAbilityAttributeBonus.parent = &CAbilityPersistentBonus;
+
+    /* ── CAbilityButton subclasses ── */
+    CAbilityDefend.parent = &CAbilityButton;
+    CAbilityRoot.parent = &CAbilityButton;
+
+    /* ── passive abilities → CAbilityPassive ── */
+    CAbilityAttributeModSkill.parent = &CAbilityPassive;
+    CAbilityBurrowDetector.parent = &CAbilityPassive; /* Abdt→Adet→APas */
+    CAbilityDetector.parent = &CAbilityPassive;
+    CAbilityCriticalStrike.parent = &CAbilityPassive;
+    CAbilityEvasion.parent = &CAbilityPassive;
+    CAbilityBash.parent = &CAbilityCriticalStrike; /* AHbh→AOcr→APas */
+    CAbilityDrunkenBrawler.parent = &CAbilityCriticalStrike; /* ANdb→AOcr */
+    CAbilityCleavingAttack.parent = &CAbilityPassive;
+    CAbilityPhoenixFire.parent = &CAbilityPassive;
+    CAbilityFeedback.parent = &CAbilityPassive;
+    CAbilityFlakCannon.parent = &CAbilityPassive;
+    CAbilityFragShards.parent = &CAbilityPassive;
+    CAbilityBarrage.parent = &CAbilityPassive;
+    CAbilityGyroBombs.parent = &CAbilityPassive;
+    CAbilityStormHammers.parent = &CAbilityPassive;
+    CAbilityGyroVision.parent = &CAbilityPassive; /* Agyv→Adet→APas */
+    CAbilityMagicSentry.parent = &CAbilityPassive;
+    CAbilityThornyShield.parent = &CAbilityPassive; /* AUts→ANth→APas */
+
+    /* ── autocast spells → CAbilityAutoTargetSpell ── */
+    CAbilityHeal.parent = &CAbilityAutoTargetSpell;
+    CAbilityInnerFire.parent = &CAbilityAutoTargetSpell;
+    CAbilitySlow.parent = &CAbilityAutoTargetSpell;
+    CAbilitySpellSteal.parent = &CAbilityAutoTargetSpell;
+    CAbilityRepair.parent = &CAbilityAutoTargetSpell;
+    CAbilityRepairGeneric.parent = &CAbilityRepair; /* Aren→Arep */
+    CAbilityManaBattery.parent = &CAbilityAutoTargetSpell;
+    CAbilityFrostArmorAuto.parent = &CAbilityAutoTargetSpell;
+
+    /* ── ranger arrow variants → CAbilityRangerArrow ── */
+    CAbilityPoisonArrows.parent = &CAbilityRangerArrow;
+    CAbilityColdArrows.parent = &CAbilityRangerArrow;
+    CAbilityFlamingArrows.parent = &CAbilityRangerArrow;
+    CAbilityBlackArrow.parent = &CAbilityFlamingArrows; /* ANba→AHfa→AHRa */
+
+    /* ── simple spells → CAbilitySimpleSpell ── */
+    CAbilityHolyBolt.parent = &CAbilitySimpleSpell;
+    CAbilityThunderBolt.parent = &CAbilitySimpleSpell;
+    CAbilityFireBolt.parent = &CAbilityThunderBolt; /* ANfb→AHtb */
+    CAbilityBlizzard.parent = &CAbilitySimpleSpell;
+    CAbilityFlameStrike.parent = &CAbilitySimpleSpell;
+    CAbilityFlameStrikeNeutral.parent = &CAbilityFlameStrike; /* implicit */
+    CAbilityBanish.parent = &CAbilitySimpleSpell;
+    CAbilityMagicLeash.parent = &CAbilitySimpleSpell;
+    CAbilityControlMagic.parent = &CAbilitySimpleSpell;
+    CAbilityDrain.parent = &CAbilitySimpleSpell;
+    CAbilityDrainNeutral.parent = &CAbilityDrain;
+    CAbilityDispelMagic.parent = &CAbilitySimpleSpell;
+    CAbilityInvisibility.parent = &CAbilitySimpleSpell;
+    CAbilityPolymorph.parent = &CAbilitySimpleSpell;
+    CAbilityCloudOfFog.parent = &CAbilitySilence; /* Aclf→ANsi */
+    CAbilityDrunkenHaze.parent = &CAbilitySilence; /* ANdh→ANsi */
+    CAbilitySilence.parent = &CAbilitySimpleSpell;
+    CAbilityManaShield.parent = &CAbilitySimpleSpell;
+    CAbilityMassTeleport.parent = &CAbilitySimpleSpell;
+    CAbilityBlink.parent = &CAbilitySimpleSpell;
+    CAbilityFanOfKnives.parent = &CAbilitySimpleSpell;
+    CAbilityShadowStrike.parent = &CAbilitySimpleSpell;
+    CAbilityManaBurn.parent = &CAbilitySimpleSpell;
+    CAbilityEntanglingRoots.parent = &CAbilitySimpleSpell;
+    CAbilityForceOfNature.parent = &CAbilitySimpleSpell;
+    CAbilityEatTree.parent = &CAbilitySimpleSpell;
+    CAbilityCarrionSwarm.parent = &CAbilitySimpleSpell;
+    CAbilityShockwave.parent = &CAbilityCarrionSwarm; /* AOsh→AUcs */
+    CAbilityBreathOfFire.parent = &CAbilityCarrionSwarm; /* ANbf→AUcs */
+    CAbilityFrostNova.parent = &CAbilitySimpleSpell;
+    CAbilityThunderClap.parent = &CAbilityFrostNova; /* AHtc→AUfn */
+    CAbilityStomp.parent = &CAbilityThunderClap; /* AOws→AHtc */
+    CAbilityFrostArmor.parent = &CAbilitySimpleSpell;
+    CAbilityDarkRitual.parent = &CAbilitySimpleSpell;
+    CAbilityDeathPact.parent = &CAbilityDarkRitual; /* AUdp→AUdr */
+    CAbilityDeathCoil.parent = &CAbilitySimpleSpell;
+    CAbilityDeathAndDecay.parent = &CAbilitySimpleSpell;
+    CAbilityAnimateDead.parent = &CAbilitySimpleSpell;
+    CAbilityResurrection.parent = &CAbilityAnimateDead; /* AHre→AUan */
+    CAbilitySleep.parent = &CAbilitySimpleSpell;
+    CAbilityDreadLordInferno.parent = &CAbilitySimpleSpell; /* AUin→ANin→AAsm */
+    CAbilityImpale.parent = &CAbilitySimpleSpell;
+    CAbilityLocustSwarm.parent = &CAbilitySimpleSpell;
+    CAbilityChainLightning.parent = &CAbilitySimpleSpell;
+    CAbilityForkedLightning.parent = &CAbilitySimpleSpell;
+    CAbilityHealingWave.parent = &CAbilityChainLightning; /* AOhw→AOcl */
+    CAbilityHex.parent = &CAbilitySimpleSpell; /* AOhx→Aply→AAsm */
+    CAbilityEarthquake.parent = &CAbilitySimpleSpell;
+    CAbilityFarSight.parent = &CAbilitySimpleSpell; /* AOfs→Adta→AAsm */
+    CAbilityStampede.parent = &CAbilitySimpleSpell;
+    CAbilityAcidBomb.parent = &CAbilitySimpleSpell;
+    CAbilityDoom.parent = &CAbilitySimpleSpell;
+    CAbilityTornado.parent = &CAbilitySimpleSpell;
+    CAbilityVoodoo.parent = &CAbilitySimpleSpell;
+    CAbilityBattleRoar.parent = &CAbilitySimpleSpell;
+    CAbilityChannel.parent = &CAbilitySimpleSpell;
+    CAbilityFlare.parent = &CAbilitySimpleSpell;
+    CAbilityCargoLoad.parent = &CAbilitySimpleSpell;
+    CAbilityCargoDrop.parent = &CAbilitySimpleSpell;
+
+    /* ── spell (non-simple) abilities → CAbilitySpell ── */
+    CAbilityAvatar.parent = &CAbilitySpell;
+    CAbilityDivineShield.parent = &CAbilitySpell;
+    CAbilityWindWalk.parent = &CAbilitySpell;
+    CAbilityMirrorImage.parent = &CAbilitySpell;
+    CAbilityReincarnation.parent = &CAbilitySpell;
+    CAbilityBattlestations.parent = &CAbilitySpell;
+    CAbilityStandDown.parent = &CAbilitySpell;
+    CAbilityImmolation.parent = &CAbilitySpell;
+    CAbilityCargoDropInstant.parent = &CAbilitySpell;
+    CAbilityHowlOfTerror.parent = &CAbilitySpell; /* ANht→Aroa→AAsp */
+
+    /* ── summon spells → CAbilityWaterElemental (AHwe→AAsp) ── */
+    CAbilityWaterElemental.parent = &CAbilitySpell;
+    CAbilitySpiritWolf.parent = &CAbilitySpell; /* AOsf→AAsp */
+    CAbilitySummonGrizzly.parent = &CAbilityWaterElemental; /* ANsg→AHwe */
+    CAbilitySummonQuillbeast.parent = &CAbilityWaterElemental;
+    CAbilitySummonWarEagle.parent = &CAbilityWaterElemental;
+    CAbilitySummonPhoenix.parent = &CAbilityWaterElemental;
+    CAbilitySpiritOfVengeance.parent = &CAbilityWaterElemental;
+
+    /* ── morph abilities → CAbilityMorph ── */
+    CAbilityRavenForm.parent = &CAbilityMorph;
+    CAbilityMetamorphosis.parent = &CAbilityMorph;
+    CAbilityPhoenix.parent = &CAbilityMorph; /* Aphx→Amor */
+
+    /* ── tranquility / starfall → CAbilitySpell ── */
+    CAbilityTranquility.parent = &CAbilitySpell;
+    CAbilityStarfall.parent = &CAbilityTranquility; /* AEsf→AEtq→AAsp */
+
+    /* ── cargo variants → CAbilityCargoHold ── */
+    CAbilityBunker.parent = &CAbilityCargoHold; /* Abun→Acar */
+    CAbilityEntangleCargo.parent = &CAbilityCargoHold;
+
+    /* ── harvest hierarchy → CPower ── */
+    CAbilityHarvest.parent = &CPower; /* Ahar→...→powr */
+    CAbilityHarvestLumber.parent = &CPower;
+    CAbilityWispHarvest.parent = &CPower;
+
+    /* ── goldmine → CAbility ── */
+    CAbilityGoldMine.parent = &CAbility;
+    CAbilityBlightedGoldMine.parent = &CAbility;
+    CAbilityEntangledGoldMine.parent = &CAbility;
+    CAbilityGoldMineOverlayed.parent = &CAbility;
+    CAbilityEntangle.parent = &CPower;
+    CAbilityReturn.parent = &CAbility;
+
+    /* ── misc root-level abilities → CAbility ── */
+    CAbilityAlarm.parent = &CAbility;
+    CAbilityOnFireHuman.parent = &CAbility;
+    CAbilityLocust.parent = &CAbility;
+    CAbilityBlightGrowth.parent = &CAbility;
+    CAbilityNeutral.parent = &CAbility;
+    CAbilityAllied.parent = &CAbility;
+    CAbilityPurchaseItem.parent = &CAbility;
+    CAbilityMilitia.parent = &CPower; /* Amil→Acal→powr */
+    CAbilityMilitiaConvert.parent = &CPower;
+
+    /* ── item abilities ── */
+    CAbilityItemHeal.parent = &CAbilitySimpleSpell;
+    CAbilityItemManaRestore.parent = &CAbilitySimpleSpell;
+    CAbilityItemDefenseAoe.parent = &CAbilitySimpleSpell;
+    CAbilityCharm.parent = &CAbilitySimpleSpell;
+    CAbilityFigurineSkeleton.parent = &CAbilitySimpleSpell;
+    CAbilityStrengthMod.parent = &CAbilitySimpleSpell; /* AIsm→AIxm→AAsm */
+    CAbilityMaxLifeMod.parent = &CAbilitySimpleSpell; /* AImi→AItm→AAsm */
+    CAbilityExperienceMod.parent = &CAbilitySimpleSpell;
+    CAbilityLevelMod.parent = &CAbilitySimpleSpell;
+    CAbilityItemChangeTOD.parent = &CAbilitySpell;
+
+    /* ── couple / misc ── */
+    CAbilityCoupleInstant.parent = &CAbilitySimpleSpell;
+    CAbilityCarrionScarabs.parent = &CAbilityAutoTargetSpell; /* AUcb→Arai→AAat */
+    CAbilityMagicDefense.parent = &CAbilityDefend; /* Amdf→Adef */
+}

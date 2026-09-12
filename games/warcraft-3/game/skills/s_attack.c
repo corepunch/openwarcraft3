@@ -1,7 +1,7 @@
 /*
  * s_attack.c — Attack ability and projectile system.
  *
- * Implements the a_attack ability used by all combat units.  Handles both
+ * Implements the CAbilityAttack ability used by all combat units.  Handles both
  * melee and ranged (missile) attack styles, each with a damage phase and a
  * cooldown phase driven by the umove_t state machine.
  *
@@ -95,7 +95,7 @@ static BOOL can_attack(LPCEDICT ent) {
     if (!S_CargoAttacksEnabled(ent)) return false;
     if (ent->attack1.type == ATK_NONE)
         return false;
-    if (!ent->currentmove || ent->currentmove->ability != &a_attack)
+    if (!ent->currentmove || ent->currentmove->ability != &CAbilityAttack)
         return true;
     return false;
 }
@@ -398,11 +398,11 @@ static void ai_attack_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, &a_attack };
-static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, &a_attack };
-static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, &a_attack };
-static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, &a_attack };
-static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, &a_attack };
+static umove_t attack_move_walk = { "walk", ai_attack_walk, NULL, &CAbilityAttack };
+static umove_t attack_move_melee_cooldown = { "stand ready", ai_melee_cooldown, NULL, &CAbilityAttack };
+static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, &CAbilityAttack };
+static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, &CAbilityAttack };
+static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, &CAbilityAttack };
 
 void attack_walk(LPEDICT self) {
     unit_setmove(self, &attack_move_walk);
@@ -521,7 +521,7 @@ static void ai_attackmove_walk(LPEDICT ent) {
     }
 }
 
-static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &a_attack };
+static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &CAbilityAttack };
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(LPEDICT self, LPEDICT waypoint) {
@@ -564,6 +564,6 @@ void attack_command(LPEDICT ent) {
     ent->client->menu.supports_order_queue = true;
 }
 
-ability_t a_attack = {
+ability_t CAbilityAttack = {
     .cmd = attack_command,
 };

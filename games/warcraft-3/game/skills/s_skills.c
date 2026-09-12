@@ -15,258 +15,258 @@ typedef struct {
 } abilityitem_t;
 
 static abilityitem_t abilitylist[] = {
-    { STR_CmdStop, &a_stop },  // Stop — engine command
-    { STR_CmdMove, &a_move },  // Move — engine command
-    { STR_CmdAttack, &a_attack },  // Attack — engine command
-    { STR_CmdBuild, &a_build },  // Build — engine command
-    { STR_CmdHoldPos, &a_holdpos },  // Hold Position — engine command
-    { STR_CmdPatrol, &a_patrol },  // Patrol — engine command
-    { STR_CmdRally, &a_rally },  // Rally — engine command
-    { STR_CmdCancel, &a_cancel },  // Cancel — engine command
-    { STR_CmdCancelBuild, &a_cancel },  // Cancel Build — engine command
-    { STR_CmdSelectSkill, &a_selectskill },  // Select Skill — engine command
+    { STR_CmdStop, &CAbilityStop },  // Stop — engine command
+    { STR_CmdMove, &CAbilityMove },  // Move — engine command
+    { STR_CmdAttack, &CAbilityAttack },  // Attack — engine command
+    { STR_CmdBuild, &CAbilityBuild },  // Build — engine command
+    { STR_CmdHoldPos, &CAbilityHoldPosition },  // Hold Position — engine command
+    { STR_CmdPatrol, &CAbilityPatrol },  // Patrol — engine command
+    { STR_CmdRally, &CAbilityRally },  // Rally — engine command
+    { STR_CmdCancel, &CAbilityCancel },  // Cancel — engine command
+    { STR_CmdCancelBuild, &CAbilityCancel },  // Cancel Build — engine command
+    { STR_CmdSelectSkill, &CAbilitySelectSkill },  // Select Skill — engine command
 
-    { "Amrf", &a_raven_form },  /* Medivh Crow Form */
-    { "Arav", &a_raven_form },  /* Storm Crow Form */
+    { "Amrf", &CAbilityRavenForm },  /* Medivh Crow Form */
+    { "Arav", &CAbilityRavenForm },  /* Storm Crow Form */
 
     /* BEGIN GENERATED ABILITY STRINGS */
 
     /* CampaignAbilityStrings.txt */
-    { "Aamk", &a_attribute_bonus },  /* Attribute Bonus */
-    { "ACtn", &a_spawn_tentacle },  /* Spawn Tentacle */
-    { "ACs7", &a_feral_spirit_campaign },  /* Feral Spirit */
-    { "ANav", &a_avatar_campaign },  /* Avatar */
-    { "ANsh", &a_shockwave_campaign },  /* Shockwave */
-    { "ACs8", &a_spirit_beast },  /* Spirit Beast */
-    { "ANr2", &a_reincarnation_campaign },  /* Reincarnation */
-    { "Afbb", &a_feedback },  /* Feedback */
-    { "Andm", &a_abolish_magic },  /* Abolish Magic */
-    { "Asb1", &a_submerge_myrmidon },  /* Submerge */
-    { "Asb2", &a_submerge_royal_guard },  /* Submerge */
-    { "Asb3", &a_submerge_snap_dragon },  /* Submerge */
-    { "ANha", &a_harvest },  /* Harvest */
-    { "ANen", &a_ensnare },  /* Ensnare */
-    { "ACfu", &a_frost_armor_campaign },  /* Frost Armor */
-    { "ANpa", &a_parasite },  /* Parasite */
-    { "Acny", &a_cyclone_campaign },  /* Cyclone */
-    { "Ahnl", &a_summoning_ritual },  /* Summoning Ritual */
-    { "ANcl", &a_channel_test },  /* Channel */
-    { "Arsq", &a_summon_quilbeast_campaign },  /* Summon Quilbeast */
-    { "Arsg", &a_summon_misha },  /* Summon Misha */
-    { "Arsp", &a_stampede_campaign },  /* Stampede */
-    { "ANbr", &a_battle_roar },  /* Battle Roar */
-    { "ANsb", &a_storm_bolt_campaign },  /* Storm Bolt */
-    { "ANcf", &a_breath_of_fire_campaign },  /* Breath of Fire */
-    { "Acdh", &a_drunken_haze_campaign },  /* Drunken Haze */
-    { "Acef", &a_storm_earth_fire },  /* "Storm, Earth, And Fire" */
-    { "ANhw", &a_healing_wave_campaign },  /* Healing Wave */
-    { "ANhx", &a_hex_campaign },  /* Hex */
-    { "Arsw", &a_serpent_ward },  /* Serpent Ward */
-    { "AOr2", &a_endurance_aura_campaign },  /* Endurance Aura */
-    { "AOs2", &a_shockwave_cairne },  /* Shockwave */
-    { "AOr3", &a_reincarnation_cairne },  /* Reincarnation */
-    { "AOw2", &a_war_stomp_campaign },  /* War Stomp */
-    { "AOls", &a_voodoo_spirits },  /* Voodoo Spirits */
+    { "Aamk", &CAbilityAttributeModSkill },  /* Attribute Bonus */
+    { "ACtn", &CAbilitySpawnTentacle },  /* Spawn Tentacle */
+    { "ACs7", &CAbilityFeralSpiritCampaign },  /* Feral Spirit */
+    { "ANav", &CAbilityAvatarCampaign },  /* Avatar */
+    { "ANsh", &CAbilityShockwaveCampaign },  /* Shockwave */
+    { "ACs8", &CAbilitySpiritBeast },  /* Spirit Beast */
+    { "ANr2", &CAbilityReincarnationCampaign },  /* Reincarnation */
+    { "Afbb", &CAbilityFeedback },  /* Feedback */
+    { "Andm", &CAbilityAbolishMagic },  /* Abolish Magic */
+    { "Asb1", &CAbilitySubmergeMyrmidon },  /* Submerge */
+    { "Asb2", &CAbilitySubmergeRoyalGuard },  /* Submerge */
+    { "Asb3", &CAbilitySubmergeSnapDragon },  /* Submerge */
+    { "ANha", &CAbilityHarvest },  /* Harvest */
+    { "ANen", &CAbilityEnsnare },  /* Ensnare */
+    { "ACfu", &CAbilityFrostArmorCampaign },  /* Frost Armor */
+    { "ANpa", &CAbilityParasiteCampaign },  /* Parasite */
+    { "Acny", &CAbilityCycloneCampaign },  /* Cyclone */
+    { "Ahnl", &CAbilitySummoningRitual },  /* Summoning Ritual */
+    { "ANcl", &CAbilityChannel },  /* Channel */
+    { "Arsq", &CAbilitySummonQuilbeastCampaign },  /* Summon Quilbeast */
+    { "Arsg", &CAbilitySummonMisha },  /* Summon Misha */
+    { "Arsp", &CAbilityStampedeCampaign },  /* Stampede */
+    { "ANbr", &CAbilityBattleRoar },  /* Battle Roar */
+    { "ANsb", &CAbilityStormBoltCampaign },  /* Storm Bolt */
+    { "ANcf", &CAbilityBreathOfFireCampaign },  /* Breath of Fire */
+    { "Acdh", &CAbilityDrunkenHazeCampaign },  /* Drunken Haze */
+    { "Acef", &CAbilityStormEarthFire },  /* "Storm, Earth, And Fire" */
+    { "ANhw", &CAbilityHealingWaveCampaign },  /* Healing Wave */
+    { "ANhx", &CAbilityHexCampaign },  /* Hex */
+    { "Arsw", &CAbilitySerpentWard },  /* Serpent Ward */
+    { "AOr2", &CAbilityEnduranceAuraCampaign },  /* Endurance Aura */
+    { "AOs2", &CAbilityShockwaveCairne },  /* Shockwave */
+    { "AOr3", &CAbilityReincarnationCairne },  /* Reincarnation */
+    { "AOw2", &CAbilityWarStompCampaign },  /* War Stomp */
+    { "AOls", &CAbilityVoodooSpirits },  /* Voodoo Spirits */
 
     /* CommonAbilityStrings.txt */
-    { "Aall", &a_shop_sharing },  /* Shop Sharing, Allied Bldg. */
-    { "Abdt", &a_burrow_detection },  /* Burrow Detection */
-    { "Apit", &a_shop_purchase_item },  /* Shop Purchase Item */
-    { "Ahar", &a_harvest },  /* Harvest */
-    { "Ahrl", &a_harvest_lumber },  /* Harvest */
-    { "Arev", &a_revive_hero },  /* Revive Hero */
-    { "Aawa", &a_revive_hero_instant },  /* Revive Hero Instantly */
-    { "Adet", &a_detector },  /* Detector */
-    { "Arep", &a_repair },  /* Repair */
-    { "AEpa", &a_poison_arrows },  /* Poison Arrows */
-    { "AEbu", &a_build },  /* Build (Night Elf) */
-    { "AGbu", &a_build },  /* Build (Naga) */
-    { "AHbu", &a_build },  /* Build (Human) */
-    { "AHer", &a_hero },  /* Hero */
-    { "ANbu", &a_build },  /* Build (Neutral) */
-    { "AObu", &a_build },  /* Build (Orc) */
-    { "ARal", &a_rally },  /* Rally */
-    { "AUbu", &a_build },  /* Build (Undead) */
-    { "Aalr", &a_alarm },  /* Alarm */
-    { "Aatk", &a_attack },  /* Attack */
-    { "Afih", &a_on_fire },  /* On Fire (Human) */
-    { "Afin", &a_on_fire },  /* On Fire (Night Elf) */
-    { "Afio", &a_on_fire },  /* On Fire (Orc) */
-    { "Afir", &a_on_fire },  /* On Fire */
-    { "Afiu", &a_on_fire },  /* On Fire (Undead) */
-    { "Aloc", &a_locust },  /* Locust */
-    { "Amov", &a_move },  /* Move */
-    { "Atdp", &a_drop },  /* Drop Pilot */
-    { "Atlp", &a_load },  /* Load Pilot */
-    { "Attu", &a_turret },  /* Turret */
+    { "Aall", &CAbilityAllied },  /* Shop Sharing, Allied Bldg. */
+    { "Abdt", &CAbilityBurrowDetector },  /* Burrow Detection */
+    { "Apit", &CAbilityPurchaseItem },  /* Shop Purchase Item */
+    { "Ahar", &CAbilityHarvest },  /* Harvest */
+    { "Ahrl", &CAbilityHarvestLumber },  /* Harvest */
+    { "Arev", &CAbilityRevive },  /* Revive Hero */
+    { "Aawa", &CAbilityAwaken },  /* Revive Hero Instantly */
+    { "Adet", &CAbilityDetector },  /* Detector */
+    { "Arep", &CAbilityRepair },  /* Repair */
+    { "AEpa", &CAbilityPoisonArrows },  /* Poison Arrows */
+    { "AEbu", &CAbilityBuild },  /* Build (Night Elf) */
+    { "AGbu", &CAbilityBuild },  /* Build (Naga) */
+    { "AHbu", &CAbilityBuild },  /* Build (Human) */
+    { "AHer", &CAbilityHero },  /* Hero */
+    { "ANbu", &CAbilityBuild },  /* Build (Neutral) */
+    { "AObu", &CAbilityBuild },  /* Build (Orc) */
+    { "ARal", &CAbilityRally },  /* Rally */
+    { "AUbu", &CAbilityBuild },  /* Build (Undead) */
+    { "Aalr", &CAbilityAlarm },  /* Alarm */
+    { "Aatk", &CAbilityAttack },  /* Attack */
+    { "Afih", &CAbilityOnFireHuman },  /* On Fire (Human) */
+    { "Afin", &CAbilityOnFireHuman },  /* On Fire (Night Elf) */
+    { "Afio", &CAbilityOnFireHuman },  /* On Fire (Orc) */
+    { "Afir", &CAbilityOnFireHuman },  /* On Fire */
+    { "Afiu", &CAbilityOnFireHuman },  /* On Fire (Undead) */
+    { "Aloc", &CAbilityLocust },  /* Locust */
+    { "Amov", &CAbilityMove },  /* Move */
+    { "Atdp", &CAbilityCargoDrop },  /* Drop Pilot */
+    { "Atlp", &CAbilityCargoLoad },  /* Load Pilot */
+    { "Attu", &CAbilityTankTurret },  /* Turret */
 
     /* HumanAbilityStrings.txt */
-    { "Amls", &a_aerial_shackles },  /* Aerial Shackles */
-    { "Afbk", &a_feedback_human },  /* Feedback */
-    { "Acmg", &a_control_magic },  /* Control Magic */
-    { "AHdr", &a_siphon_mana_human },  /* Siphon Mana */
-    { "Aflk", &a_flak_cannons },  /* Flak Cannons */
-    { "Afsh", &a_fragmentation_shards },  /* Fragmentation Shards */
-    { "Aroc", &a_barrage },  /* Barrage */
-    { "Amdf", &a_magic_defense },  /* Magic Defense */
-    { "Asph", &a_sphere },  /* Sphere */
-    { "Asps", &a_spell_steal },  /* Spell Steal */
-    { "Aclf", &a_cloud },  /* Cloud */
-    { "AHfs", &a_flame_strike_human },  /* Flame Strike */
-    { "AHbn", &a_banish },  /* Banish */
-    { "AHpx", &a_phoenix },  /* Phoenix */
-    { "Aphx", &a_phoenix_morphing },  /* Phoenix Morphing (Egg Related) */
-    { "Apxf", &a_phoenix_fire },  /* Phoenix Fire */
-    { "Agyb", &a_flying_machine_bombs },  /* Flying Machine Bombs */
-    { "Asth", &a_storm_hammers },  /* Storm Hammers */
-    { "Agyv", &a_true_sight_flying_machine },  /* True Sight */
-    { "Adef", &a_defend },  /* Defend */
-    { "Afla", &a_flare },  /* Flare */
-    { "Adts", &a_magic_sentry },  /* Magic Sentry */
-    { "Ainf", &a_inner_fire },  /* Inner Fire */
-    { "Adis", &a_dispel_magic },  /* Dispel Magic */
-    { "Ahea", &a_heal },  /* Heal */
-    { "Aslo", &a_slow },  /* Slow */
-    { "Aivs", &a_invisibility },  /* Invisibility */
-    { "Aply", &a_polymorph },  /* Polymorph */
-    { "AHbz", &a_blizzard },  /* Blizzard */
-    { "AHwe", &a_water_elemental },  /* Summon Water Elemental */
-    { "AHab", &a_brilliance_aura },  /* Brilliance Aura */
-    { "AHmt", &a_mass_teleport },  /* Mass Teleport */
-    { "AHtb", &a_thunderbolt },  /* Storm Bolt */
-    { "AHtc", &a_thunder_clap },  /* Thunder Clap */
-    { "AHbh", &a_bash },  /* Bash */
-    { "AHav", &a_avatar },  /* Avatar */
-    { "AHhb", &a_holylight },  /* Holy Light */
-    { "AHds", &a_divine_shield },  /* Divine Shield */
-    { "AHad", &a_devotionaura },  /* Devotion Aura */
-    { "AHre", &a_revive },  /* Resurrection */
-    { "Amil", &a_militia },  /* Call to Arms */
-    { "Amic", &a_call_to_arms },  /* Call To Arms */
+    { "Amls", &CAbilityMagicLeash },  /* Aerial Shackles */
+    { "Afbk", &CAbilityFeedback },  /* Feedback */
+    { "Acmg", &CAbilityControlMagic },  /* Control Magic */
+    { "AHdr", &CAbilityDrain },  /* Siphon Mana */
+    { "Aflk", &CAbilityFlakCannon },  /* Flak Cannons */
+    { "Afsh", &CAbilityFragShards },  /* Fragmentation Shards */
+    { "Aroc", &CAbilityBarrage },  /* Barrage */
+    { "Amdf", &CAbilityMagicDefense },  /* Magic Defense */
+    { "Asph", &CAbilitySphere },  /* Sphere */
+    { "Asps", &CAbilitySpellSteal },  /* Spell Steal */
+    { "Aclf", &CAbilityCloudOfFog },  /* Cloud */
+    { "AHfs", &CAbilityFlameStrike },  /* Flame Strike */
+    { "AHbn", &CAbilityBanish },  /* Banish */
+    { "AHpx", &CAbilitySummonPhoenix },  /* Phoenix */
+    { "Aphx", &CAbilityPhoenix },  /* Phoenix Morphing (Egg Related) */
+    { "Apxf", &CAbilityPhoenixFire },  /* Phoenix Fire */
+    { "Agyb", &CAbilityGyroBombs },  /* Flying Machine Bombs */
+    { "Asth", &CAbilityStormHammers },  /* Storm Hammers */
+    { "Agyv", &CAbilityGyroVision },  /* True Sight */
+    { "Adef", &CAbilityDefend },  /* Defend */
+    { "Afla", &CAbilityFlare },  /* Flare */
+    { "Adts", &CAbilityMagicSentry },  /* Magic Sentry */
+    { "Ainf", &CAbilityInnerFire },  /* Inner Fire */
+    { "Adis", &CAbilityDispelMagic },  /* Dispel Magic */
+    { "Ahea", &CAbilityHeal },  /* Heal */
+    { "Aslo", &CAbilitySlow },  /* Slow */
+    { "Aivs", &CAbilityInvisibility },  /* Invisibility */
+    { "Aply", &CAbilityPolymorph },  /* Polymorph */
+    { "AHbz", &CAbilityBlizzard },  /* Blizzard */
+    { "AHwe", &CAbilityWaterElemental },  /* Summon Water Elemental */
+    { "AHab", &CAbilityAuraBrilliance },  /* Brilliance Aura */
+    { "AHmt", &CAbilityMassTeleport },  /* Mass Teleport */
+    { "AHtb", &CAbilityThunderBolt },  /* Storm Bolt */
+    { "AHtc", &CAbilityThunderClap },  /* Thunder Clap */
+    { "AHbh", &CAbilityBash },  /* Bash */
+    { "AHav", &CAbilityAvatar },  /* Avatar */
+    { "AHhb", &CAbilityHolyBolt },  /* Holy Light */
+    { "AHds", &CAbilityDivineShield },  /* Divine Shield */
+    { "AHad", &CAbilityAuraDevotion },  /* Devotion Aura */
+    { "AHre", &CAbilityResurrection },  /* Resurrection */
+    { "Amil", &CAbilityMilitia },  /* Call to Arms */
+    { "Amic", &CAbilityMilitiaConvert },  /* Call To Arms */
 
     /* ItemAbilityStrings.txt */
-    { "AIsm", &a_item_permanent_stat_gain },  /* Item Strength Gain */
-    { "AIam", &a_item_permanent_stat_gain },  /* Item Agility Gain */
-    { "AIat", &a_item_attack_bonus },  /* Item Damage Bonus */
-    { "AIde", &a_item_defense_bonus },  /* Item Armor Bonus */
-    { "AIem", &a_item_experience_gain },  /* Item Experience Gain */
-    { "AIlm", &a_item_level_gain },  /* Item Level Gain */
-    { "AIim", &a_item_permanent_stat_gain },  /* Item Intelligence Gain */
-    { "AIxm", &a_item_permanent_stat_gain },  /* Item Int/Agi/Str gain */
-    { "AIhe", &a_item_heal },  /* Item Healing */
-    { "AIma", &a_item_mana_regain },  /* Item Mana Regain */
-    { "AIda", &a_item_defense_aoe },  /* Item Temporary Area Armor Bonus */
-    { "AIco", &a_charm },  /* Item Command */
-    { "AIfs", &a_item_figurine_summon },  /* Item Skeleton Summon */
-    { "AImi", &a_item_permanent_life_gain },  /* Item Permanent Life Gain */
-    { "AIab", &a_item_stat_bonus },  /* Item Hero Stat Bonus */
-    { "AIml", &a_item_life_bonus },  /* Item Life Bonus */
-    { "AImm", &a_item_mana_bonus },  /* Item Mana Bonus */
-    { "AIct", &a_item_change_time },  /* Change Time of Day */
+    { "AIsm", &CAbilityStrengthMod },  /* Item Strength Gain */
+    { "AIam", &CAbilityStrengthMod },  /* Item Agility Gain */
+    { "AIat", &CAbilityAttackBonus },  /* Item Damage Bonus */
+    { "AIde", &CAbilityDefenseBonus },  /* Item Armor Bonus */
+    { "AIem", &CAbilityExperienceMod },  /* Item Experience Gain */
+    { "AIlm", &CAbilityLevelMod },  /* Item Level Gain */
+    { "AIim", &CAbilityStrengthMod },  /* Item Intelligence Gain */
+    { "AIxm", &CAbilityStrengthMod },  /* Item Int/Agi/Str gain */
+    { "AIhe", &CAbilityItemHeal },  /* Item Healing */
+    { "AIma", &CAbilityItemManaRestore },  /* Item Mana Regain */
+    { "AIda", &CAbilityItemDefenseAoe },  /* Item Temporary Area Armor Bonus */
+    { "AIco", &CAbilityCharm },  /* Item Command */
+    { "AIfs", &CAbilityFigurineSkeleton },  /* Item Skeleton Summon */
+    { "AImi", &CAbilityMaxLifeMod },  /* Item Permanent Life Gain */
+    { "AIab", &CAbilityAttributeBonus },  /* Item Hero Stat Bonus */
+    { "AIml", &CAbilityMaxLifeBonus },  /* Item Life Bonus */
+    { "AImm", &CAbilityMaxManaBonus },  /* Item Mana Bonus */
+    { "AIct", &CAbilityItemChangeTOD },  /* Change Time of Day */
 
     /* NeutralAbilityStrings.txt */
-    { "ANab", &a_acid_bomb },  /* Acid Bomb */
-    { "ANms", &a_mana_shield },  /* Mana Shield */
-    { "ANrf", &a_rain_of_fire },  /* Rain of Fire */
-    { "AHca", &a_cold_arrows },  /* Cold Arrows */
-    { "ANht", &a_howl_of_terror },  /* Howl of Terror */
-    { "ANca", &a_cleaving_attack },  /* Cleaving Attack */
-    { "ANdo", &a_doom },  /* Doom */
-    { "ANdr", &a_siphon_mana },  /* Life Drain */
-    { "ANbf", &a_breath_of_fire },  /* Breath of Fire */
-    { "ANsg", &a_summon_bear },  /* Summon Bear */
-    { "ANsq", &a_summon_quilbeast },  /* Summon Quilbeast */
-    { "ANsw", &a_summon_hawk },  /* Summon Hawk */
-    { "ANst", &a_stomp },  /* Stampede */
-    { "ANfs", &a_flame_strike },  /* Flame Strike */
-    { "AInv", &a_inventory },  /* Inventory */
-    { "ANdb", &a_drunken_brawler },  /* Drunken Brawler */
-    { "ANdh", &a_drunken_haze },  /* Drunken Haze */
-    { "ANsi", &a_silence },  /* Silence */
-    { "ANba", &a_black_arrow },  /* Black Arrow */
-    { "ANch", &a_charm },  /* Charm */
-    { "ANto", &a_tornado },  /* Tornado */
-    { "Abgm", &a_blighted_goldmine },  /* Blighted Gold Mine Ability */
-    { "Aegm", &a_entangled_mine },  /* Entangled Gold Mine Ability */
-    { "Aloa", &a_load },  /* Load */
-    { "Adro", &a_drop },  /* Unload */
-    { "Adri", &a_drop_instant },  /* Unload Instant */
-    { "Abun", &a_cargo_hold_burrow },  /* Cargo Hold (Orc Burrow) */
-    { "Acar", &a_cargo_hold },  /* Cargo Hold */
-    { "Aneu", &a_neutral_building },  /* Select Hero */
-    { "ANfb", &a_firebolt },  /* Firebolt */
-    { "Agld", &a_goldmine },  /* Gold Mine ability */
-    { "Artn", &a_return_resources },  /* Return */
-    { "Avul", &a_invulnerable },  /* Invulnerable */
-    { "Abli", &a_blight },  /* Blight */
-    { "ANfl", &a_forked_lightning },  /* Forked Lightning */
+    { "ANab", &CAbilityAcidBomb },  /* Acid Bomb */
+    { "ANms", &CAbilityManaShield },  /* Mana Shield */
+    { "ANrf", &CAbilityRainOfFire },  /* Rain of Fire */
+    { "AHca", &CAbilityColdArrows },  /* Cold Arrows */
+    { "ANht", &CAbilityHowlOfTerror },  /* Howl of Terror */
+    { "ANca", &CAbilityCleavingAttack },  /* Cleaving Attack */
+    { "ANdo", &CAbilityDoom },  /* Doom */
+    { "ANdr", &CAbilityDrainNeutral },  /* Life Drain */
+    { "ANbf", &CAbilityBreathOfFire },  /* Breath of Fire */
+    { "ANsg", &CAbilitySummonGrizzly },  /* Summon Bear */
+    { "ANsq", &CAbilitySummonQuillbeast },  /* Summon Quilbeast */
+    { "ANsw", &CAbilitySummonWarEagle },  /* Summon Hawk */
+    { "ANst", &CAbilityStampede },  /* Stampede */
+    { "ANfs", &CAbilityFlameStrikeNeutral },  /* Flame Strike */
+    { "AInv", &CAbilityInventory },  /* Inventory */
+    { "ANdb", &CAbilityDrunkenBrawler },  /* Drunken Brawler */
+    { "ANdh", &CAbilityDrunkenHaze },  /* Drunken Haze */
+    { "ANsi", &CAbilitySilence },  /* Silence */
+    { "ANba", &CAbilityBlackArrow },  /* Black Arrow */
+    { "ANch", &CAbilityCharm },  /* Charm */
+    { "ANto", &CAbilityTornado },  /* Tornado */
+    { "Abgm", &CAbilityBlightedGoldMine },  /* Blighted Gold Mine Ability */
+    { "Aegm", &CAbilityEntangledGoldMine },  /* Entangled Gold Mine Ability */
+    { "Aloa", &CAbilityCargoLoad },  /* Load */
+    { "Adro", &CAbilityCargoDrop },  /* Unload */
+    { "Adri", &CAbilityCargoDropInstant },  /* Unload Instant */
+    { "Abun", &CAbilityBunker },  /* Cargo Hold (Orc Burrow) */
+    { "Acar", &CAbilityCargoHold },  /* Cargo Hold */
+    { "Aneu", &CAbilityNeutral },  /* Select Hero */
+    { "ANfb", &CAbilityFireBolt },  /* Firebolt */
+    { "Agld", &CAbilityGoldMine },  /* Gold Mine ability */
+    { "Artn", &CAbilityReturn },  /* Return */
+    { "Avul", &CAbilityInvulnerable },  /* Invulnerable */
+    { "Abli", &CAbilityBlightGrowth },  /* Blight */
+    { "ANfl", &CAbilityForkedLightning },  /* Forked Lightning */
 
     /* NightElfAbilityStrings.txt */
-    { "AEbl", &a_blink },  /* Blink */
-    { "AEfk", &a_fan_of_knives },  /* Fan of Knives */
-    { "AEsh", &a_shadow_strike },  /* Shadow Strike */
-    { "AEsv", &a_vengeance },  /* Vengeance */
-    { "Aeat", &a_eat_tree },  /* Eat Tree */
-    { "Ambt", &a_moon_well },  /* Replenish Mana and Life */
-    { "Awha", &a_wisp_harvest },  /* Gather */
-    { "Aent", &a_entangle_goldmine },  /* Entangle Gold Mine */
-    { "Aenc", &a_cargo_hold_entangled_mine },  /* Load */
-    { "Aroo", &a_root },  /* Root */
-    { "AEmb", &a_mana_burn },  /* Mana Burn */
-    { "AEim", &a_immolation },  /* Immolation */
-    { "AEev", &a_evasion },  /* Evasion */
-    { "AEme", &a_metamorphosis },  /* Metamorphosis */
-    { "AEer", &a_entangling_roots },  /* Entangling Roots */
-    { "AEfn", &a_force_of_nature },  /* Force of Nature */
-    { "AEah", &a_aura_spell },  /* Thorns Aura */
-    { "AEtq", &a_tranquility },  /* Tranquility */
-    { "AHfa", &a_searing_arrows },  /* Searing Arrows */
-    { "AEar", &a_trueshot_aura },  /* Trueshot Aura */
-    { "AEsf", &a_starfall },  /* Starfall */
-    { "Aren", &a_repair_generic },  /* Renew */
+    { "AEbl", &CAbilityBlink },  /* Blink */
+    { "AEfk", &CAbilityFanOfKnives },  /* Fan of Knives */
+    { "AEsh", &CAbilityShadowStrike },  /* Shadow Strike */
+    { "AEsv", &CAbilitySpiritOfVengeance },  /* Vengeance */
+    { "Aeat", &CAbilityEatTree },  /* Eat Tree */
+    { "Ambt", &CAbilityManaBattery },  /* Replenish Mana and Life */
+    { "Awha", &CAbilityWispHarvest },  /* Gather */
+    { "Aent", &CAbilityEntangle },  /* Entangle Gold Mine */
+    { "Aenc", &CAbilityEntangleCargo },  /* Load */
+    { "Aroo", &CAbilityRoot },  /* Root */
+    { "AEmb", &CAbilityManaBurn },  /* Mana Burn */
+    { "AEim", &CAbilityImmolation },  /* Immolation */
+    { "AEev", &CAbilityEvasion },  /* Evasion */
+    { "AEme", &CAbilityMetamorphosis },  /* Metamorphosis */
+    { "AEer", &CAbilityEntanglingRoots },  /* Entangling Roots */
+    { "AEfn", &CAbilityForceOfNature },  /* Force of Nature */
+    { "AEah", &CAbilityAuraSpell },  /* Thorns Aura */
+    { "AEtq", &CAbilityTranquility },  /* Tranquility */
+    { "AHfa", &CAbilityFlamingArrows },  /* Searing Arrows */
+    { "AEar", &CAbilityAuraTrueshot },  /* Trueshot Aura */
+    { "AEsf", &CAbilityStarfall },  /* Starfall */
+    { "Aren", &CAbilityRepairGeneric },  /* Renew */
 
     /* OrcAbilityStrings.txt */
-    { "AOhw", &a_healing_wave },  /* Healing Wave */
-    { "AOhx", &a_hex },  /* Hex */
-    { "AOvd", &a_big_bad_voodoo },  /* Big Bad Voodoo */
-    { "Astd", &a_stand_down },  /* Stand Down */
-    { "AOwk", &a_wind_walk },  /* Wind Walk */
-    { "AOmi", &a_mirror_image },  /* Mirror Image */
-    { "AOcr", &a_critical_strike },  /* Critical Strike */
-    { "AOww", &a_whirlwind },  /* Bladestorm */
-    { "AOcl", &a_chain_lightning },  /* Chain Lightning */
-    { "AOfs", &a_far_sight },  /* Far Sight */
-    { "AOsf", &a_feral_spirit },  /* Feral Spirit */
-    { "AOeq", &a_earthquake },  /* Earthquake */
-    { "AOsh", &a_shockwave },  /* Shockwave */
-    { "AOae", &a_aura_endurance },  /* Endurance Aura */
-    { "AOre", &a_reincarnation },  /* Reincarnation */
-    { "AOws", &a_war_stomp },  /* War Stomp */
+    { "AOhw", &CAbilityHealingWave },  /* Healing Wave */
+    { "AOhx", &CAbilityHex },  /* Hex */
+    { "AOvd", &CAbilityVoodoo },  /* Big Bad Voodoo */
+    { "Astd", &CAbilityStandDown },  /* Stand Down */
+    { "AOwk", &CAbilityWindWalk },  /* Wind Walk */
+    { "AOmi", &CAbilityMirrorImage },  /* Mirror Image */
+    { "AOcr", &CAbilityCriticalStrike },  /* Critical Strike */
+    { "AOww", &CAbilityWhirlwind },  /* Bladestorm */
+    { "AOcl", &CAbilityChainLightning },  /* Chain Lightning */
+    { "AOfs", &CAbilityFarSight },  /* Far Sight */
+    { "AOsf", &CAbilitySpiritWolf },  /* Feral Spirit */
+    { "AOeq", &CAbilityEarthquake },  /* Earthquake */
+    { "AOsh", &CAbilityShockwave },  /* Shockwave */
+    { "AOae", &CAbilityAuraEndurance },  /* Endurance Aura */
+    { "AOre", &CAbilityReincarnation },  /* Reincarnation */
+    { "AOws", &CAbilityStomp },  /* War Stomp */
 
     /* UndeadAbilityStrings.txt */
-    { "AUim", &a_impale },  /* Impale */
-    { "AUts", &a_spiked_carapace },  /* Spiked Carapace */
-    { "AUcb", &a_carrion_beetles },  /* Carrion Beetles */
-    { "AUls", &a_locust_swarm },  /* Locust Swarm */
-    { "Aaha", &a_acolyte_harvest },  /* Gather */
-    { "AUdc", &a_death_coil },  /* Death Coil */
-    { "AUau", &a_unholy_aura },  /* Unholy Aura */
-    { "AUdp", &a_death_pact },  /* Death Pact */
-    { "AUan", &a_animate_dead },  /* Animate Dead */
-    { "AUcs", &a_carrion_swarm },  /* Carrion Swarm */
-    { "AUsl", &a_sleep },  /* Sleep */
-    { "AUav", &a_vampiric_aura },  /* Vampiric Aura */
-    { "AUfn", &a_frost_nova },  /* Frost Nova */
-    { "AUfa", &a_frost_armor },  /* Frost Armor */
-    { "AUfu", &a_frost_armor_variant },  /* Frost Armor */
-    { "AUdr", &a_dark_ritual },  /* Dark Ritual */
-    { "AUdd", &a_death_and_decay },  /* Death And Decay */
-    { "Arst", &a_repair_generic },  /* Restore */
-    { "AUin", &a_inferno },  /* Inferno */
+    { "AUim", &CAbilityImpale },  /* Impale */
+    { "AUts", &CAbilityThornyShield },  /* Spiked Carapace */
+    { "AUcb", &CAbilityCarrionScarabs },  /* Carrion Beetles */
+    { "AUls", &CAbilityLocustSwarm },  /* Locust Swarm */
+    { "Aaha", &CAbilityAcolyteHarvest },  /* Gather */
+    { "AUdc", &CAbilityDeathCoil },  /* Death Coil */
+    { "AUau", &CAbilityAuraUnholy },  /* Unholy Aura */
+    { "AUdp", &CAbilityDeathPact },  /* Death Pact */
+    { "AUan", &CAbilityAnimateDead },  /* Animate Dead */
+    { "AUcs", &CAbilityCarrionSwarm },  /* Carrion Swarm */
+    { "AUsl", &CAbilitySleep },  /* Sleep */
+    { "AUav", &CAbilityAuraVampiric },  /* Vampiric Aura */
+    { "AUfn", &CAbilityFrostNova },  /* Frost Nova */
+    { "AUfa", &CAbilityFrostArmor },  /* Frost Armor */
+    { "AUfu", &CAbilityFrostArmorAuto },  /* Frost Armor */
+    { "AUdr", &CAbilityDarkRitual },  /* Dark Ritual */
+    { "AUdd", &CAbilityDeathAndDecay },  /* Death And Decay */
+    { "Arst", &CAbilityRepairGeneric },  /* Restore */
+    { "AUin", &CAbilityDreadLordInferno },  /* Inferno */
 
     /* No AbilityStrings source file */
-    { "Acoi", &a_couple_instant },  /* Couple Instant */
-    { "Agl2", &a_goldmine_overlayed },  /* Gold Mine ability */
+    { "Acoi", &CAbilityCoupleInstant },  /* Couple Instant */
+    { "Agl2", &CAbilityGoldMineOverlayed },  /* Gold Mine ability */
 
     /* END GENERATED ABILITY STRINGS */
     /* BEGIN GENERATED TODO ABILITIES */
@@ -274,7 +274,7 @@ static abilityitem_t abilitylist[] = {
     /* CampaignAbilityStrings.txt */
     // TODO: { "Aamk", &a_attack_mod },  /* Attribute Bonus */
     // TODO: { "ANpa", &a_poison_attack },  /* Parasite */
-    // TODO: { "ANbr", &a_bash },  /* Battle Roar */
+    // TODO: { "ANbr", &CAbilityBash },  /* Battle Roar */
 
     /* ItemAbilityStrings.txt */
     // TODO: { "AIsp", &a_item_speed },  /* Item Temporary Speed Bonus */
@@ -294,10 +294,10 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "AIrm", &a_item_regen_mana },  /* Item Mana Regeneration */
     // TODO: { "AIil", &a_item_illusion },  /* Item Illusions */
     // TODO: { "AIdi", &a_item_dispel_aoe },  /* Item Dispel */
-    // TODO: { "AIfb", &a_on_fire },  /* Item Attack Fire Bonus */
+    // TODO: { "AIfb", &CAbilityOnFireHuman },  /* Item Attack Fire Bonus */
     // TODO: { "AIlb", &a_bounce },  /* Item Attack Lightning Bonus */
     // TODO: { "AIlp", &a_lightning_purge },  /* Item Purge */
-    // TODO: { "AIob", &a_frost_nova },  /* Item Attack Frost Bonus */
+    // TODO: { "AIob", &CAbilityFrostNova },  /* Item Attack Frost Bonus */
     // TODO: { "AIpb", &a_item_mana_restore },  /* Item Attack Poison Bonus */
     // TODO: { "AIcb", &a_button },  /* Item Attack Corruption Bonus */
     // TODO: { "AIsi", &a_sight_bonus },  /* Item Sight Range Bonus */
@@ -309,8 +309,8 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "AIpm", &a_button },  /* Item Place Goblin Land Mine */
     // TODO: { "AIaa", &a_damage_bonus_base },  /* Item Permanent Damage Gain */
     // TODO: { "AIva", &a_attack_mod },  /* Item Life Steal */
-    // TODO: { "AIcf", &a_immolation },  /* Item Immolation */
-    // TODO: { "AIzb", &a_frost_nova },  /* Item Freeze Damage Bonus */
+    // TODO: { "AIcf", &CAbilityImmolation },  /* Item Immolation */
+    // TODO: { "AIzb", &CAbilityFrostNova },  /* Item Freeze Damage Bonus */
     // TODO: { "Arel", &a_aura_regen_life },  /* Item Life Regeneration */
     // TODO: { "Aami", &a_unknown },  /* Item Anti-Magic Shell */
     // TODO: { "AIas", &a_unknown },  /* Item Attack Speed Bonus */
@@ -321,17 +321,17 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "AIlu", &a_item_heal_aoe },  /* Bundle of Lumber */
     // TODO: { "AIfa", &a_agility_mod },  /* Flare Gun */
     // TODO: { "AIrv", &a_item_heal_aoe },  /* Item Reveal Entire Map */
-    // TODO: { "AIdc", &a_item_defense_aoe },  /* Item Chain Dispel */
+    // TODO: { "AIdc", &CAbilityItemDefenseAoe },  /* Item Chain Dispel */
     // TODO: { "AIwb", &a_button },  /* Item Web */
     // TODO: { "AImo", &a_item_mana_restore_aoe },  /* Monster Lure */
     // TODO: { "AIri", &a_item_speed },  /* Random Item */
-    // TODO: { "Ablp", &a_item_heal },  /* Blight Placement */
+    // TODO: { "Ablp", &CAbilityItemHeal },  /* Blight Placement */
     // TODO: { "Aste", &a_figurine_rock_golem },  /* Steal */
     // TODO: { "AIpv", &a_item_mana_restore_aoe },  /* Vampiric Potion */
     // TODO: { "AIsr", &a_item_speed },  /* Spell Damage Reduction */
-    // TODO: { "AIbl", &a_on_fire },  /* Build Tiny Castle */
+    // TODO: { "AIbl", &CAbilityOnFireHuman },  /* Build Tiny Castle */
     // TODO: { "Ashs", &a_spell },  /* Wand of Shadowsight */
-    // TODO: { "Aret", &a_revive },  /* Tome of Retraining */
+    // TODO: { "Aret", &CAbilityResurrection },  /* Tome of Retraining */
     // TODO: { "ANpr", &a_button },  /* Staff of Preservation */
     // TODO: { "Amec", &a_button },  /* Mechanical Critter */
     // TODO: { "ANss", &a_bounce },  /* Spell Shield */
@@ -341,46 +341,46 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "ANsa", &a_bounce },  /* Staff of Sanctuary */
     // TODO: { "AIsa", &a_item_speed },  /* Scroll of Haste */
     // TODO: { "AItb", &a_button },  /* Dust of Appearance */
-    // TODO: { "AIsb", &a_item_heal },  /* Orb of Slow */
+    // TODO: { "AIsb", &CAbilityItemHeal },  /* Orb of Slow */
     // TODO: { "ANbs", &a_spell },  /* Orb of Darkness */
     // TODO: { "AIrb", &a_item_heal_aoe },  /* Rebirth */
-    // TODO: { "AUds", &a_mass_teleport },  /* Dark Summoning */
-    // TODO: { "AIdd", &a_item_heal },  /* Defend */
+    // TODO: { "AUds", &CAbilityMassTeleport },  /* Dark Summoning */
+    // TODO: { "AIdd", &CAbilityItemHeal },  /* Defend */
     // TODO: { "AIsh", &a_item_town_portal },  /* Summon Headhunter */
 
     /* NeutralAbilityStrings.txt */
-    // TODO: { "ANic", &a_inner_fire },  /* Incinerate */
-    // TODO: { "ANia", &a_inner_fire },  /* Incinerate */
+    // TODO: { "ANic", &CAbilityInnerFire },  /* Incinerate */
+    // TODO: { "ANia", &CAbilityInnerFire },  /* Incinerate */
     // TODO: { "ANso", &a_spell },  /* Soul Burn */
     // TODO: { "ANlm", &a_lightning_shield },  /* Summon Lava Spawn */
     // TODO: { "ANvc", &a_spell },  /* Volcano */
     // TODO: { "ANsy", &a_button },  /* Pocket Factory */
     // TODO: { "ANcs", &a_spell },  /* Cluster Rockets */
-    // TODO: { "ANeg", &a_evasion },  /* Engineering Upgrade */
+    // TODO: { "ANeg", &CAbilityEvasion },  /* Engineering Upgrade */
     // TODO: { "ANrg", &a_regen_base },  /* Robo-Goblin */
     // TODO: { "ANde", &a_button },  /* Demolish */
-    // TODO: { "ANfy", &a_on_fire },  /* Factory */
-    // TODO: { "ANhs", &a_heal },  /* Healing Spray */
-    // TODO: { "ANcr", &a_critical_strike },  /* Chemical Rage */
+    // TODO: { "ANfy", &CAbilityOnFireHuman },  /* Factory */
+    // TODO: { "ANhs", &CAbilityHeal },  /* Healing Spray */
+    // TODO: { "ANcr", &CAbilityCriticalStrike },  /* Chemical Rage */
     // TODO: { "ANtm", &a_aura_regen_life },  /* Transmute */
-    // TODO: { "Aasl", &a_slow },  /* Slow Aura */
-    // TODO: { "Atdg", &a_stomp },  /* Building Damage Aura */
+    // TODO: { "Aasl", &CAbilitySlow },  /* Slow Aura */
+    // TODO: { "Atdg", &CAbilityStampede },  /* Building Damage Aura */
     // TODO: { "Atsp", &a_aura },  /* Tornado Spin */
-    // TODO: { "Atwa", &a_war_stomp },  /* Tornado Wander */
+    // TODO: { "Atwa", &CAbilityStomp },  /* Tornado Wander */
     // TODO: { "ANef", &a_button },  /* "Storm, Earth, And Fire" */
-    // TODO: { "ACbf", &a_on_fire },  /* Breath of Frost */
+    // TODO: { "ACbf", &CAbilityOnFireHuman },  /* Breath of Frost */
     // TODO: { "ANmr", &a_aura },  /* Mind Rot */
     // TODO: { "ANmo", &a_bounce },  /* Monsoon */
-    // TODO: { "ANwm", &a_war_stomp },  /* Watery Minion */
+    // TODO: { "ANwm", &CAbilityStomp },  /* Watery Minion */
     // TODO: { "Arng", &a_revenge },  /* Revenge */
     // TODO: { "Atol", &a_upgrade },  /* Tree of Life upgrade ability */
     // TODO: { "Awrp", &a_warp },  /* Waygate ability */
     // TODO: { "ANdc", &a_spell },  /* Dark Conversion */
     // TODO: { "ANsl", &a_spell },  /* Soul Preservation */
     // TODO: { "ANfd", &a_spell },  /* Finger of Death */
-    // TODO: { "ANdp", &a_mass_teleport },  /* Dark Portal */
-    // TODO: { "ANrc", &a_rain_of_fire },  /* Rain of Chaos */
-    // TODO: { "Achd", &a_cargo_hold },  /* Cargo Hold Death */
+    // TODO: { "ANdp", &CAbilityMassTeleport },  /* Dark Portal */
+    // TODO: { "ANrc", &CAbilityRainOfFire },  /* Rain of Chaos */
+    // TODO: { "Achd", &CAbilityCargoHold },  /* Cargo Hold Death */
     // TODO: { "Asla", &a_sleep_always },  /* Sleep Always; UnitCanSleepPerm recognizes ownership, behavior remains unresolved */
     // TODO: { "Advc", &a_devour_cargo },  /* Devour Cargo */
     // TODO: { "ANpi", &a_perm_immolation },  /* Permanent Immolation */
@@ -389,7 +389,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Andt", &a_evil_eye },  /* Reveal */
     // TODO: { "ANin", &a_creep_thunder_bolt },  /* Inferno */
     // TODO: { "Asds", &a_button },  /* Kaboom! */
-    // TODO: { "Anhe", &a_heal },  /* Heal */
+    // TODO: { "Anhe", &CAbilityHeal },  /* Heal */
     // TODO: { "ACtc", &a_creep_thunder_clap },  /* Slam */
     // TODO: { "ACtb", &a_creep_thunder_bolt },  /* Hurl Boulder */
     // TODO: { "Afzy", &a_spell },  /* Frenzy */
@@ -401,7 +401,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "AOac", &a_unknown },  /* Command Aura */
     // TODO: { "ACad", &a_revenge },  /* Animate Dead */
     // TODO: { "ACrn", &a_creep_reincarnation },  /* Reincarnation */
-    // TODO: { "Adda", &a_on_fire },  /* AOE damage upon death */
+    // TODO: { "Adda", &CAbilityOnFireHuman },  /* AOE damage upon death */
     // TODO: { "Agho", &a_ghost },  /* Ghost */
     // TODO: { "Aeth", &a_ghost },  /* Ghost */
     // TODO: { "Amin", &a_button },  /* Mine - exploding */
@@ -413,8 +413,8 @@ static abilityitem_t abilitylist[] = {
 
     /* NightElfAbilityStrings.txt */
     // TODO: { "Avng", &a_revenge },  /* Spirit of Vengeance */
-    // TODO: { "Amfl", &a_frost_nova },  /* Mana Flare */
-    // TODO: { "Apsh", &a_stomp },  /* Phase Shift */
+    // TODO: { "Amfl", &CAbilityFrostNova },  /* Mana Flare */
+    // TODO: { "Apsh", &CAbilityStampede },  /* Phase Shift */
     // TODO: { "Aetl", &a_button },  /* Ethereal */
     // TODO: { "Agra", &a_poison_attack },  /* War Club */
     // TODO: { "Assk", &a_button },  /* Hardened Skin */
@@ -433,7 +433,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Ault", &a_night_vision },  /* Ultravision */
     // TODO: { "Acoa", &a_morph },  /* Mount Hippogryph */
     // TODO: { "Acoh", &a_morph },  /* Pick up Archer */
-    // TODO: { "Adec", &a_defend },  /* Dismount */
+    // TODO: { "Adec", &CAbilityDefend },  /* Dismount */
     // TODO: { "Acor", &a_bounce },  /* Corrosive Breath */
     // TODO: { "AEst", &a_button },  /* Scout */
     // TODO: { "Afae", &a_auto_target_spell },  /* Faerie Fire */
@@ -451,13 +451,13 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Acpf", &a_purge },  /* Corporeal Form */
     // TODO: { "Aetf", &a_morph },  /* Ethereal Form */
     // TODO: { "Aspl", &a_creep_sleep },  /* Spirit Link */
-    // TODO: { "Aliq", &a_on_fire },  /* Liquid Fire */
+    // TODO: { "Aliq", &CAbilityOnFireHuman },  /* Liquid Fire */
     // TODO: { "Auco", &a_spell },  /* Unstable Concoction */
     // TODO: { "Acha", &a_unknown },  /* Chaos */
     // TODO: { "Achl", &a_cargo_load },  /* Chaos Cargo Load */
     // TODO: { "Awar", &a_bounce },  /* Pulverize */
-    { "Abtl", &a_battlestations },  /* Battle Stations */
-    // TODO: { "Aens", &a_ensnare },  /* Ensnare */
+    { "Abtl", &CAbilityBattlestations },  /* Battle Stations */
+    // TODO: { "Aens", &CAbilityEnsnare },  /* Ensnare */
     // TODO: { "Adev", &a_devour },  /* Devour */
     // TODO: { "Aprg", &a_lightning_purge },  /* Purge */
     // TODO: { "Alsh", &a_lightning_shield },  /* Lightning Shield */
@@ -478,9 +478,9 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Arpl", &a_spell },  /* Essence of Blight */
     // TODO: { "Arpm", &a_spell },  /* Spirit Touch */
     // TODO: { "Aexh", &a_button },  /* Exhume Corpses */
-    // TODO: { "Aave", &a_stomp },  /* Destroyer Form */
+    // TODO: { "Aave", &CAbilityStampede },  /* Destroyer Form */
     // TODO: { "Afak", &a_spell },  /* Orb of Annihilation */
-    // TODO: { "Advm", &a_dispel_magic },  /* Devour Magic */
+    // TODO: { "Advm", &CAbilityDispelMagic },  /* Devour Magic */
     // TODO: { "Aabr", &a_aura_regen_life },  /* Aura of Blight */
     // TODO: { "Aabs", &a_aura },  /* Absorb Mana */
     // TODO: { "Abur", &a_creep_sleep },  /* Burrow */
@@ -491,7 +491,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Alam", &a_spell },  /* Sacrifice */
     // TODO: { "Asac", &a_spell },  /* Sacrifice */
     // TODO: { "Acan", &a_cannibalize },  /* Cannibalize */
-    // TODO: { "Aspa", &a_attack },  /* Spider Attack */
+    // TODO: { "Aspa", &CAbilityAttack },  /* Spider Attack */
     // TODO: { "Aweb", &a_auto_target_spell },  /* Web */
     // TODO: { "Astn", &a_morph },  /* Stone Form */
     // TODO: { "Amel", &a_cargo_load },  /* Get Corpse */
@@ -500,7 +500,7 @@ static abilityitem_t abilitylist[] = {
     // TODO: { "Apts", &a_button },  /* Disease Cloud */
     // TODO: { "Afrb", &a_button },  /* Frost Breath */
     // TODO: { "Afra", &a_button },  /* Frost Attack */
-    // TODO: { "Afrz", &a_frost_nova },  /* Freezing Breath */
+    // TODO: { "Afrz", &CAbilityFrostNova },  /* Freezing Breath */
     // TODO: { "Arai", &a_simple_spell },  /* Raise Dead */
     // TODO: { "Auhf", &a_creep_sleep },  /* Unholy Frenzy */
     // TODO: { "Acrs", &a_auto_target_spell },  /* Curse */
@@ -1327,6 +1327,7 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
+    S_WireAbilityParents();
     S_InitHumanAbilities();
     num_updates = 0;
     FOR_LOOP(i, game.num_abilities) {

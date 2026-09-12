@@ -4,6 +4,6 @@ void cancel_command(LPEDICT ent) {
     CMD_CancelCommand(ent);
 }
 
-ability_t a_cancel = {
+ability_t CAbilityCancel = {
     .cmd = cancel_command,
 };

@@ -97,19 +97,19 @@ static void SP_ability_noop(LPCSTR classname, ability_t *self) {
     (void)self;
 }
 
-ability_t a_blink = {
+ability_t CAbilityBlink = {
     .init = SP_ability_noop,
     .cmd = spell_cmd,
     .spell = &spell_blink,
 };
 
-ability_t a_fan_of_knives = {
+ability_t CAbilityFanOfKnives = {
     .init = SP_ability_noop,
     .cmd = spell_cmd,
     .spell = &spell_fan_of_knives,
 };
 
-ability_t a_shadow_strike = {
+ability_t CAbilityShadowStrike = {
     .init = SP_ability_noop,
     .cmd = spell_cmd,
     .spell = &spell_shadow_strike,

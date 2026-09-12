@@ -180,61 +180,61 @@ static BOOL item_change_time_command(LPEDICT clent) {
 
 /* ---- Ability definitions ------------------------------------------------ */
 
-ability_t a_item_heal = {
+ability_t CAbilityItemHeal = {
     .item_use = item_heal_command,
 };
 
-ability_t a_item_mana_regain = {
+ability_t CAbilityItemManaRestore = {
     .item_use = item_mana_command,
 };
 
-ability_t a_item_permanent_life_gain = {
+ability_t CAbilityMaxLifeMod = {
     .item_use = item_permanent_life_command,
 };
 
 /* Passive items: init reads bonus value from SLK, actual apply/remove
  * handled by s_item_stats.c via inventory lifecycle hooks. */
-ability_t a_item_attack_bonus = {
+ability_t CAbilityAttackBonus = {
     .init = SP_ability_item_attack_bonus,
 };
 
-ability_t a_item_stat_bonus = {
+ability_t CAbilityAttributeBonus = {
     .init = SP_ability_item_stat_bonus,
 };
 
-ability_t a_item_defense_bonus = {
+ability_t CAbilityDefenseBonus = {
     .init = SP_ability_item_defense_bonus,
 };
 
-ability_t a_item_life_bonus = {
+ability_t CAbilityMaxLifeBonus = {
     .init = SP_ability_item_life_bonus,
 };
 
-ability_t a_item_mana_bonus = {
+ability_t CAbilityMaxManaBonus = {
     .init = SP_ability_item_mana_bonus,
 };
 
 /* Consume-on-use items. */
-ability_t a_item_permanent_stat_gain = {
+ability_t CAbilityStrengthMod = {
     .item_use = item_permanent_stat_command,
 };
 
-ability_t a_item_figurine_summon = {
+ability_t CAbilityFigurineSkeleton = {
     .item_use = item_figurine_command,
 };
 
-ability_t a_item_experience_gain = {
+ability_t CAbilityExperienceMod = {
     .item_use = item_experience_command,
 };
 
-ability_t a_item_level_gain = {
+ability_t CAbilityLevelMod = {
     .item_use = item_level_command,
 };
 
-ability_t a_item_defense_aoe = {
+ability_t CAbilityItemDefenseAoe = {
     .item_use = item_defense_aoe_command,
 };
 
-ability_t a_item_change_time = {
+ability_t CAbilityItemChangeTOD = {
     .item_use = item_change_time_command,
 };

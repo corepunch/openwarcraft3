@@ -242,9 +242,9 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
 }
 
 TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
-    static umove_t lumber_move = { "attack", NULL, NULL, &a_harvest };
-    static umove_t gold_move = { "attack", NULL, NULL, &a_goldmine };
-    static umove_t attack_move = { "attack", NULL, NULL, &a_attack };
+    static umove_t lumber_move = { "attack", NULL, NULL, &CAbilityHarvest };
+    static umove_t gold_move = { "attack", NULL, NULL, &CAbilityGoldMine };
+    static umove_t attack_move = { "attack", NULL, NULL, &CAbilityAttack };
     LPEDICT lumber = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     LPEDICT gold = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
     LPEDICT other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
@@ -269,8 +269,8 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     T_EQ(mine->peonsinside, 0);
     T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
     T_ASSERT(!gold->invulnerable);
-    T_EQ(other->currentmove->ability, &a_harvest);
-    T_EQ(fighter->currentmove->ability, &a_attack);
+    T_EQ(other->currentmove->ability, &CAbilityHarvest);
+    T_EQ(fighter->currentmove->ability, &CAbilityAttack);
 }
 
 TEST(wc3_bot, harvest_gold_assigns_nearest_owned_workers_up_to_quota) {
@@ -289,13 +289,13 @@ TEST(wc3_bot, harvest_gold_assigns_nearest_owned_workers_up_to_quota) {
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
     T_EQ(ARRAY_COUNT(bot->harvesters), 1); T_EQ(bot->harvesters[0], near);
-    T_EQ(near->goalentity, mine); T_EQ(near->currentmove->ability, &a_goldmine);
+    T_EQ(near->goalentity, mine); T_EQ(near->currentmove->ability, &CAbilityGoldMine);
     T_NULL(trainee->currentmove); T_NULL(builder->currentmove); T_NULL(far->currentmove);
     T_NULL(other->currentmove); T_EQ(hall->s.player, 2);
 }
 
 TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
-    static umove_t gold_move = { "attack", NULL, NULL, &a_goldmine };
+    static umove_t gold_move = { "attack", NULL, NULL, &CAbilityGoldMine };
     bot_t *bot = level.bots + 2;
     reset_entities();
     make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
@@ -328,7 +328,7 @@ TEST(wc3_bot, harvest_returns_carried_resources_before_collecting) {
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
     T_EQ(ARRAY_COUNT(bot->harvesters), 1); T_EQ(worker->goalentity, hall);
-    T_EQ(worker->harvested_lumber, 5); T_EQ(worker->currentmove->ability, &a_harvest);
+    T_EQ(worker->harvested_lumber, 5); T_EQ(worker->currentmove->ability, &CAbilityHarvest);
 }
 
 TEST(wc3_bot, harvest_natives_execute_through_player_bot_vm) {
@@ -578,7 +578,7 @@ TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
     G_BotAddGuardPost(&game.clients[2].ps, type, 256, 32);
     G_BotFillGuardPosts(&game.clients[2].ps);
     G_BotReturnGuardPosts(&game.clients[2].ps);
-    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->ability, &a_move);
+    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->ability, &CAbilityMove);
     T_FEQ(idle->goalentity->s.origin2.x, 256, 0.001f);
     T_EQ(bot->guards[1].unit, fighting); T_NULL(fighting->currentmove);
     G_BotReturnGuardPosts(&game.clients[3].ps);

@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-extern ability_t a_militia, a_build;
+extern ability_t CAbilityMilitia, CAbilityBuild;
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {
     G_SetUnitAnimation(self, anim);
@@ -28,8 +28,8 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         unit_is_active_repair_move(self)) {
         S_CancelRepair(self);
     }
-    if (self->currentmove && self->currentmove->ability == &a_militia &&
-        move->ability != &a_militia) {
+    if (self->currentmove && self->currentmove->ability == &CAbilityMilitia &&
+        move->ability != &CAbilityMilitia) {
         S_CancelMilitiaPairing(self);
     }
     /* A point-drop keeps the exact carried item separately from its waypoint.
@@ -41,8 +41,8 @@ void unit_setmove(LPEDICT self, umove_t *move) {
     }
     /* A replaced pre-spawn Build order used to leave build_project set after
      * Stop/Move, so later code could mistake an idle worker for an active build. */
-    if (self->currentmove && self->currentmove->ability == &a_build &&
-        move->ability != &a_build) {
+    if (self->currentmove && self->currentmove->ability == &CAbilityBuild &&
+        move->ability != &CAbilityBuild) {
         self->build_project = 0;
     }
     /* Any behavior replacing the natural creep-sleep move wakes the unit and

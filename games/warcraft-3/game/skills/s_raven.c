@@ -3,8 +3,8 @@
 static void raven_forward_end(LPEDICT unit);
 static void raven_reverse_end(LPEDICT unit);
 
-static umove_t raven_morph = { "morph", NULL, raven_forward_end, &a_raven_form };
-static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, &a_raven_form };
+static umove_t raven_morph = { "morph", NULL, raven_forward_end, &CAbilityRavenForm };
+static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, &CAbilityRavenForm };
 static LPCSTR const raven_orders[] = { "ravenform", "unravenform", NULL };
 
 typedef struct ravenform_s {
@@ -175,7 +175,7 @@ static void raven_command(LPEDICT ent) {
         unit_issueimmediateorder(unit, raven_orders[raven_is_on(unit) ? 1 : 0]);
 }
 
-ability_t a_raven_form = {
+ability_t CAbilityRavenForm = {
     .cmd = raven_command,
     .is_toggle_on = raven_is_on,
     .orders = raven_orders,

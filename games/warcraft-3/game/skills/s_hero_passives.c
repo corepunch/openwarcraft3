@@ -86,24 +86,24 @@ FLOAT S_SpikedDamageReturn(LPCEDICT unit, FLOAT damage) {
     return MAX(S_SpellData(ID_SPIKED_CARAPACE, level, 2), damage * S_SpellData(ID_SPIKED_CARAPACE, level, 1));
 }
 
-ability_t a_brilliance_aura = { .flags = ABILITY_PASSIVE };
-ability_t a_critical_strike = { .flags = ABILITY_PASSIVE };
-ability_t a_spiked_carapace = { .flags = ABILITY_PASSIVE };
-ability_t a_unholy_aura = { .flags = ABILITY_PASSIVE };
-ability_t a_evasion = { .flags = ABILITY_PASSIVE };
-ability_t a_vampiric_aura = { .flags = ABILITY_PASSIVE };
-ability_t a_aura_spell = { .flags = ABILITY_PASSIVE };
-ability_t a_mana_shield = { .flags = ABILITY_PASSIVE };
-ability_t a_drunken_brawler = { .flags = ABILITY_PASSIVE };
-ability_t a_cleaving_attack = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAuraBrilliance = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityCriticalStrike = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityThornyShield = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAuraUnholy = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityEvasion = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAuraVampiric = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAuraSpell = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityManaShield = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityDrunkenBrawler = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityCleavingAttack = { .flags = ABILITY_PASSIVE };
 
 /* CommonAbility marker types are consumed by unit spawning, building-fire
  * presentation, Hero revival, and ordinary order systems rather than casts. */
-ability_t a_burrow_detection = { .flags = ABILITY_PASSIVE };
-ability_t a_revive_hero = { .flags = ABILITY_PASSIVE };
-ability_t a_revive_hero_instant = { .flags = ABILITY_PASSIVE };
-ability_t a_detector = { .flags = ABILITY_PASSIVE };
-ability_t a_hero = { .flags = ABILITY_PASSIVE };
-ability_t a_alarm = { .flags = ABILITY_PASSIVE };
-ability_t a_locust = { .flags = ABILITY_PASSIVE };
-ability_t a_turret = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityBurrowDetector = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityRevive = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAwaken = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityDetector = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityHero = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityAlarm = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityLocust = { .flags = ABILITY_PASSIVE };
+ability_t CAbilityTankTurret = { .flags = ABILITY_PASSIVE };

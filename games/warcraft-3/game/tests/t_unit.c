@@ -381,7 +381,7 @@ TEST(wc3_unit, smart_on_passive_ally_starts_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(follower, "smart", leader));
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
 }
 
 TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
@@ -395,7 +395,7 @@ TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(follower, "move", leader));
     T_ASSERT(follower->movement.follow_target == leader);
     T_ASSERT(follower->goalentity == leader);
-    T_ASSERT(follower->currentmove && follower->currentmove->ability == &a_move);
+    T_ASSERT(follower->currentmove && follower->currentmove->ability == &CAbilityMove);
 }
 
 TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
@@ -599,7 +599,7 @@ TEST(wc3_unit, smart_on_neutral_aggressive_attacks_not_follows) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->goalentity == target);
     T_ASSERT(unit->movement.follow_target == NULL);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_attack);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityAttack);
 }
 
 TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
@@ -618,7 +618,7 @@ TEST(wc3_unit, smart_on_neutral_aggressive_follows_after_passive_alliance) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->movement.follow_target == target);
     T_ASSERT(unit->goalentity == target);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_move);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityMove);
 }
 
 TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
@@ -634,7 +634,7 @@ TEST(wc3_unit, smart_on_neutral_passive_uses_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->movement.follow_target == target);
     T_ASSERT(unit->goalentity == target);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_move);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityMove);
 }
 
 TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
@@ -653,7 +653,7 @@ TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     T_ASSERT(unit_issuetargetorder(unit, "smart", target));
     T_ASSERT(unit->goalentity == target);
     T_ASSERT(unit->movement.follow_target == NULL);
-    T_ASSERT(unit->currentmove && unit->currentmove->ability == &a_attack);
+    T_ASSERT(unit->currentmove && unit->currentmove->ability == &CAbilityAttack);
 }
 
 TEST(wc3_unit, die_publishes_death_event) {
@@ -847,7 +847,7 @@ TEST(wc3_unit, militia_target_order_reaches_militia_behavior) {
     T_ASSERT(G_IssueUnitTargetOrder(worker, "militia", hall, false, worker->s.player));
     T_ASSERT(worker->militia.partner == hall);
     T_NOT_NULL(worker->currentmove);
-    T_ASSERT(worker->currentmove->ability == &a_militia);
+    T_ASSERT(worker->currentmove->ability == &CAbilityMilitia);
     T_STREQ(worker->currentmove->animation, "walk");
 }
 
