@@ -60,9 +60,9 @@ BZ_ITEM_PROC(AbilityMaxLifeMod) {
 BZ_ITEM_PROC(AbilityStrengthMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
-    FLOAT str = S_SpellData(code, 1, 1);
-    FLOAT agi = S_SpellData(code, 1, 2);
-    FLOAT intel = S_SpellData(code, 1, 3);
+    FLOAT str = S_SpellData(code, 1, 3);
+    FLOAT agi = S_SpellData(code, 1, 1);
+    FLOAT intel = S_SpellData(code, 1, 2);
 
     if (!target || !G_UnitIsHero(target)) {
         return false;
@@ -177,19 +177,3 @@ BZ_ITEM_PROC(AbilityItemChangeTOD) {
     G_SetFalseTimeOfDay(hour, minute, duration);
     return true;
 }
-
-/* Passive items: init reads bonus value from SLK, actual apply/remove
- * handled by s_item_stats.c via inventory lifecycle hooks. */
-#define BZ_ITEM_INIT_PROC(NAME, INIT) \
-    BZ_ABILITY_PROC(C##NAME) { \
-        (void)ent; \
-        if (msg != A_INIT || !call || !call->classname) return false; \
-        INIT(call->classname); \
-        return true; \
-    }
-
-BZ_ITEM_INIT_PROC(AbilityAttackBonus, SP_ability_item_attack_bonus)
-BZ_ITEM_INIT_PROC(AbilityAttributeBonus, SP_ability_item_stat_bonus)
-BZ_ITEM_INIT_PROC(AbilityDefenseBonus, SP_ability_item_defense_bonus)
-BZ_ITEM_INIT_PROC(AbilityMaxLifeBonus, SP_ability_item_life_bonus)
-BZ_ITEM_INIT_PROC(AbilityMaxManaBonus, SP_ability_item_mana_bonus)

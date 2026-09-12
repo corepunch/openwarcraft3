@@ -2,21 +2,33 @@
 
 ## Scope
 
-OpenRealm has a small generic autocast contract in `ability_t` and currently uses it for the Repair family (`Arep`, `Aren`, `Arst`). The scheduler owns *when* an idle unit gets an automatic acquisition opportunity; the ability owns toggle state, target selection, and issuance of its ordinary order.
+OpenRealm has a small generic autocast contract in `ability_t` and uses it for the Repair family (`Arep`, `Aren`, `Arst`) and Human support spells. The scheduler owns *when* an idle unit gets an automatic acquisition opportunity; the ability owns toggle state, target selection, and issuance of its ordinary order.
 
 The implementation intentionally does not turn the existing `AB_AUTOCAST` metadata flag into behavior for every spell. Cold Arrows and other autocast abilities still need their own targeting/execution rules.
 
 ## Ability contract
 
-`ability_t` appends three optional hooks after the existing dispatch fields:
+Autocast procedures receive three typed messages:
 
-- `autocast_is_on(unit)` reads ability-specific toggle state;
-- `autocast_set(unit, enabled)` changes it;
-- `autocast_acquire(unit)` looks for a target and, on success, issues the normal ability order.
+- `A_AUTOCAST_ON` checks the selected policy;
+- `A_AUTOCAST_SET` supplies `call->enabled` and returns whether the procedure accepts the change;
+- `A_AUTOCAST_ACQUIRE` acquires a target and issues its ordinary order using `call->item->code`.
 
-`G_SetUnitAutocast()` enforces the current Warsmash-compatible one-selected-autocast rule: enabling one autocast-capable ability disables the other autocast hooks present on that unit. `AI_AUTOCAST_ACTIVE` is only a fast unit-wide marker; ability-specific state remains authoritative.
+`G_SetUnitAutocast(unit, rawcode, enabled)` enforces one selected autocast ability.
+`edict.autocast_code` retains the actual authored alias; `AI_AUTOCAST_ACTIVE` is
+its fast scheduler marker. Human Heal, Inner Fire, Slow and Spell Steal use that
+selection directly. Repair additionally stores its policy bit in
+`AI_AUTOCAST_REPAIR`. Both fields survive ordinary completion and interruption.
 
-The Repair family stores its state in `AI_AUTOCAST_REPAIR`, so the toggle survives ordinary Repair completion and order interruption with the rest of the edict state.
+Switching disables the previous policy before enabling the new one because
+related procedures can share a policy bit. If the new procedure rejects the
+change, the old policy is restored. Disabling a nonselected alias leaves the
+selection intact. Removal disables a selected ability; acquisition accepts
+runtime-added abilities and does not require a static UnitAbilities entry.
+
+`abilityCall_t` is a message-tagged union: boolean messages must not decode
+`call->target`. See [ability verification](ability-verification-review.md) for
+alias, switching, removal and crash regression coverage.
 
 ## Command-card toggle
 
@@ -30,7 +42,7 @@ autocast <repair rawcode>
 
 Left click remains the normal Repair targeting action. Right-button down/up over a command button with a secondary command is consumed by the client layout layer so it cannot also become a world Smart order. Right-button up sends the secondary command.
 
-The server toggles all controllable selected units that carry the same Repair handler and plays `AutoCastButtonClick`. Enabling Auto Repair on an already idle worker immediately tries one acquisition pass; toggling during active movement/work does not interrupt that behavior.
+The server toggles all controllable selected units that carry the requested authored rawcode and plays `AutoCastButtonClick`. Enabling Auto Repair on an already idle worker immediately tries one acquisition pass; toggling during active movement/work does not interrupt that behavior.
 
 JASS/string immediate orders `repairon` and `repairoff` use the same toggle path. Numeric `IssueImmediateOrderById` now exists for canonical table entries, but repair toggle order IDs are not part of that table and continue to use their string path.
 

@@ -20,7 +20,8 @@ static umove_t creep_sleep_move = { .animation = "sleep", .think = creep_sleep_t
 
 /* Match only the overlay owned by this unit, leaving unrelated target effects untouched. */
 static BOOL is_creep_sleep_overlay(LPCEDICT effect, LPCEDICT unit) {
-    return effect && effect->inuse && effect->owner == unit && effect->goalentity == unit;
+    return effect && effect->inuse && effect->owner == unit && effect->goalentity == unit &&
+           effect->summon_ability == BZ_CREEP_SLEEP;
 }
 
 /* Destroy every natural-sleep overlay before the unit leaves its sleep move. */
@@ -50,6 +51,7 @@ static void add_creep_sleep_overlay(LPEDICT unit, DWORD code) {
         return;
     }
     effect->owner = unit;
+    effect->summon_ability = BZ_CREEP_SLEEP;
 }
 
 /* Restrict automatic sleep to authored neutral-creep candidates. */

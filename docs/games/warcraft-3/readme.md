@@ -110,6 +110,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Inventory And World Items](inventory-and-items.md)
 - [Ability And Item Effects](ability-and-item-effects.md)
 - [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
+- [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Flat C Ability System: Flags and Message Procedures](ability-inheritance-plan.md)
 - [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)

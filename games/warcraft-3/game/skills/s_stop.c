@@ -7,6 +7,8 @@ void order_stop(LPEDICT ent) {
     if (S_GoldMineWorkerIsInside(ent))
         return;
     G_ClearUnitOrderQueue(ent);
+    /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
+    S_SpellCancelChannel(ent);
     ent->movement.attackmove_waypoint = NULL;
     ent->movement.patrol_a = NULL;
     ent->movement.patrol_b = NULL;

@@ -24,8 +24,7 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     LPEDICT caster = missile->owner;
 
     if (S_SpellIsAliveTarget(target)) {
-        S_SpellDamage(target, caster, missile->damage);
-        if (!M_IsDead(target)) {
+        if (S_SpellDamage(target, caster, missile->damage) && !M_IsDead(target)) {
             unit_addtimedstatus(target, ID_STUN_BUFF, 1, missile->wait);
         }
     }
@@ -38,7 +37,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
     DWORD level = S_SpellLevel(caster, code);
     LPCSTR art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     FLOAT speed = bolt_missile_speed(code);
-    FLOAT duration = S_SpellDuration(code, level, target->data.UnitBalance->level >= 5);
+    FLOAT duration = S_SpellDuration(code, level, G_UnitIsHero(target));
     LPEDICT missile;
 
     unit_setmove(caster, &spell_cast_move);
@@ -57,10 +56,11 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 
 #define BZ_BOLT_PROC(NAME, SPEED) \
     BZ_ABILITY_PROC(C##NAME) { \
-        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
         switch (msg) { \
         case A_INIT: if (call && call->classname) SPEED = ConfigNumber(call->classname, "Missilespeed"); return true; \
-        case A_EXECUTE: thunderbolt_execute(ent, target, call ? call->item : NULL); return true; \
+        case A_EXECUTE: \
+            if (!call || !call->item || !call->target) return false; \
+            thunderbolt_execute(ent, *call->target, call->item); return true; \
         default: return CAbilitySimpleSpell(ent, msg, call); \
         } \
     }

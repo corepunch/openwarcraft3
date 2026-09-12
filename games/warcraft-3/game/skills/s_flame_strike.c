@@ -1,64 +1,57 @@
 #include "s_skills.h"
 
-/* Flame Strike (ANfs): delayed AoE point-target spell.  Creates a fire patch at
- * the target location that deals initial damage after a short delay, then
- * periodic burn damage to units in the area. */
-
+/* Flame Strike stores its cast rank and start time; Hfs1/Hfs3 are pulse damage,
+ * Hfs2/Hfs4 are pulse intervals, Cast is the delay and HeroDur is the full-damage phase. */
 void flame_strike_tick(LPEDICT ent) {
-    LPEDICT caster = ent->owner;
-    FLOAT radius = ent->collision;
-    DWORD now = G_Time();
+    DWORD now = G_Time(), rank = ent->resources, code = ent->class_id;
+    FLOAT delay = S_SpellNumber(code, ABILITY_NUMBER_CAST, rank);
+    FLOAT age = (now - ent->spawn_time) / 1000.0f - delay;
+    FLOAT duration = S_SpellDuration(code, rank, false);
+    FLOAT limit = S_SpellData(code, rank, 6);
 
-    if (ent->freetime && now < ent->freetime)
-        return;
-
-#define FLAME_HITS(t) ((t)->inuse && S_SpellIsAliveTarget(t) &&             \
-                       S_SpellIsEnemy(caster, t) &&                          \
-                       Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= radius)
-
-    /* Initial burst damage on first tick only. */
-    if (ent->resources & 1) {/* resources bit 0 = initial burst pending */
-        FILTER_EDICTS(target, FLAME_HITS(target))
-            S_SpellDamage(target, caster, ent->damage);
-        ent->resources &= ~1;
+    if (age > duration) { G_FreeEdict(ent); return; }
+    while (ent->freetime <= now) {
+        BOOL full = (ent->freetime - ent->spawn_time) / 1000.0f - delay <= S_SpellDuration(code, rank, true);
+        FLOAT damage = S_SpellData(code, rank, full ? 1 : 3), total = 0;
+        DWORD step = (DWORD)(S_SpellData(code, rank, full ? 2 : 4) * 1000.0f);
+        if (!step) {
+            fprintf(stderr, "WC3 Flame Strike: damage interval became zero for %.4s\n", (LPCSTR)&code);
+            G_FreeEdict(ent); return;
+        }
+#define BZ_FLAME_HITS(t) (S_SpellAllowsTarget(code, ent->owner, t) && \
+    Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= ent->collision)
+        FILTER_EDICTS(target, BZ_FLAME_HITS(target))
+            total += damage * (G_UnitIsBuilding(target->class_id) ? S_SpellData(code, rank, 5) : 1);
+        FILTER_EDICTS(target, BZ_FLAME_HITS(target)) {
+            FLOAT hit = damage * (G_UnitIsBuilding(target->class_id) ? S_SpellData(code, rank, 5) : 1);
+            if (limit > 0 && total > limit) hit *= limit / total;
+            S_SpellDamage(target, ent->owner, (int)hit);
+        }
+#undef BZ_FLAME_HITS
+        ent->freetime += step;
+        if (full && (ent->freetime - ent->spawn_time) / 1000.0f - delay > S_SpellDuration(code, rank, true))
+            ent->freetime = ent->spawn_time + (DWORD)((delay + S_SpellDuration(code, rank, true) + S_SpellData(code, rank, 4)) * 1000.0f);
     }
-    /* Per-tick burn damage. */
-    FILTER_EDICTS(target, FLAME_HITS(target))
-        S_SpellDamage(target, caster, ent->velocity); /* velocity = burn damage per tick */
-#undef FLAME_HITS
-
-    if (ent->spawn_time && now >= ent->spawn_time) {
-        G_FreeEdict(ent);
-        return;
-    }
-    /* Ticks every second after the initial delay. */
-    if (!ent->freetime)
-        ent->freetime = now + 1000;
 }
 
+/* Zero damage intervals cannot schedule a fire patch; reject malformed rows rather than substituting guessed values. */
+static BOOL flame_strike_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD rank = S_SpellLevel(caster, spell->code);
+    if (S_SpellData(spell->code, rank, 2) >= .001f && S_SpellData(spell->code, rank, 4) >= .001f) return true;
+    fprintf(stderr, "WC3 Flame Strike: invalid damage intervals for %.4s rank %u\n", (LPCSTR)&spell->code, rank);
+    return false;
+}
+
+/* The authored delay and intervals schedule persistent ground damage independently of the caster's next order. */
 static void flame_strike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT delay = S_SpellData(spell->code, level, 1); /* DataA = Cast time / delay before flame (seconds) */
-    DWORD initial_damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2)); /* DataB = Initial Damage */
-    DWORD burn_damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 3)); /* DataC = Damage Per Second */
-    DWORD burn_ticks = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 4)); /* DataD = Full Damage Interval (ticks) */
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    LPEDICT thinker;
-
-    thinker = G_Spawn();
-    thinker->owner = caster;
-    thinker->s.origin2 = st.point;
-    thinker->s.origin.x = st.point.x;
-    thinker->s.origin.y = st.point.y;
-    thinker->collision = area > 0 ? area : 200.0f;
-    thinker->damage = initial_damage;
-    thinker->velocity = (FLOAT)burn_damage; /* stash burn per tick */
-    thinker->resources = 1; /* bit 0: initial burst pending */
-    /* Freetime = G_Time() + delay_ms so the first tick fires after delay. */
-    thinker->freetime = G_Time() + (DWORD)(MAX(0.1f, delay) * 1000.0f);
-    thinker->spawn_time = thinker->freetime + burn_ticks * 1000;
-    thinker->think = flame_strike_tick;
+    DWORD rank = S_SpellLevel(caster, spell->code);
+    LPEDICT ent = G_Spawn();
+    ent->owner = caster; ent->class_id = spell->code; ent->resources = rank;
+    ent->s.origin2 = st.point; ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
+    ent->spawn_time = G_Time();
+    ent->freetime = G_Time() + (DWORD)(S_SpellNumber(spell->code, ABILITY_NUMBER_CAST, rank) * 1000.0f);
+    ent->think = flame_strike_tick;
 }
 
-BZ_SIMPLE_SPELL_PROC(AbilityFlameStrikeNeutral) { flame_strike_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityFlameStrike) { flame_strike_execute(caster, st, spell); }
+BZ_VALIDATED_SPELL_PROC(AbilityFlameStrikeNeutral, flame_strike_validate, flame_strike_execute)
+BZ_VALIDATED_SPELL_PROC(AbilityFlameStrike, flame_strike_validate, flame_strike_execute)

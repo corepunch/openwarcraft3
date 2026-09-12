@@ -770,10 +770,10 @@ CLIENTCOMMAND(Autocast) {
         return;
     }
 
-    enabled = !G_UnitAutocastIsOn(main, ability);
+    enabled = !G_UnitAutocastIsOn(main, FS_SLKKey(classname));
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (!G_ActorHasSkill(ent, classname)) continue;
-        if (G_SetUnitAutocast(ent, ability, enabled)) {
+        if (G_SetUnitAutocast(ent, FS_SLKKey(classname), enabled)) {
             changed = true;
             /* The toggle itself must not interrupt active work or movement, but
              * an already-idle worker should respond immediately rather than

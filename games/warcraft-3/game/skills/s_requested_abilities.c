@@ -1,6 +1,6 @@
 #include "s_skills.h"
 
-static void whirlwind_think(LPEDICT ent);
+void whirlwind_think(LPEDICT ent);
 
 typedef struct {
     LPEDICT caster;
@@ -51,12 +51,13 @@ static void radial_damage_status(LPEDICT caster, VECTOR2 point, abilityitem_t co
     }
 }
 
-static void earthquake_think(LPEDICT ent) {
+void earthquake_think(LPEDICT ent) {
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     DWORD level = S_SpellLevel(ent->owner, ent->class_id), now = G_Time();
     abilityitem_t item = S_AbilityItem(ent->class_id);
     abilityitem_t const *spell = &item;
     LPCSTR buff = spell_buff(spell, level);
-    if (now >= ent->spawn_time) { S_SpellCancelChannel(ent->owner); G_FreeEdict(ent); return; }
+    if (now >= ent->spawn_time) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= S_SpellNumber(ent->class_id, ABILITY_NUMBER_AREA, level)) {
@@ -66,10 +67,11 @@ static void earthquake_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-static void whirlwind_think(LPEDICT ent) {
+void whirlwind_think(LPEDICT ent) {
+    if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     abilityitem_t item = S_AbilityItem(ent->class_id);
     DWORD data = item.ability && item.ability->proc == CAbilityStampede ? 2 : 1;
-    if (G_Time() >= ent->spawn_time) { S_SpellCancelChannel(ent->owner); G_FreeEdict(ent); return; }
+    if (G_Time() >= ent->spawn_time) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && G_Time() < ent->freetime) return;
     if (item.ability && (item.ability->proc == CAbilityWhirlwind || item.ability->proc == CAbilityTornado))
         ent->s.origin2 = ent->owner->s.origin2;
@@ -79,8 +81,7 @@ static void whirlwind_think(LPEDICT ent) {
 
 static void whirlwind_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-    thinker->owner = caster; thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, true) * 1000.0f);
     thinker->think = whirlwind_think; whirlwind_think(thinker);
 }
@@ -200,8 +201,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityMassTeleport) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStampede) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-    thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
     thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->freetime = G_Time(); thinker->think = whirlwind_think;
 }
@@ -356,8 +356,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-    thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
     thinker->spawn_time = G_Time() + (DWORD)(S_SpellDuration(spell->code, level, true) * 1000.0f);
     thinker->think = earthquake_think; earthquake_think(thinker);
 }
@@ -369,20 +368,37 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     G_FowSetStateRadius(&(FOGWRITE){ caster->s.player, WC3_FOG_STATE_VISIBLE, true }, &st.point,
                         S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
 }
-/* Name=Resurrection
- * Ubertip="Brings dead friendly Heroes back to life."
- */
-BZ_SIMPLE_SPELL_PROC(AbilityResurrection) {
-    DWORD level = S_SpellLevel(caster, spell->code), count = 0;
-    DWORD limit = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FILTER_EDICTS(target, count < limit && target != caster && target->inuse && G_UnitIsHero(target) &&
-                  M_IsDead(target) && S_SpellIsFriend(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &st.point) <= radius) {
-        G_ReviveHero(target, target->s.origin2.x, target->s.origin2.y);
+/* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */
+static BOOL resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t const *spell) {
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, spell->code));
+    return target->inuse && (target->svflags & SVF_MONSTER) && M_IsDead(target) &&
+        !G_UnitIsHero(target) && !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
+        Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius;
+}
+
+/* Reject empty casts before the shared pipeline commits mana and cooldown. */
+static BOOL resurrection_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    FILTER_EDICTS(target, resurrection_target(caster, target, spell)) return true;
+    return false;
+}
+
+/* Reuse each corpse's edict and retire its death animation/timer before restoring ordinary unit activity. */
+static void resurrection_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    DWORD rank = S_SpellLevel(caster, spell->code), count = 0;
+    DWORD limit = (DWORD)S_SpellData(spell->code, rank, 1);
+    FILTER_EDICTS(target, count < limit && resurrection_target(caster, target, spell)) {
+        target->svflags &= ~SVF_DEADMONSTER; target->s.flags &= ~EF_NOT_SELECTABLE;
+        target->aiflags &= ~AI_HOLD_FRAME; target->s.renderfx &= ~RF_HIDDEN;
+        target->combatentity = target->goalentity = target->secondarygoal = NULL;
+        target->wait = 0; G_ClearUnitOrderQueue(target);
+        G_SetHealth(target, target->health.max_value); G_ActivateUnitFood(target);
+        unit_stand(target); gi.LinkEntity(target);
+        G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
         count++;
     }
 }
+
+BZ_VALIDATED_SPELL_PROC(AbilityResurrection, resurrection_validate, resurrection_execute)
 /* Name=Breath of Fire
  * Ubertip="Breathes a cone of fire at enemy units, dealing <ANcf,DataA1> initial damage."
  */

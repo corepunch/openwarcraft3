@@ -108,9 +108,18 @@ static void avatar_execute(LPEDICT caster, spellTarget_t target, abilityitem_t c
     G_AddUnitAnimationProperties(caster, "alternate", true); G_InvalidateUnitInfoPanel(caster);
 }
 
+/* BuffID orders the caster and victim markers; only the victim marker owns movement/attack locks. */
+static DWORD shackles_buff(DWORD code, DWORD rank) {
+    LPCSTR buffs = G_AbilityLevel(code, rank)->buffID;
+    char source[5], target[5];
+    if (buffs && sscanf(buffs, "%4[^,],%4s", source, target) == 2) return FS_SLKKey(target);
+    fprintf(stderr, "WC3 Shackles: missing caster/target buff pair for %08x\n", code);
+    return 0;
+}
+
 static BOOL aerial_shackles_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    (void)spell;
-    return st.entity && st.entity->targtype == TARG_AIR && S_SpellIsEnemy(caster, st.entity);
+    return st.entity && st.entity->targtype == TARG_AIR && S_SpellIsEnemy(caster, st.entity) &&
+        shackles_buff(spell->code, S_SpellLevel(caster, spell->code));
 }
 
 static BOOL control_magic_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -315,14 +324,28 @@ static void polymorph_execute(LPEDICT caster, spellTarget_t st, abilityitem_t co
 
 static void aerial_shackles_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
-    LPCSTR buff = human_buff(spell, level);
-    thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
+    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    thinker->goalentity = st.entity; thinker->channel.target_spawn_time = st.entity->spawn_time;
+    thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (DWORD)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
         (DWORD)(S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) * 1000.0f);
     thinker->think = human_ability_think;
-    if (buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    unit_addtimedstatus(st.entity, GetClassName(thinker->resources), level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
     human_ability_think(thinker);
+}
+
+/* A cancelled cast must release its lock without erasing a replacement cast's lock on the same victim. */
+static void shackles_end(LPEDICT thinker) {
+    LPEDICT target = thinker->goalentity;
+    BOOL retained = false;
+    if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
+        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think && other->goalentity == target &&
+            other->resources == thinker->resources && other->channel.target_spawn_time == target->spawn_time) {
+            if (S_SpellChannelActive(other)) { retained = true; break; }
+        }
+        if (!retained) human_remove_status(target, thinker->resources);
+    }
+    S_SpellEndChannel(thinker);
 }
 
 void human_ability_think(LPEDICT thinker) {
@@ -333,11 +356,10 @@ void human_ability_think(LPEDICT thinker) {
                             S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, 1));
         return;
     }
-    if (now >= thinker->spawn_time || !thinker->owner || !thinker->goalentity ||
-        !thinker->owner->inuse || !S_SpellIsAliveTarget(thinker->goalentity) ||
-        thinker->owner->channel.code != thinker->class_id) {
-        if (thinker->owner && thinker->owner->inuse) S_SpellCancelChannel(thinker->owner);
-        G_FreeEdict(thinker); return;
+    if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) ||
+        !S_SpellIsAliveTarget(thinker->goalentity) ||
+        thinker->goalentity->spawn_time != thinker->channel.target_spawn_time) {
+        shackles_end(thinker); return;
     }
     if (!thinker->freetime || now >= thinker->freetime) {
         S_SpellDamage(thinker->goalentity, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
@@ -365,11 +387,6 @@ static void spell_steal_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
                         stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
 }
 
-static BOOL human_autocast_is_on(LPEDICT ent, DWORD code) { return ent && ent->autocast_code == code; }
-static void human_autocast_set(LPEDICT ent, DWORD code, BOOL enabled) {
-    if (ent) ent->autocast_code = enabled ? code : (ent->autocast_code == code ? 0 : ent->autocast_code);
-}
-
 static BOOL human_autocast_acquire(LPEDICT caster, DWORD code, BOOL friendly, BOOL wounded) {
     LPEDICT best = NULL;
     FLOAT range = S_SpellRange(code, S_SpellLevel(caster, code));
@@ -386,36 +403,18 @@ static BOOL human_autocast_acquire(LPEDICT caster, DWORD code, BOOL friendly, BO
     return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
-#define HUMAN_AUTOCAST(NAME, CODE, FRIENDLY, WOUNDED) \
-    static BOOL NAME##_is_on(LPEDICT ent) { return human_autocast_is_on(ent, MAKEFOURCC CODE); } \
-    static void NAME##_set(LPEDICT ent, BOOL enabled) { human_autocast_set(ent, MAKEFOURCC CODE, enabled); } \
-    static BOOL NAME##_acquire(LPEDICT ent) { return human_autocast_acquire(ent, MAKEFOURCC CODE, FRIENDLY, WOUNDED); }
-
-HUMAN_AUTOCAST(spell_steal, ('A','s','p','s'), false, false)
-HUMAN_AUTOCAST(inner_fire, ('A','i','n','f'), true, false)
-HUMAN_AUTOCAST(heal, ('A','h','e','a'), true, true)
-HUMAN_AUTOCAST(slow, ('A','s','l','o'), false, false)
-
-#define HUMAN_AUTOCAST_SPELL(NAME, EXECUTE, PREFIX) \
+/* The message selects the union member: boolean toggles must never be decoded as target pointers. */
+#define BZ_HUMAN_AUTOCAST_SPELL(NAME, VALIDATE, EXECUTE, FRIENDLY, WOUNDED) \
     BZ_ABILITY_PROC(C##NAME) { \
-        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ? \
+            *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
+        DWORD code = call && call->item ? call->item->code : 0; \
         switch (msg) { \
+        case A_VALIDATE: return VALIDATE; \
         case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
-        case A_AUTOCAST_ON: return PREFIX##_is_on(ent); \
-        case A_AUTOCAST_SET: PREFIX##_set(ent, call && call->enabled); return true; \
-        case A_AUTOCAST_ACQUIRE: return PREFIX##_acquire(ent); \
-        default: return CAbilitySimpleSpell(ent, msg, call); \
-        } \
-    }
-#define HUMAN_VALIDATED_AUTOCAST_SPELL(NAME, VALIDATE, EXECUTE, PREFIX) \
-    BZ_ABILITY_PROC(C##NAME) { \
-        spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
-        switch (msg) { \
-        case A_VALIDATE: return VALIDATE(ent, target, call ? call->item : NULL); \
-        case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
-        case A_AUTOCAST_ON: return PREFIX##_is_on(ent); \
-        case A_AUTOCAST_SET: PREFIX##_set(ent, call && call->enabled); return true; \
-        case A_AUTOCAST_ACQUIRE: return PREFIX##_acquire(ent); \
+        case A_AUTOCAST_ON: return ent && ent->autocast_code == code; \
+        case A_AUTOCAST_SET: return true; \
+        case A_AUTOCAST_ACQUIRE: return human_autocast_acquire(ent, code, FRIENDLY, WOUNDED); \
         default: return CAbilitySimpleSpell(ent, msg, call); \
         } \
     }
@@ -431,7 +430,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityControlMagic, control_magic_validate, control_mag
 /* Name=Magic Defense; Untip=Stop Magic Defense */
 BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spell); }
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
-HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, spell_steal_execute, spell_steal)
+BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
 /* Name=Defend; Untip=Stop Defend */
@@ -445,7 +444,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
 /* Name=Inner Fire; Untip="Right-click to activate auto-casting." */
-HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate, human_status_execute, inner_fire)
+BZ_HUMAN_AUTOCAST_SPELL(AbilityInnerFire, inner_fire_validate(ent, target, call ? call->item : NULL), human_status_execute, true, false)
 /* Name=Dispel Magic; Ubertip="Removes all buffs from units in a target area. Deals <Adis,DataB1> damage to summoned units." */
 BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     DWORD level = S_SpellLevel(caster, spell->code);
@@ -462,16 +461,17 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     }
 }
 /* Name=Heal; Ubertip="Heals a target friendly non-mechanical wounded unit for <Ahea,DataA1> hit points." */
-HUMAN_VALIDATED_AUTOCAST_SPELL(AbilityHeal, heal_validate, heal_execute, heal)
+BZ_HUMAN_AUTOCAST_SPELL(AbilityHeal, heal_validate(ent, target, call ? call->item : NULL), heal_execute, true, true)
 /* Name=Slow; Untip="Right-click to activate auto-casting." */
-HUMAN_VALIDATED_AUTOCAST_SPELL(AbilitySlow, slow_validate, human_status_execute, slow)
+BZ_HUMAN_AUTOCAST_SPELL(AbilitySlow, slow_validate(ent, target, call ? call->item : NULL), human_status_execute, false, false)
 /* Name=Invisibility; Ubertip="Makes a unit invisible. If the unit attacks, uses an ability or casts a spell, it will become visible." */
 BZ_VALIDATED_SPELL_PROC(AbilityInvisibility, invisibility_validate, invisibility_execute)
 /* Name=Polymorph; Ubertip="Turns a target enemy unit into a sheep. Cannot be cast on Heroes. Lasts <Aply,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityPolymorph, polymorph_validate, polymorph_execute)
 /* Name=Avatar */
 BZ_ABILITY_PROC(CAbilityAvatar) {
-    spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
+    spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
+        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     switch (msg) {
     case A_VALIDATE: return avatar_validate(ent, target, call ? call->item : NULL);
     case A_EXECUTE: avatar_execute(ent, target, call ? call->item : NULL); return true;

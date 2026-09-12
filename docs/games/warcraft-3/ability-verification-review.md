@@ -1,0 +1,126 @@
+# Ability verification and lifecycle fixes
+
+## Scope and evidence
+
+The September 2026 review at `41602e54` inspected all 39 Warcraft III
+`game/skills/*.c` files. Three agents covered combat spells, orders/economy,
+and passives/items/campaign handlers; the coordinator covered shared dispatch.
+The original baseline passed 1,132 WC3 tests in each archive mode, but sixteen
+new behavior scenarios failed and enabling Human autocast crashed. Registry
+presence and status-record creation had overstated working functionality.
+
+The fixes retain these reproductions as permanent tests, extend their inverse
+and lifecycle coverage, and correct additional failures exposed by that work.
+The four new suites contain 37 tests / 302 assertions, passing in both ROC and
+TFT modes. Five save-schema tests additionally cover the new channel fields.
+This verifies the named contracts, not exhaustive retail parity or rendered art.
+
+## Fixed contracts
+
+| Area | Previous failure | Owning fix and regression evidence |
+|---|---|---|
+| Human autocast | A boolean message was dereferenced as a target pointer; aliases used base data | Human, validated-spell, Avatar and bolt procedures decode only the current message's union member. The command/HUD/scheduler retain the actual rawcode. Alias cost/heal, runtime membership, switching, removal and unsupported-policy rollback are tested. |
+| Repair autocast | Switching related procedures could clear their shared policy flag | Disable the old policy before enabling its replacement; disabling a nonselected alias has no effect. Rejected enable restores the previous policy. |
+| Hold Position | Out-of-range acquisition walked toward enemies | Attack returns to stationary scanning; an in-range enemy can still be attacked. |
+| Delayed damage | An old projectile kill replaced a newer Move or consumed its queue | Combat completion requires the current Attack procedure and matching target. Animationless post-hit fallback also requires unchanged move and target. |
+| Explicit Attack/Smart | Replaced Follow/Patrol/Attack-move resumed after combat | `S_OrderAttack` clears retained movement only after accepting an explicit order. Autonomous acquisition keeps continuation; queued orders replace it only when executed. |
+| Repair completion | `building->stand` erased the producer queue | Repair owns the worker's completion only; the target keeps its production behavior and queue. Tests advance the retained trainee. |
+| Flame Strike | Damage was treated as a long cast delay; pulses ran every frame | Read Cast/HeroDur/Dur and Hfs1–Hfs6 correctly; preserve absolute fractional pulse deadlines, phases, building multiplier and aggregate cap. |
+| Blizzard | Zero Dur truncated six authored waves to two | Wave count and authored interval determine completion, independently of the zero-duration sentinel. |
+| Life Drain / Siphon Mana | Life Drain affected mana; channels survived cancellation | Separate authored health/mana fields and allied transfer; validate each cast, tether and entity incarnation at every pulse. |
+| Channel lifecycle | No-target casts lacked state; old thinkers survived recasts or stopped new orders | Start all channel shapes consistently; capture a cast serial and owner/target incarnation; route move-leave to the active procedure and explicitly cancel on Stop. Stun, movement, recast, expiry, reuse and save continuation are tested. |
+| Aerial Shackles | The caster buff was applied to the victim, so movement/attacks remained allowed | Read the target member of the authored buff pair. Remove its lock when that channel ends, preserving a replacement cast's lock. |
+| Storm Bolt | Spell immunity blocked damage but not stun; creep level selected Hero duration | Check impact acceptance before applying stun and use actual Hero identity for HeroDur. |
+| Frost Nova | A no-target burst damaged around the caster | Register a unit target; apply direct DataB damage and area DataA damage around that target. |
+| Resurrection | Only Heroes were eligible | The no-target spell finds ordinary friendly corpses in the authored area/count, reuses their edicts, retires death state and restores unit/food activity. Reject an empty cast before committing resources. |
+| Attribute items | Strength, Agility and Intelligence were rotated | Both permanent tomes and passive attribute aliases use DataA=Agility, DataB=Intelligence, DataC=Strength. |
+| Passive items | Exact base-code comparisons discarded stock alias bonuses | `A_ITEM_ADD` / `A_ITEM_REMOVE` carry `abilityitem_t` to the owning passive procedure. Read each alias's amount on pickup/drop; no per-family global amount cache. Stacked items survive save/load and independent removal. |
+| Natural creep sleep | Wake removed unrelated owned overlays | Tag sleep art with ACsp and require that identity during cleanup. Wake, move and disable preserve regeneration art. |
+
+## Data and timing
+
+Use the archive audit instead of inferring fields from tooltip prose:
+
+```sh
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw AIsm
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw AHfs
+python3 tools/wc3_ability_class_audit.py --format=coverage
+```
+
+The active TFT Flame Strike row uses Hfs1/DataA for full pulse damage,
+Hfs2/DataB for its interval, Hfs3/DataC for lesser pulse damage, Hfs4/DataD
+for its interval, Hfs5/DataE for the building multiplier, and Hfs6/DataF
+for the aggregate damage cap. Cast is the initial delay; HeroDur supplies
+the full-damage phase and Dur the damage lifetime. Deadlines advance from
+the previous scheduled pulse, so a 0.33-second interval does not become
+0.4 seconds on every 100 ms server tick. Positive sub-frame intervals are
+caught up at the next simulation step; invalid intervals are rejected/logged.
+
+Both ROC and TFT archive audits confirm AItg → AIat (attack bonus 1),
+AId1 → AIde (armor 1), and the three tome attribute columns. Combat fixtures
+include an explicit ROC numbered Data11/Data12 conversion test for Blizzard.
+Running TFT numeric fixtures in ROC mode verifies runtime compatibility;
+it does not independently verify every ROC authored value or TFT-only spell.
+
+## Dispatch and persistence
+
+`abilityCall_t` is a message-tagged union. `A_COMMAND` supplies a client,
+`A_INIT` a classname, `A_AUTOCAST_SET` a boolean, and only target-bearing
+messages supply a `spellTarget_t`. Never eagerly read the target union member
+before deciding which message is being handled.
+
+`edict.channel.code` is nonzero on the caster only. Each channel thinker
+retains its spell rawcode in `class_id`, the cast `channel.serial`, and
+`owner_spawn_time` / `target_spawn_time` where applicable. Reused owner/target
+slots and replacement casts cannot inherit an old effect. `S_SpellEndChannel`
+clears only a matching cast, then releases its thinker; cancellation does not
+install Stand over an already accepted replacement order.
+
+Save format **21** adds this channel identity state to the edict schema.
+Older save versions are rejected. The new channel callbacks are appended to
+`save_cfunctions[]`; never reorder existing callback indexes. The saved
+channel origin is preserved for movement cancellation after loading. A live
+drain and stacked passive item aliases have production WriteGame/ReadGame
+continuation tests, in addition to the individual schema tests.
+
+## Tests
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_ability_*'
+make test-wc3-engine WC3_PATTERN='wc3_order_lifecycle.*'
+make test-wc3-engine WC3_PATTERN='wc3_item_lifecycle.*'
+make test-wc3-engine WC3_PATTERN='wc3_save.*'
+make test
+make build
+```
+
+Permanent regression sources are `game/tests/t_ability_dispatch.c`,
+`t_ability_lifecycle.c`, `t_order_lifecycle.c`, and `t_item_lifecycle.c`.
+Existing combat, building, spell and save tests also check affected paths.
+Final verification on 2026-09-13: `make test` passes 3,228 test invocations /
+65,585 assertions across 20 suite invocations, including 1,174 WC3 tests /
+25,316 assertions per archive mode. `make build` passes. Both builds emit no
+compiler warnings; registry coverage remains 193 registered TFT class IDs.
+Use full local socket access for the aggregate suite's UDP tests; sandbox
+bind denial is not a gameplay failure. No interactive game launch was needed.
+
+## Limits and history
+
+The fixes address reproduced defects and their related lifecycle cases.
+Previously documented partial implementations remain partial: Wisp/Acolyte
+harvesting, mine transformations, general transport drop, Purchase Item,
+Mirror Image's complete illusion semantics, several status-only spells,
+and Siphon Mana's temporary above-maximum mana/decay behavior. Visual effects,
+full target-mask vocabulary and comprehensive retail spell parity remain
+separate work. Do not interpret a registered procedure as complete behavior.
+
+Blame traced the unsafe Human union reads to `e12b63ad0`, Flame/Drain field
+and timer errors to `22ff3692`, item alias/attribute errors to `85fd0906`,
+attack continuation to `317fc09ae`, Repair completion to `6d5025e92`, and sleep
+overlay cleanup to `ebbe30e2`. These histories explain why the new regressions
+exercise caller/event order, authored aliases and inverse behavior rather
+than only testing procedure lookup.
+
+See [ability coverage](architecture/ability-coverage.md),
+[ability implementation](ability-implementation-plan.md),
+[save/load](save-load.md), and [autocast](autocast.md).

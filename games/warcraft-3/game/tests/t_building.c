@@ -2011,15 +2011,15 @@ TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
     T_ASSERT(worker->aiflags & AI_AUTOCAST_ACTIVE);
-    T_ASSERT(G_UnitAutocastIsOn(worker, repair));
-    T_ASSERT(G_SetUnitAutocast(worker, repair, false));
+    T_ASSERT(G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), false));
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
     T_ASSERT(!(worker->aiflags & AI_AUTOCAST_ACTIVE));
-    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
 
     building_restore_repair_data(old_abilities, rows);
 }
@@ -2038,10 +2038,10 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
 
     T_NOT_NULL(repair);
     T_ASSERT(unit_issueimmediateorder(worker, "repairon"));
-    T_ASSERT(G_UnitAutocastIsOn(worker, repair));
+    T_ASSERT(G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
     T_NULL(worker->build);
     T_ASSERT(unit_issueimmediateorder(worker, "repairoff"));
-    T_ASSERT(!G_UnitAutocastIsOn(worker, repair));
+    T_ASSERT(!G_UnitAutocastIsOn(worker, FS_SLKKey(repair->classname)));
     T_NULL(worker->build);
 
     building_restore_repair_data(old_abilities, rows);
@@ -2065,7 +2065,7 @@ TEST(wc3_building, repair_command_button_exposes_autocast_secondary_command) {
     T_STREQ(button.alternate, "autocast Arep");
     T_EQ(button.alternate_active, 0);
 
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(G_BuildCommandButton(worker, "Arep", false, 0, &button));
     T_STREQ(button.alternate, "autocast Arep");
     T_EQ(button.alternate_active, 1);
@@ -2100,7 +2100,7 @@ TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(G_TryUnitAutocast(worker));
     T_ASSERT(worker->build == near_building);
     T_ASSERT(worker->build != far_building);
@@ -2131,7 +2131,7 @@ TEST(wc3_building, repair_autocast_uses_collision_aware_nearest_valid_distance) 
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     /* Center distance is 410 (> uacq 400), but edge distance is only 330.
      * Warsmash expands from the caster collision rectangle and compares unit
      * edge distance, so the nearby building remains a valid acquisition. */
@@ -2166,7 +2166,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
     T_ASSERT(worker->build == building);
     T_NE(worker->buildwork.ability, 0);
@@ -2216,7 +2216,7 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     stagger = (DWORD)(worker - g_edicts) % 300;
     level.time = (300 - stagger) % 300;
     ai_stand(worker);
@@ -2281,7 +2281,7 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
     repair = FindAbilityForCommand("Aren");
 
     T_NOT_NULL(repair);
-    T_ASSERT(G_SetUnitAutocast(worker, repair, true));
+    T_ASSERT(G_SetUnitAutocast(worker, FS_SLKKey(repair->classname), true));
     T_ASSERT(G_TryUnitAutocast(worker));
     T_ASSERT(worker->build == damaged_building);
 

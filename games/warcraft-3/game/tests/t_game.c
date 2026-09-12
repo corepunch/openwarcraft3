@@ -2831,6 +2831,10 @@ SAVE_INT_FIELD_TEST(field_peons_inside_round_trip, peonsinside, 5)
 SAVE_INT_FIELD_TEST(field_ai_flags_round_trip, aiflags, 0x55)
 SAVE_INT_FIELD_TEST(field_damage_round_trip, damage, 99)
 SAVE_INT_FIELD_TEST(field_autocast_code_round_trip, autocast_code, MAKEFOURCC('A', 'h', 'e', 'a'))
+SAVE_INT_FIELD_TEST(field_channel_code_round_trip, channel.code, MAKEFOURCC('A', 'H', 'd', 'r'))
+SAVE_INT_FIELD_TEST(field_channel_serial_round_trip, channel.serial, 7)
+SAVE_INT_FIELD_TEST(field_channel_owner_spawn_round_trip, channel.owner_spawn_time, 200)
+SAVE_INT_FIELD_TEST(field_channel_target_spawn_round_trip, channel.target_spawn_time, 300)
 SAVE_INT_FIELD_TEST(field_avatar_level_round_trip, avatar.level, 2)
 SAVE_INT_FIELD_TEST(field_avatar_damage_round_trip, avatar.damage, 31)
 SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar.armor, 7.0f)
@@ -2886,6 +2890,20 @@ TEST(wc3_save, field_origin_round_trip) {
     T_ASSERT(WriteGame(filename)); unit->s.origin = (VECTOR3){ 0 }; T_ASSERT(ReadGame(filename));
     T_FEQ(unit->s.origin.x, 12.5f, 0.001f); T_FEQ(unit->s.origin.y, 34.5f, 0.001f);
     T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
+}
+
+/* Movement cancellation must compare against the saved cast position after restoring a live channel. */
+TEST(wc3_save, field_channel_origin_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-channel-origin.bin";
+    field_t const *desc = find_save_field("channel.origin");
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    T_NOT_NULL(desc);
+    if (desc) T_EQ(desc->type, F_VECTOR);
+    unit->channel.origin = (VECTOR2){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); unit->channel.origin = (VECTOR2){0}; T_ASSERT(ReadGame(filename));
+    T_FEQ(unit->channel.origin.x, 12.5f, 0.001f); T_FEQ(unit->channel.origin.y, 34.5f, 0.001f);
+    remove(filename);
 }
 
 TEST(wc3_save, field_vertex_tint_round_trip) {

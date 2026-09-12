@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 20, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 21, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -357,3 +357,7 @@ See [Neutral Creep Sleep](creep-sleep.md).
 ## Environmental distance fog
 
 Save format version 16 adds the active WC3 environmental terrain-fog state and its `[DefaultZFog]` reset target to the level field schema. `ReadGame()` republishes the restored active state through `CS_SCENE_FOG` after the map reload and level-state restore, preventing the client from keeping the freshly initialized map fog instead of the saved scripted value. See [Environmental Terrain Fog](environmental-fog.md).
+
+Channel cast serials, saved origins, and owner/target incarnation stamps are persisted in version 21.
+The appended channel thinker callback roster and continuation tests are described in
+[ability verification](ability-verification-review.md#dispatch-and-persistence).

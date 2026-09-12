@@ -1,0 +1,141 @@
+#ifdef BZ_TESTS
+#include "test.h"
+#include "../g_local.h"
+#include "../skills/s_skills.h"
+
+LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+void setup_test_world(void);
+slkTestData_t *parse_slk_string(const char *text);
+void free_slk_rows(slkTestData_t *rows);
+
+/* Distinct stock aliases stack and reverse after reload without depending on a family-wide cache. */
+TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y6;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIat\"\nC;Y2;X2;K\"AIat\"\nC;Y2;X3;K\"3\"\n"
+        "C;Y3;X1;K\"AItg\"\nC;Y3;X2;K\"AIat\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y4;X1;K\"AInv\"\nC;Y4;X2;K\"AInv\"\nC;Y4;X3;K\"6\"\n"
+        "C;Y5;X1;K\"AIt6\"\nC;Y5;X2;K\"AIat\"\nC;Y5;X3;K\"6\"\n"
+        "C;Y6;X1;K\"AId1\"\nC;Y6;X2;K\"AIde\"\nC;Y6;X3;K\"1\"\nE\n";
+    const char items[] =
+        "ID;PWXL;N;EBB;Y4;X2\n"
+        "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
+        "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AItg\"\n"
+        "C;Y3;X1;K\"rde2\"\nC;Y3;X2;K\"AIt6\"\n"
+        "C;Y4;X1;K\"spro\"\nC;Y4;X2;K\"AId1\"\nE\n";
+    LPCSTR path = "/tmp/openwarcraft3-item-alias-save.bin";
+    DWORD codes[] = { MAKEFOURCC('r','a','t','f'), MAKEFOURCC('r','d','e','2'), MAKEFOURCC('s','p','r','o') };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
+    unit->temporary_armor_bonus = 0;
+    FOR_LOOP(i, 3) {
+        LPEDICT item = alloc_test_unit(codes[i], 32, 0);
+        item->targtype = TARG_ITEM;
+        item->item.in_world = true;
+        item->item.inventory_slot = -1;
+        T_ASSERT(G_AddItemToSlot(unit, item, i));
+    }
+    T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(unit->temporary_armor_bonus, 1, 0.001f);
+    DWORD index = unit->s.number;
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    unit = g_edicts + index;
+    T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
+    T_FEQ(unit->temporary_armor_bonus, 1, 0.001f);
+    T_ASSERT(G_DropItem(unit, 1));
+    T_FEQ(unit->attack1.temporaryDamageBonus, 1, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 1, 0.001f);
+    T_ASSERT(G_DropItem(unit, 2));
+    T_FEQ(unit->temporary_armor_bonus, 0, 0.001f);
+    T_ASSERT(G_DropItem(unit, 0));
+    T_FEQ(unit->attack1.temporaryDamageBonus, 0, 0.001f);
+    T_FEQ(unit->attack2.temporaryDamageBonus, 0, 0.001f);
+    remove(path);
+    G_SetSLKRows("ItemData", olditem); free_slk_rows(idata);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* All three tomes and their passive equivalents use Agility/Intelligence/Strength data order. */
+TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y7;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataB1\"\nC;Y1;X5;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AIsm\"\nC;Y2;X2;K\"AIsm\"\nC;Y2;X5;K\"1\"\n"
+        "C;Y3;X1;K\"AIam\"\nC;Y3;X2;K\"AIam\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y4;X1;K\"AIim\"\nC;Y4;X2;K\"AIim\"\nC;Y4;X4;K\"1\"\n"
+        "C;Y5;X1;K\"AIs1\"\nC;Y5;X2;K\"AIab\"\nC;Y5;X5;K\"1\"\n"
+        "C;Y6;X1;K\"AIa1\"\nC;Y6;X2;K\"AIab\"\nC;Y6;X3;K\"1\"\n"
+        "C;Y7;X1;K\"AIi1\"\nC;Y7;X2;K\"AIab\"\nC;Y7;X4;K\"1\"\nE\n";
+    DWORD codes[][2] = {
+        { MAKEFOURCC('A','I','s','m'), MAKEFOURCC('A','I','s','1') },
+        { MAKEFOURCC('A','I','a','m'), MAKEFOURCC('A','I','a','1') },
+        { MAKEFOURCC('A','I','i','m'), MAKEFOURCC('A','I','i','1') },
+    };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    LPEDICT clent = g_edicts;
+    unit->s.player = 0;
+    G_SelectEntity(clent->client, unit);
+    FOR_LOOP(i, 3) {
+        unit->hero.str = unit->hero.agi = unit->hero.intel = 10;
+        clent->client->menu.ability_code = codes[i][0];
+        abilityitem_t item = S_AbilityItem(codes[i][0]);
+        abilityCall_t call = { .item = &item, .client = clent };
+        T_ASSERT(S_AbilityMessage(clent, A_ITEM_USE, &call));
+        T_EQ(unit->hero.str, 10 + (i == 0));
+        T_EQ(unit->hero.agi, 10 + (i == 1));
+        T_EQ(unit->hero.intel, 10 + (i == 2));
+        item = S_AbilityItem(codes[i][1]);
+        T_ASSERT(S_AbilityMessage(unit, A_ITEM_ADD, &call));
+        T_EQ(unit->hero.str, 10 + 2 * (i == 0));
+        T_EQ(unit->hero.agi, 10 + 2 * (i == 1));
+        T_EQ(unit->hero.intel, 10 + 2 * (i == 2));
+        T_ASSERT(S_AbilityMessage(unit, A_ITEM_REMOVE, &call));
+        T_EQ(unit->hero.str, 10 + (i == 0));
+        T_EQ(unit->hero.agi, 10 + (i == 1));
+        T_EQ(unit->hero.intel, 10 + (i == 2));
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+/* A regeneration aura uses owner+goalentity too; natural sleep must remove only its own art. */
+TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
+    setup_test_world();
+    LPEDICT creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    creep->svflags |= SVF_MONSTER;
+    creep->sleep.can_sleep = true;
+    creep->stand = unit_stand;
+    unit_stand(creep);
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    LPEDICT effect = G_Spawn();
+    effect->owner = effect->goalentity = creep;
+    effect->summon_ability = MAKEFOURCC('A','o','a','r');
+    FOR_LOOP(i, 3) {
+        ai_stand(creep);
+        T_ASSERT(G_UnitIsSleeping(creep));
+        LPEDICT sleep = NULL;
+        FOR_LOOP(j, globals.num_edicts)
+            if (g_edicts[j].inuse && g_edicts[j].owner == creep &&
+                g_edicts[j].summon_ability == MAKEFOURCC('A','C','s','p')) sleep = g_edicts + j;
+        T_NOT_NULL(sleep);
+        if (i == 0) G_UnitWakeUp(creep);
+        else if (i == 1) unit_stand(creep);
+        else G_UnitSetCanSleep(creep, false);
+        T_ASSERT(!G_UnitIsSleeping(creep));
+        T_ASSERT(effect->inuse && effect->goalentity == creep);
+        T_ASSERT(sleep && (!sleep->inuse || sleep->goalentity != creep));
+    }
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+}
+#endif

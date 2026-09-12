@@ -583,6 +583,8 @@ typedef enum {
     A_VALIDATE,         /* Spell pipeline: validate call->target before spending resources; return allowed. */
     A_EXECUTE,          /* Spell pipeline: apply the effect to call->target; return whether it executed. */
     A_ITEM_USE,         /* Inventory click: apply an immediate item effect; return success for charge use. */
+    A_ITEM_ADD,         /* Inventory pickup: apply this item's authored passive modifier. */
+    A_ITEM_REMOVE,      /* Inventory removal: undo this item's authored passive modifier. */
     A_AUTOCAST_ON,      /* Autocast/UI query: return whether autocast is enabled on ent. */
     A_AUTOCAST_SET,     /* Autocast command: set ent's state from call->enabled. */
     A_AUTOCAST_ACQUIRE, /* Unit scheduler: acquire a target and issue an autocast; return whether issued. */
@@ -1092,8 +1094,11 @@ struct edict_s {
         BOOL can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
         BOOL sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
     } sleep;
-    struct {
+    struct edictChannel_s {
         DWORD code;     // ability code being channeled (0 = none)
+        DWORD serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
+        DWORD owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
+        DWORD target_spawn_time; // thinker copy of target identity; rejects reused target slots
         VECTOR2 origin; // position when channel started (movement cancels channel)
     } channel;
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
@@ -1845,8 +1850,8 @@ void InitAbilities(void);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
-BOOL G_UnitAutocastIsOn(LPEDICT ent, ability_t const *ability);
-BOOL G_SetUnitAutocast(LPEDICT ent, ability_t const *ability, BOOL enabled);
+BOOL G_UnitAutocastIsOn(LPEDICT ent, DWORD code);
+BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled);
 BOOL G_TryUnitAutocast(LPEDICT ent);
 
 // g_metadata.c
@@ -2216,6 +2221,7 @@ void S_SpellResetCooldowns(LPEDICT caster);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
 void order_attack(LPEDICT, LPEDICT);
+BOOL S_OrderAttack(LPEDICT self, LPEDICT target);
 void order_move(LPEDICT, LPEDICT);
 BOOL move_is_active_order_walk(LPCEDICT);
 void order_stop(LPEDICT);
@@ -2266,6 +2272,12 @@ void blight_mine_think(LPEDICT);
 void blizzard_think(LPEDICT);
 void flame_strike_tick(LPEDICT);
 void siphon_mana_think(LPEDICT);
+void rain_of_fire_think(LPEDICT);
+void starfall_think(LPEDICT);
+void death_and_decay_think(LPEDICT);
+void tranquility_think(LPEDICT);
+void earthquake_think(LPEDICT);
+void whirlwind_think(LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);

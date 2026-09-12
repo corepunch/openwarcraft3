@@ -301,6 +301,7 @@ TEST(wc3_combat, tdamage_lethal_resets_attacker_to_stand) {
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
 
+    order_attack(attacker, target);
     T_Damage(target, attacker, 100);
 
     /* After a kill the attacker's move should be the stand animation. */
