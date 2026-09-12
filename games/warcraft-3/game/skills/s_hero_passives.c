@@ -16,7 +16,6 @@
 #define ID_REGEN_LIFE_ORC MAKEFOURCC('A', 'o', 'a', 'r')
 #define ID_REGEN_LIFE_BLIGHT MAKEFOURCC('A', 'a', 'b', 'r')
 #define ID_REGEN_MANA MAKEFOURCC('A', 'a', 'r', 'm')
-
 typedef struct {
     DWORD alias;
     DWORD level;
@@ -34,6 +33,19 @@ static DWORD regen_source_count;
 static DWORD regen_cache_frame = UINT_MAX;
 static LPCVOID regen_cache_ability_data;
 static LPEDICT regen_overlays[MAX_ENTITIES][3];
+static DWORD regen_value_next_update[MAX_ENTITIES];
+static DWORD regen_visual_next_update[MAX_ENTITIES];
+
+typedef struct {
+    DWORD code, data;
+} auraCacheKey_t;
+
+static auraCacheKey_t const aura_cache_keys[] = {
+    { ID_BRILLIANCE, 1 }, { ID_UNHOLY_AURA, 1 }, { ID_UNHOLY_AURA, 2 },
+    { ID_VAMPIRIC_AURA, 1 }, { ID_TRUESHOT_AURA, 1 }, { ID_THORNS_AURA, 1 }
+};
+static FLOAT aura_cache[MAX_ENTITIES][sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)];
+static DWORD aura_cache_next_update[MAX_ENTITIES];
 
 typedef enum {
     REGEN_FAMILY_LIFE_ORC,
@@ -148,6 +160,8 @@ typedef struct {
     DWORD buff;
 } regenerationAuraInfo_t;
 
+static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][3][2];
+
 static DWORD aura_buff_code(LPCSTR buff_id) {
     DWORD code = 0;
     if (buff_id && strlen(buff_id) >= 4) memcpy(&code, buff_id, 4);
@@ -198,7 +212,7 @@ static regenFamily_t regen_family(DWORD base_code) {
     return REGEN_FAMILY_MANA;
 }
 
-static regenerationAuraInfo_t regen_aura_info(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
+static regenerationAuraInfo_t regen_aura_info_uncached(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
     regenerationAuraInfo_t result = {0};
 
     regen_aura_cache_update();
@@ -232,7 +246,27 @@ static regenerationAuraInfo_t regen_aura_info(LPEDICT unit, DWORD base_code, BOO
 }
 
 static FLOAT regen_aura_bonus(LPEDICT unit, DWORD base_code, BOOL use_maximum) {
-    return regen_aura_info(unit, base_code, use_maximum).amount;
+    regenFamily_t family;
+
+    if (!unit || unit->s.number >= MAX_ENTITIES) return 0.0f;
+    family = regen_family(base_code);
+    if (!level.time || level.time >= regen_value_next_update[unit->s.number]) {
+        memset(regen_value_cache[unit->s.number], 0, sizeof(regen_value_cache[unit->s.number]));
+        regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_ORC][0] =
+            regen_aura_info_uncached(unit, ID_REGEN_LIFE_ORC, false);
+        regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_ORC][1] =
+            regen_aura_info_uncached(unit, ID_REGEN_LIFE_ORC, true);
+        regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_BLIGHT][0] =
+            regen_aura_info_uncached(unit, ID_REGEN_LIFE_BLIGHT, false);
+        regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_BLIGHT][1] =
+            regen_aura_info_uncached(unit, ID_REGEN_LIFE_BLIGHT, true);
+        regen_value_cache[unit->s.number][REGEN_FAMILY_MANA][0] =
+            regen_aura_info_uncached(unit, ID_REGEN_MANA, false);
+        regen_value_cache[unit->s.number][REGEN_FAMILY_MANA][1] =
+            regen_aura_info_uncached(unit, ID_REGEN_MANA, true);
+        regen_value_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
+    }
+    return regen_value_cache[unit->s.number][family][use_maximum].amount;
 }
 
 static BOOL is_regen_aura_overlay(LPCEDICT effect, LPCEDICT unit, DWORD base_code) {
@@ -289,9 +323,11 @@ FLOAT S_RegenerationManaAura(LPEDICT unit) {
 }
 
 void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
-    regenerationAuraInfo_t const health = regen_aura_info(unit, ID_REGEN_LIFE_ORC, true);
-    regenerationAuraInfo_t const blight = regen_aura_info(unit, ID_REGEN_LIFE_BLIGHT, true);
-    regenerationAuraInfo_t const mana = regen_aura_info(unit, ID_REGEN_MANA, true);
+    /* Populate the shared two-second aura snapshot before reading its art metadata. */
+    regen_aura_bonus(unit, ID_REGEN_LIFE_ORC, true);
+    regenerationAuraInfo_t const health = regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_ORC][1];
+    regenerationAuraInfo_t const blight = regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_BLIGHT][1];
+    regenerationAuraInfo_t const mana = regen_value_cache[unit->s.number][REGEN_FAMILY_MANA][1];
 
     sync_regen_aura_overlay(unit, ID_REGEN_LIFE_ORC, &health);
     sync_regen_aura_overlay(unit, ID_REGEN_LIFE_BLIGHT, &blight);
@@ -299,18 +335,35 @@ void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
 
 }
 
-static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
-    FLOAT bonus = 0.0f;
+BOOL S_RegenerationAuraUpdateDue(LPEDICT unit) {
+    if (!unit || unit->s.number >= MAX_ENTITIES || (level.time && level.time < regen_visual_next_update[unit->s.number])) return false;
+    regen_visual_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
+    return true;
+}
 
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT source = g_edicts + i;
-        DWORD level = G_UnitAbilityLevel(source, code);
-        if (!source->inuse || !level || !S_SpellIsAliveTarget(source) || !S_SpellIsFriend(source, unit)) continue;
-        if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > S_SpellNumber(code, ABILITY_NUMBER_AREA, level))
-            continue;
-        bonus = MAX(bonus, S_SpellData(code, level, data));
+static FLOAT hero_aura_bonus(LPEDICT unit, DWORD code, DWORD data) {
+    DWORD slot = 0;
+
+    FOR_LOOP(slot, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys))
+        if (aura_cache_keys[slot].code == code && aura_cache_keys[slot].data == data) break;
+    if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
+        return 0.0f;
+    if (!level.time || level.time >= aura_cache_next_update[unit->s.number]) {
+        memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT aura = g_edicts + i;
+            if (!aura->inuse || !S_SpellIsAliveTarget(aura) || !S_SpellIsFriend(aura, unit)) continue;
+            FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
+                DWORD const aura_level = G_UnitAbilityLevel(aura, aura_cache_keys[j].code);
+                if (!aura_level || Vector2_distance(&aura->s.origin2, &unit->s.origin2) >
+                    S_SpellNumber(aura_cache_keys[j].code, ABILITY_NUMBER_AREA, aura_level)) continue;
+                aura_cache[unit->s.number][j] = MAX(aura_cache[unit->s.number][j],
+                    S_SpellData(aura_cache_keys[j].code, aura_level, aura_cache_keys[j].data));
+            }
+        }
+        aura_cache_next_update[unit->s.number] = level.time + AURA_UPDATE_MS;
     }
-    return bonus;
+    return aura_cache[unit->s.number][slot];
 }
 
 FLOAT S_BrillianceManaRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_BRILLIANCE, 1); }
