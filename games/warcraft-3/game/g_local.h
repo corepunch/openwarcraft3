@@ -933,6 +933,8 @@ struct edict_s {
         BOOL worker_inside;
         BOOL consumes_worker;
         BOOL restore_invulnerable;
+        BOOL restore_paused;
+        BOOL restore_hidden;
         DWORD worker_release_time; /* Undead summon animation release time; 0 for other strategies */
         FLOAT progress;
         BOOL paid;
