@@ -72,7 +72,7 @@ Completed buildings continue through the ordinary Repair behavior documented in 
 
 The construction strategy, release time, worker-state flags, Food-consumption flag, and worker `spawn_time` live in the raw `edict_t` snapshot. `construction.worker`, like `construction.primary_builder`, is an edict pointer and therefore has an explicit `F_EDICT` fixup in `g_save.c`.
 
-Save format version 19 introduces this additional construction-worker reference. Older layouts are rejected rather than interpreting a shifted `edict_t` or an un-fixed raw pointer.
+Save format version 20 introduces this additional construction-worker reference. Older layouts are rejected rather than interpreting a shifted `edict_t` or an un-fixed raw pointer.
 
 ## Moon Well replenish
 
