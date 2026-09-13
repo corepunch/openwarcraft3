@@ -3474,11 +3474,14 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     unit_stand(first);
     T_ASSERT(!S_AcolyteHarvestIsActive(first));
     T_ASSERT(S_AcolyteHarvestIsActive(second));
-    G_FreeEdict(haunted);
-    T_ASSERT(!haunted->inuse);
+    /* Actual destruction releases the overlay relationship before the death
+     * animation; the original mine must immediately become usable again. */
+    unit_die(haunted, NULL);
+    T_ASSERT(M_IsDead(haunted));
     T_ASSERT(!S_AcolyteHarvestIsActive(second));
     T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
     T_ASSERT(!parent->paused);
+    T_EQ(parent->resources, 90);
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
