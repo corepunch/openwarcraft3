@@ -291,6 +291,8 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y6;X1;K\"Aenc\"\n"
     "C;Y6;X2;K\"Aenc\"\n"
     "C;Y6;X4;K5\n"
+    "C;Y7;X1;K\"Agl2\"\n"
+    "C;Y7;X2;K\"Agl2\"\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
@@ -3499,6 +3501,69 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+/* Map-loaded overlays must bind to the neutral mine at the same authored location. */
+TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
+    slkTestData_t *rows, *old_abilities;
+    LPEDICT parent, haunted;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128.0f, 128.0f);
+    haunted = alloc_test_unit(MAKEFOURCC('u','g','o','l'), 128.0f, 128.0f);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    haunted->s.player = 0;
+    setup_test_goldmine(parent, &test_goldmine_stock, 4500);
+    haunted->data.UnitAbilities = &test_haunted_mine;
+    haunted->health.value = haunted->health.max_value = 1000.0f;
+
+    S_MineOverlayBindPreplaced();
+    T_EQ(haunted->mineoverlay.parent, parent);
+    T_ASSERT(parent->s.renderfx & RF_HIDDEN);
+    T_ASSERT(parent->paused);
+    T_EQ(parent->resources, 4500);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Script-created Haunted Mines must return a live bound overlay and preserve parent gold. */
+TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
+    slkTestData_t *rows, *old_abilities;
+    LPEDICT parent, haunted;
+    VECTOR2 point = { 256.0f, 256.0f };
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), point.x, point.y);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 3200);
+
+    haunted = S_CreateBlightedGoldmine(0, &point, 90.0f);
+    T_NOT_NULL(haunted);
+    T_EQ(haunted->mineoverlay.parent, parent);
+    T_FEQ(haunted->s.angle, 90.0f, 0.001f);
+    T_EQ(parent->resources, 3200);
+    T_ASSERT(parent->s.renderfx & RF_HIDDEN);
+    T_ASSERT(parent->paused);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Restoration spawns must initialize gameplay data without replaying Birth presentation. */
+TEST(wc3_movement, no_birth_spawn_skips_birth_callback) {
+    LPEDICT unit;
+
+    reset_entities();
+    setup_test_world();
+    unit = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), 0, &MAKE(VECTOR2, 0, 0));
+    T_NOT_NULL(unit);
+    T_ASSERT(unit->birth != NULL);
+    T_ASSERT(unit->currentmove == NULL || strcmp(unit->currentmove->animation, "birth"));
 }
 
 /* Entangled gold income reuses generic cargo occupancy. The periodic slot

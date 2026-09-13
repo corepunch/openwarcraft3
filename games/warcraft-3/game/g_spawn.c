@@ -718,6 +718,7 @@ static LPEDICT SP_SpawnAtLocationInternal(DWORD class_id, DWORD player, LPCVECTO
     ent->class_id = class_id;
     ent->s.class_id = class_id;
     ent->spawn_time = G_Time();
+    ent->s.origin2 = *location;
     ent->s.origin.x = location->x;
     ent->s.origin.y = location->y;
     ent->s.origin.z = CM_GetHeightAtPoint(location->x, location->y);
