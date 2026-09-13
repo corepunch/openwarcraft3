@@ -455,6 +455,47 @@ CLIENTCOMMAND(Select) {
          * player can click several waypoints/targets without reopening it. */
         if (accepted && !queued) Get_Commands_f(clent);
     } else {
+#ifdef WC3_DEBUG_MINING
+        if (client->menu.on_location_selected) {
+            fprintf(stderr, "WC3_MINING select-while-building client=%ld building=%.4s callback=%p argc=%d",
+                    (long)(clent - globals.edicts), (LPCSTR)&clent->build_project,
+                    (void *)client->menu.on_location_selected, argc);
+            if (argc >= 2) {
+                DWORD clicked;
+                if (G_ParseEntityNumber(argv[1], &clicked) && clicked < globals.num_edicts)
+                    fprintf(stderr, " clicked=%u id=%.4s building=%d player=%u", (unsigned)clicked,
+                            (LPCSTR)&globals.edicts[clicked].class_id,
+                            G_UnitIsBuilding(globals.edicts[clicked].class_id),
+                            (unsigned)globals.edicts[clicked].s.player);
+            }
+            fputc('\n', stderr);
+        }
+#endif
+        if (client->menu.on_location_selected == build_menu_send_builder && clent->build_project && argc >= 2) {
+            DWORD number;
+            if (G_ParseEntityNumber(argv[1], &number) && number < globals.num_edicts) {
+                LPEDICT target = &globals.edicts[number];
+                UnitData_t const *building_data = G_UnitData(clent->build_project);
+                if (building_data && building_data->isBuildOn && S_GoldMineIsMine(target)) {
+#ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING select-route-to-build client=%ld building=%.4s mine=%ld mine_id=%.4s point=(%.1f,%.1f)\n",
+                            (long)(clent - globals.edicts), (LPCSTR)&clent->build_project,
+                            (long)(target - globals.edicts), (LPCSTR)&target->class_id,
+                            target->s.origin2.x, target->s.origin2.y);
+#endif
+                    build_menu_send_builder(clent, &target->s.origin2);
+                    return;
+                }
+                if (G_UnitIsBuilding(target->class_id)) {
+#ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING select-cancel-build client=%ld pending=%.4s clicked=%ld id=%.4s\n",
+                            (long)(clent - globals.edicts), (LPCSTR)&clent->build_project,
+                            (long)(target - globals.edicts), (LPCSTR)&target->class_id);
+#endif
+                    G_CancelBuildPlacement(clent);
+                }
+            }
+        }
         BOOL cleared = false;
         BOOL hasunits = false;
         LPEDICT voice = NULL;

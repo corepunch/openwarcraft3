@@ -1946,6 +1946,7 @@ LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void CMD_CancelCommand(LPEDICT ent);
 BOOL G_CancelBuildPlacement(LPEDICT clent);
+BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
 void G_InvalidateUnitInfoPanel(LPEDICT);

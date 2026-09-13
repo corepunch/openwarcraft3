@@ -656,9 +656,18 @@ BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
         if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_GRID_SIZE &&
             fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_GRID_SIZE) {
             if (out) *out = ent;
+#ifdef WC3_DEBUG_MINING
+            fprintf(stderr, "WC3_MINING build-target building=%.4s parent=%ld id=%.4s parent=(%.1f,%.1f) point=(%.1f,%.1f)\n",
+                    (LPCSTR)&building_id, (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                    ent->s.origin2.x, ent->s.origin2.y, point->x, point->y);
+#endif
             return true;
         }
     }
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING build-target-missing building=%.4s point=(%.1f,%.1f)\n",
+            (LPCSTR)&building_id, point ? point->x : 0.0f, point ? point->y : 0.0f);
+#endif
     return false;
 }
 
@@ -736,18 +745,34 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     BOX2 footprint;
     VECTOR2 point;
 
-    if (!requested || !G_UnitIsBuilding(building_id)) return PLACE_INVALID_BUILDING;
+    if (!requested || !G_UnitIsBuilding(building_id)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=invalid-building building=%.4s\n",
+                PLACE_INVALID_BUILDING, (LPCSTR)&building_id);
+#endif
+        return PLACE_INVALID_BUILDING;
+    }
     G_GetBuildPlacementPathingFlags(building_id, &prevented, &required);
     point = *requested;
     G_SnapBuildingPoint(building_id, &point);
 
-    if (!G_FindBuildOnTarget(building_id, &point, &build_on)) return PLACE_REQUIRED_PARENT_MISSING;
+    if (!G_FindBuildOnTarget(building_id, &point, &build_on)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=parent-missing building=%.4s requested=(%.1f,%.1f) snapped=(%.1f,%.1f)\n",
+                PLACE_REQUIRED_PARENT_MISSING, (LPCSTR)&building_id, requested->x, requested->y, point.x, point.y);
+#endif
+        return PLACE_REQUIRED_PARENT_MISSING;
+    }
     /* Build-on structures inherit the parent's authored center; the grid is
      * only for cursor placement and must not offset the mine overlay. */
     if (build_on) point = build_on->s.origin2;
     if (snapped) *snapped = point;
     pathtex = M_LoadPathTex(data->pathingTexture);
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
+ #ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=pathing-texture building=%.4s point=(%.1f,%.1f)\n",
+                PLACE_INVALID_BUILDING, (LPCSTR)&building_id, point.x, point.y);
+ #endif
         return PLACE_INVALID_BUILDING;
     }
     if (pathtex) {
@@ -769,21 +794,45 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
                 sample.y = point.y + ((FLOAT)y + 0.5f - (FLOAT)height * 0.5f) * WC3_BUILD_CELL_SIZE;
                 if (!CM_GetPathingFlagsAt(&sample, &flags)) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=out-of-bounds building=%.4s sample=(%.1f,%.1f)\n",
+                            PLACE_OUT_OF_BOUNDS, (LPCSTR)&building_id, sample.x, sample.y);
+ #endif
                     return PLACE_OUT_OF_BOUNDS;
                 }
                 if (flags & prevented) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",
+                            PLACE_TERRAIN_BLOCKED, (LPCSTR)&building_id, sample.x, sample.y, flags, prevented);
+ #endif
                     return PLACE_TERRAIN_BLOCKED;
                 }
                 if ((flags & required) != required) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=required-pathing building=%.4s sample=(%.1f,%.1f) flags=0x%x required=0x%x\n",
+                            PLACE_REQUIRED_PATHING_MISSING, (LPCSTR)&building_id, sample.x, sample.y, flags, required);
+ #endif
                     return PLACE_REQUIRED_PATHING_MISSING;
                 }
             }
         }
     }
     if (pathtex) gi.MemFree(pathtex);
-    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) return PLACE_UNIT_BLOCKED;
+    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=unit-blocked building=%.4s point=(%.1f,%.1f) parent=%ld\n",
+                PLACE_UNIT_BLOCKED, (LPCSTR)&building_id, point.x, point.y,
+                build_on ? (long)(build_on - globals.edicts) : -1L);
+#endif
+        return PLACE_UNIT_BLOCKED;
+    }
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING placement result=%d reason=ok building=%.4s point=(%.1f,%.1f) parent=%ld\n",
+            PLACE_OK, (LPCSTR)&building_id, point.x, point.y,
+            build_on ? (long)(build_on - globals.edicts) : -1L);
+#endif
     return PLACE_OK;
 }
 
