@@ -1176,6 +1176,31 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
 }
 
+TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT worker, mine;
+    UnitProfile_t profile = { .builds = "ugol" };
+    VECTOR2 requested = { 101.0f, 99.0f }, snapped;
+    DWORD const haunted = MAKEFOURCC('u','g','o','l');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('u','a','c','o'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 100.0f, 100.0f);
+    worker->s.player = client->ps.number;
+    worker->data.UnitProfile = &profile;
+    mine->s.player = PLAYER_NEUTRAL_PASSIVE;
+    mine->resources = 12500;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_EQ(G_EvaluateBuildPlacement(worker, haunted, &requested, &snapped), PLACE_OK);
+    T_FEQ(snapped.x, mine->s.origin2.x, 0.001f);
+    T_FEQ(snapped.y, mine->s.origin2.y, 0.001f);
+    T_ASSERT(G_IssueBuildOrder(worker, haunted, &requested));
+    T_NOT_NULL(worker->goalentity);
+    T_FEQ(worker->goalentity->s.origin2.x, mine->s.origin2.x, 0.001f);
+    T_FEQ(worker->goalentity->s.origin2.y, mine->s.origin2.y, 0.001f);
+}
+
 TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT builder, mine;

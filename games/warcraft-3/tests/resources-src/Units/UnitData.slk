@@ -1,0 +1,10 @@
+ID;PWXL;N;E
+B;X29;Y3;D0
+C;X1;Y1;K"unitID"
+C;X28;K"isBuildOn"
+C;X29;K"canBuildOn"
+C;X1;Y2;K"ugol"
+C;X28;KTRUE
+C;X1;Y3;K"ngol"
+C;X29;KTRUE
+E

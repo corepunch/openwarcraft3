@@ -651,8 +651,10 @@ BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
     FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->data.UnitData->canBuildOn) {
-        if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_CELL_SIZE &&
-            fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_CELL_SIZE) {
+        /* Build-on targets may be off the placement lattice; accept the whole
+         * snap cell so clicking a mine does not fail after the ghost moves. */
+        if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_GRID_SIZE &&
+            fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_GRID_SIZE) {
             if (out) *out = ent;
             return true;
         }
@@ -738,9 +740,12 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     G_GetBuildPlacementPathingFlags(building_id, &prevented, &required);
     point = *requested;
     G_SnapBuildingPoint(building_id, &point);
-    if (snapped) *snapped = point;
 
     if (!G_FindBuildOnTarget(building_id, &point, &build_on)) return PLACE_REQUIRED_PARENT_MISSING;
+    /* Build-on structures inherit the parent's authored center; the grid is
+     * only for cursor placement and must not offset the mine overlay. */
+    if (build_on) point = build_on->s.origin2;
+    if (snapped) *snapped = point;
     pathtex = M_LoadPathTex(data->pathingTexture);
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
         return PLACE_INVALID_BUILDING;
