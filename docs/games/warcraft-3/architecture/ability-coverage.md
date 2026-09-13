@@ -163,7 +163,7 @@ generic `Button` command path rather than by a registered ability code.
 | `Artn` | Return Resources | Partial | Drop-off eligibility is ability-driven (`Argd`/`Arlm`/`Argl` plus `Artn`-derived data), with nearest compatible selection, destroyed-target retargeting, explicit Smart-click return, and no-target return through the worker Harvest command; carried-resource state still lives in the harvest state machines. |
 | `Ahar` | Harvest | Partial | Human worker harvest/return gameplay exists, including capacity clamping and same-forest resume after a dead remembered tree, but not as the same split data model as the ability data; command-card art/text does not yet model the carried-state presentation separately. |
 | `Awha` | Wisp Harvest | TODO | Needs wisp-specific gather behavior. |
-| `Ahrl` | Harvest Lumber | Partial | Local lumber harvest is under `Ahar`; `Ahrl` is not registered. |
+| `Ahrl` | Harvest Lumber | Partial | Shares the lumber harvest/return state machine with `Ahar`, but remains lumber-only: Smart, the Harvest command, and `autoharvestlumber` target trees; `DataA`/`DataB`/`Rng`/`Dur` are resolved from the worker's actual `Ahrl` (including derived aliases), and gold mining is rejected. Remaining parity is mostly exact target-error/presentation behavior and Undead tree-blight marking. |
 | `ANcl` | Channel test | Stub | Opens cancel mode as a generic channel scaffold. |
 | `AUcs` | Carrion Swarm dummy | Partial | Simple point-area enemy damage exists. Needs missile/line travel and art. |
 | `AInv` | Inventory | Partial | Inventory storage and item use exist, but no `AInv` ability type/capacity/drop rules. |
@@ -207,7 +207,7 @@ generic `Button` command path rather than by a registered ability code.
    implementation with target validation and healing.
 4. Add no-target summon spells (`AHwe`, `AOsf`) once timed-life units are
    available.
-5. Finish Repair target-category coverage and destructible/naval behavior, expand generic autocast beyond Repair's nearest-valid policy, and then generalize remaining harvest variants (`Ahrl`, `Awha`).
+5. Finish Repair target-category coverage and destructible/naval behavior, expand generic autocast beyond Repair's nearest-valid policy, and then generalize the remaining Wisp harvest variant (`Awha`).
 6. Defer cargo, shops, inventory item modifiers, root/entangle mine, and passive
    autocast abilities until the underlying status, item, and transform systems
    exist.

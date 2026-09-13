@@ -494,19 +494,19 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
             return S_AcolyteHarvestOrder(self, target);
         }
-        if (G_ActorHasSkill(self, "Ahar")) {
-            if (S_GoldMineCanHarvest(target)) {
-                return harvest_gold_order(self, target);
-            }
-            if (target->targtype == TARG_TREE) {
-                harvest_start(self, target);
-                return true;
-            }
-            if (self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
-                return true;
-            if (self->harvested_gold > 0 && harvest_gold_return_to(self, target))
-                return true;
+        if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
+            return harvest_gold_order(self, target);
         }
+        if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE) {
+            harvest_start(self, target);
+            return true;
+        }
+        if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
+            self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
+            return true;
+        if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
+            self->harvested_gold > 0 && harvest_gold_return_to(self, target))
+            return true;
         /* Smart/right-click only force-attacks ordinary breakable debris.
          * Other destructable classes require the explicit Attack command, and
          * every destructable must be allowed by the unit weapon target mask. */

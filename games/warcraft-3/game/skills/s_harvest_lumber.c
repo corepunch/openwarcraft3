@@ -7,6 +7,85 @@ FLOAT HARVEST_RANGE;
 FLOAT HARVEST_COOLDOWN;
 FLOAT HARVEST_SEARCH_RANGE;
 
+typedef struct harvestLumberTuning_s {
+    FLOAT tree_damage;
+    FLOAT lumber_capacity;
+    FLOAT range;
+    FLOAT cooldown;
+    FLOAT search_range;
+} harvestLumberTuning_t;
+
+static DWORD harvest_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
+    char alias_name[5] = {0};
+
+    if (!ent) return 0;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            DWORD alias = 0;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&alias, token, 4);
+            if (alias == base_code || G_AbilityCode(alias) == base_code) return alias;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        DWORD const alias = ent->abilities.added[i];
+        if (!alias) continue;
+        memcpy(alias_name, &alias, 4);
+        alias_name[4] = '\0';
+        if (G_ActorHasSkill(ent, alias_name) &&
+            (alias == base_code || G_AbilityCode(alias) == base_code)) return alias;
+    }
+    return 0;
+}
+
+static DWORD harvest_lumber_alias(LPCEDICT ent) {
+    DWORD alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','r','l'));
+    return alias ? alias : harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
+}
+
+BOOL S_HarvestCanLumber(LPCEDICT ent) {
+    DWORD const alias = harvest_lumber_alias(ent);
+    AbilityData_t const *data;
+
+    if (!alias) return false;
+    data = G_AbilityData(alias);
+    return data->id != alias || data->level[0].data[1].number > 0.0f;
+}
+
+BOOL S_HarvestCanGold(LPCEDICT ent) {
+    DWORD const alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
+    AbilityData_t const *data;
+
+    if (!alias) return false;
+    data = G_AbilityData(alias);
+    return data->id != alias || data->level[0].data[2].number > 0.0f;
+}
+
+static harvestLumberTuning_t harvest_lumber_tuning(LPCEDICT ent) {
+    harvestLumberTuning_t tuning = {
+        .tree_damage = HARVEST_TREE_DAMAGE,
+        .lumber_capacity = HARVEST_LUMBER_CAPACITY,
+        .range = HARVEST_RANGE,
+        .cooldown = HARVEST_COOLDOWN,
+        .search_range = HARVEST_SEARCH_RANGE,
+    };
+    DWORD const alias = harvest_lumber_alias(ent);
+    AbilityData_t const *data;
+    DWORD base;
+
+    if (!alias || !(data = G_AbilityData(alias)) || data->id != alias) return tuning;
+    base = G_AbilityCode(alias);
+    tuning.tree_damage = data->level[0].data[0].number;
+    tuning.lumber_capacity = data->level[0].data[1].number;
+    tuning.range = data->level[0].range;
+    tuning.cooldown = data->level[0].dur;
+    if (base == MAKEFOURCC('A','h','a','r'))
+        tuning.search_range = data->level[0].area;
+    else if (base == MAKEFOURCC('A','h','r','l'))
+        tuning.search_range = FLT_MAX;
+    return tuning;
+}
+
 void harvest_cooldown(LPEDICT ent);
 void harvest_swing(LPEDICT ent);
 void harvest_walkback(LPEDICT ent);
@@ -126,8 +205,8 @@ LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
     return best;
 }
 
-static LPEDICT find_another_tree_near(LPCVECTOR2 origin) {
-    FLOAT min_dist = HARVEST_SEARCH_RANGE;
+static LPEDICT find_another_tree_near(LPCEDICT worker, LPCVECTOR2 origin) {
+    FLOAT min_dist = harvest_lumber_tuning(worker).search_range;
     LPEDICT other = NULL;
 
     if (!origin)
@@ -149,7 +228,7 @@ static LPEDICT find_another_tree_near(LPCVECTOR2 origin) {
 }
 
 static LPEDICT find_another_tree(LPEDICT ent) {
-    return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
+    return ent ? find_another_tree_near(ent, &ent->s.origin2) : NULL;
 }
 
 /* Automatic harvest orders have no explicit target.  Retail resolves them
@@ -211,15 +290,16 @@ static BOOL harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
 static BOOL tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
     VECTOR2 approach;
     FLOAT const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+    FLOAT const range = harvest_lumber_tuning(ent).range;
 
-    if (distance <= HARVEST_RANGE)
+    if (distance <= range)
         return true;
     return CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
-                                               HARVEST_RANGE, ent->collision, &approach);
+                                               range, ent->collision, &approach);
 }
 
 static LPEDICT find_reachable_replacement_tree(LPEDICT ent, LPEDICT exclude) {
-    FLOAT min_dist = HARVEST_SEARCH_RANGE;
+    FLOAT min_dist = harvest_lumber_tuning(ent).search_range;
     LPEDICT other = NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
@@ -317,11 +397,12 @@ BOOL G_ActorHasSkill(LPCEDICT ent, LPCSTR id) {
 static BOOL harvest_auto_start(LPEDICT self, returnResource_t resource) {
     LPEDICT target;
 
-    /* autoharvestgold/autoharvestlumber are worker-internal immediate orders,
-     * not substitutes for giving Harvest to arbitrary units.  OpenRealm's
-     * normal Smart resource path already keys worker authority off Ahar. */
-    if (!self || !G_ActorHasSkill(self, "Ahar") || (self->aiflags & AI_IMMOBILE))
-        return false;
+    /* These are worker-internal immediate orders, not substitutes for giving
+     * Harvest to arbitrary units. Ahrl is lumber-only while Ahar can harvest
+     * both resources, matching Warsmash's shared CAbilityHarvest behavior. */
+    if (!self || (self->aiflags & AI_IMMOBILE)) return false;
+    if (resource == RETURN_RESOURCE_GOLD && !S_HarvestCanGold(self)) return false;
+    if (resource == RETURN_RESOURCE_LUMBER && !S_HarvestCanLumber(self)) return false;
 
     target = harvest_find_nearest_resource(self, resource);
     if (!target)
@@ -395,12 +476,13 @@ void G_FreeActorSkills(LPEDICT ent) {
 
 static void ai_walktree(LPEDICT ent) {
     FLOAT const distance = M_DistanceToGoal(ent);
+    FLOAT const range = harvest_lumber_tuning(ent).range;
 
     if (!ent->goalentity || M_IsDead(ent->goalentity)) {
         HARVEST_PATH_LOG(1, "invalid worker=%d target=%d reason=dead_or_missing\n",
                          ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1);
         look_for_another_tree(ent);
-    } else if (distance > HARVEST_RANGE) {
+    } else if (distance > range) {
         /* Warsmash delegates destructable harvesting to ordinary generic move
          * collision. The Harvest state machine owns target/range semantics. */
         unit_changeangle_for_radius(ent, ent->collision);
@@ -416,7 +498,7 @@ static void ai_walktree(LPEDICT ent) {
     } else {
         HARVEST_PATH_LOG(1,
             "reached worker=%d target=%d distance=%.1f range=%.1f\n",
-            ent->s.number, ent->goalentity->s.number, distance, HARVEST_RANGE);
+            ent->s.number, ent->goalentity->s.number, distance, range);
         G_PublishMessage(ent, GAME_MSG_HARVEST_START_CHOP, ent->goalentity);
         harvest_swing(ent);
     }
@@ -439,7 +521,7 @@ static void harvest_finish_lumber_deposit(LPEDICT ent) {
      * felled tree left it as the worker's active goal for another tick. */
     tree = ent->secondarygoal;
     if (tree && M_IsDead(tree))
-        tree = find_another_tree_near(&tree->s.origin2);
+        tree = find_another_tree_near(ent, &tree->s.origin2);
     else if (!tree)
         tree = find_another_tree(ent);
     ent->goalentity = ent->secondarygoal = tree;
@@ -505,16 +587,17 @@ static void ai_harvest_walkback(LPEDICT ent) {
 
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
+    harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
     BOOL const valid_hit = tree && G_IsDestructable(tree) && !M_IsDead(tree) &&
-                           !tree->invulnerable && HARVEST_TREE_DAMAGE > 0.0f;
+                           !tree->invulnerable && tuning.tree_damage > 0.0f;
     BOOL felled = false;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
     if (valid_hit) {
-        FLOAT const carried = MIN((FLOAT)ent->harvested_lumber + HARVEST_TREE_DAMAGE,
-                                  HARVEST_LUMBER_CAPACITY);
+        FLOAT const carried = MIN((FLOAT)ent->harvested_lumber + tuning.tree_damage,
+                                  tuning.lumber_capacity);
 
-        felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
+        felled = G_DestructableApplyDamage(tree, ent, tuning.tree_damage);
         if (carried > ent->harvested_lumber)
             S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, (DWORD)carried);
     }
@@ -541,13 +624,15 @@ static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, CAbi
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, CAbilityHarvest };
 
 void harvest_cooldown(LPEDICT ent) {
-    if (ent->harvested_lumber >= HARVEST_LUMBER_CAPACITY) {
+    harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
+
+    if (ent->harvested_lumber >= tuning.lumber_capacity) {
         harvest_walkback(ent);
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
     } else {
         unit_setmove(ent, &harvest_move_cooldown);
-        ent->wait = HARVEST_COOLDOWN;
+        ent->wait = tuning.cooldown;
     }
 }
 
@@ -582,8 +667,10 @@ void harvest_walkback(LPEDICT ent) {
 void CMD_Harvest(LPEDICT ent);
 
 void harvest_start(LPEDICT self, LPEDICT target) {
+    harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
+
     self->secondarygoal = target;
-    if (self->harvested_lumber >= HARVEST_LUMBER_CAPACITY && self->harvested_lumber > 0) {
+    if (self->harvested_lumber >= tuning.lumber_capacity && self->harvested_lumber > 0) {
         harvest_walkback(self);
         return;
     }
@@ -719,11 +806,11 @@ BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
         if (!has_acolyte) return false;
     } else if (S_GoldMineCanHarvest(target)) {
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-            harvest_gold_order(ent, target);
+            if (S_HarvestCanGold(ent)) harvest_gold_order(ent, target);
         }
-    } else if (target->targtype == TARG_TREE) {
+    } else if (target && target->targtype == TARG_TREE) {
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-            harvest_start(ent, target);
+            if (S_HarvestCanLumber(ent)) harvest_start(ent, target);
         }
     }
     return true;
@@ -746,6 +833,41 @@ void harvest_command(LPEDICT ent) {
 
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
+}
+
+static BOOL harvest_lumber_selecttarget(LPEDICT clent, LPEDICT target) {
+    BOOL issued = false;
+
+    if (!clent || !clent->client || !target || target->targtype != TARG_TREE || M_IsDead(target))
+        return false;
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+        if (!S_HarvestCanLumber(ent)) continue;
+        harvest_start(ent, target);
+        issued = true;
+    }
+    return issued;
+}
+
+static void harvest_lumber_command(LPEDICT clent) {
+    LPEDICT selected;
+
+    if (!clent || !clent->client) return;
+    selected = G_GetMainSelectedUnit(clent->client);
+    if (selected && selected->harvested_lumber > 0) {
+        AbilityReturn_Command(clent);
+        return;
+    }
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = harvest_lumber_selecttarget;
+}
+
+BZ_ABILITY_PROC(CAbilityHarvestLumber) {
+    switch (msg) {
+    case A_INIT: return true;
+    case A_COMMAND: harvest_lumber_command(call && call->client ? call->client : ent); return true;
+    case A_TOGGLE_ON: return harvest_is_toggle_on(ent);
+    default: return false;
+    }
 }
 
 BZ_ABILITY_PROC(CAbilityHarvest) {

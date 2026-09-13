@@ -2282,6 +2282,8 @@ BOOL S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
 void S_AcolyteHarvestRelease(LPEDICT);
 BOOL S_AcolyteHarvestIsActive(LPCEDICT);
 void S_EntangledMineTick(LPEDICT);
+BOOL S_HarvestCanLumber(LPCEDICT);
+BOOL S_HarvestCanGold(LPCEDICT);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
 BOOL harvest_gold_order(LPEDICT, LPEDICT);

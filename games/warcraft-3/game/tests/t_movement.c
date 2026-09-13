@@ -77,6 +77,7 @@ static LPEDICT make_harvest_tree(FLOAT x, FLOAT y, FLOAT life) {
 }
 
 static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
+static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -123,6 +124,28 @@ extern FLOAT HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(LPEDICT);
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target);
 
+static const char slk_ghoul_harvest_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\n"
+    "C;Y1;X4;K\"DataB1\"\n"
+    "C;Y1;X5;K\"Rng1\"\n"
+    "C;Y1;X6;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Ahrl\"\n"
+    "C;Y2;X2;K\"Ahrl\"\n"
+    "C;Y2;X3;K3\n"
+    "C;Y2;X4;K5\n"
+    "C;Y2;X5;K128\n"
+    "C;Y2;X6;K0.25\n"
+    "E\n";
+
+static slkTestData_t *install_ghoul_harvest_test_data(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(slk_ghoul_harvest_test_data);
+    *rows_out = rows;
+    return G_SetSLKRows("AbilityData", rows);
+}
+
 TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     gameCommandButton_t button;
@@ -155,6 +178,79 @@ TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
     S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
     T_ASSERT(G_BuildCommandButton(worker, "Ahar", false, 0, &button));
     T_STREQ(button.tooltip, "Gather");
+}
+
+TEST(wc3_movement, ghoul_ahrl_smart_uses_lumber_only_harvest_data) {
+    slkTestData_t *rows, *old_abilities;
+    LPEDICT worker, tree;
+    FLOAT saved_range = HARVEST_RANGE;
+    FLOAT saved_damage = HARVEST_TREE_DAMAGE;
+    FLOAT saved_capacity = HARVEST_LUMBER_CAPACITY;
+
+    worker = make_moving_unit(0.0f, 0.0f);
+    old_abilities = install_ghoul_harvest_test_data(&rows);
+    worker->data.UnitAbilities = &ghoul_harvest_abilities;
+    worker->unitinfo.MoveSpeed = 100.0f;
+    tree = make_harvest_tree(64.0f, 0.0f, 100.0f);
+
+    /* Deliberately make the legacy globals incompatible with this order. The
+     * Ahrl row must supply capacity/range/damage for this worker instead. */
+    HARVEST_RANGE = 1.0f;
+    HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 1.0f;
+    S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 2);
+
+    T_ASSERT(S_HarvestCanLumber(worker));
+    T_ASSERT(!S_HarvestCanGold(worker));
+    T_ASSERT(unit_issuetargetorder(worker, "smart", tree));
+    T_ASSERT(worker->goalentity == tree);
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    /* Ahrl Rng1=128 means the 64-unit target is already in chop range even
+     * though the legacy global above is only 1. */
+    worker->currentmove->think(worker);
+    T_STREQ(worker->currentmove->animation, "attack");
+    worker->wait = FRAMETIME / 1000.0f;
+    worker->currentmove->think(worker);
+    T_FEQ(tree->health.value, 97.0f, 0.001f);
+    T_EQ(worker->harvested_lumber, 5);
+
+    HARVEST_RANGE = saved_range;
+    HARVEST_TREE_DAMAGE = saved_damage;
+    HARVEST_LUMBER_CAPACITY = saved_capacity;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, ghoul_ahrl_command_targets_tree_and_autoharvests_lumber) {
+    slkTestData_t *rows, *old_abilities;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client;
+    LPEDICT worker, tree;
+    abilityCall_t call;
+
+    worker = make_moving_unit(0.0f, 0.0f);
+    client = &game.clients[0];
+    clent->client = client;
+    old_abilities = install_ghoul_harvest_test_data(&rows);
+    worker->data.UnitAbilities = &ghoul_harvest_abilities;
+    worker->s.player = client->ps.number;
+    tree = make_harvest_tree(96.0f, 0.0f, 100.0f);
+    G_SelectEntity(client, worker);
+
+    call = MAKE(abilityCall_t, .client = clent);
+    T_ASSERT(CAbilityHarvestLumber(worker, A_COMMAND, &call));
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_ASSERT(client->menu.on_entity_selected(clent, tree));
+    T_ASSERT(worker->goalentity == tree);
+
+    unit_stand(worker);
+    T_ASSERT(unit_issueimmediateorder(worker, "autoharvestlumber"));
+    T_ASSERT(worker->goalentity == tree);
+    T_ASSERT(!unit_issueimmediateorder(worker, "autoharvestgold"));
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_movement, runtime_added_call_to_arms_exposes_on_and_off_buttons) {
