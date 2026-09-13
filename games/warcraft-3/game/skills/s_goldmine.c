@@ -189,6 +189,8 @@ BOOL S_GoldMineIsMine(LPCEDICT mine) {
     return goldmine_ability_data(mine) != NULL;
 }
 
+BOOL S_GoldMineIsOverlay(LPCEDICT mine) { return goldmine_is_overlay_type(mine); }
+
 DWORD S_GoldMineMaximumGold(LPCEDICT mine) {
     AbilityData_t const *data = goldmine_ability_data(mine);
     if (!data || data->level[0].data[0].number <= 0)
@@ -706,6 +708,17 @@ void S_MineOverlayBindPreplaced(void) {
         }
         if (best) {
             S_MineOverlayBind(overlay, best);
+            continue;
+        }
+        best = SP_SpawnAtLocation(MAKEFOURCC('n','g','o','l'), PLAYER_NEUTRAL_PASSIVE, &overlay->s.origin2);
+        if (best) {
+            best->resources = overlay->resources ? overlay->resources : S_GoldMineMaximumGold(best);
+            S_MineOverlayBind(overlay, best);
+#ifdef WC3_DEBUG_MINING
+            fprintf(stderr, "WC3_MINING preplaced-created-parent overlay=%ld parent=%ld gold=%u\n",
+                    (long)(overlay - globals.edicts), (long)(best - globals.edicts),
+                    (unsigned)best->resources);
+#endif
             continue;
         }
 #ifdef WC3_DEBUG_MINING

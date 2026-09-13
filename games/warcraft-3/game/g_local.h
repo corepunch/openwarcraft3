@@ -2259,6 +2259,7 @@ BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);
 BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
 void G_FreeActorSkills(LPEDICT);
 BOOL S_GoldMineIsMine(LPCEDICT);
+BOOL S_GoldMineIsOverlay(LPCEDICT);
 DWORD S_GoldMineMaximumGold(LPCEDICT);
 FLOAT S_GoldMineMiningDuration(LPCEDICT);
 DWORD S_GoldMineCapacity(LPCEDICT);

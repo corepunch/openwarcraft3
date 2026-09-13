@@ -685,6 +685,8 @@ void G_SpawnEntities(void) {
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
         SP_CallSpawn(ent);
+        if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (DWORD)-1)
+            ent->resources = doodad->goldAmount;
         if (G_IsDestructable(ent)) {
             G_InitializeDestructablePlacement(ent, doodad);
             G_RegisterGroundSurface(ent);
