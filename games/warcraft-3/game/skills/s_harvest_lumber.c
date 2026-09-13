@@ -846,6 +846,7 @@ void harvest_command(LPEDICT ent) {
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }
 
+/* Issue a lumber target to the selected workers while preserving ability ownership. */
 static BOOL harvest_lumber_selecttarget(LPEDICT clent, LPEDICT target) {
     BOOL issued = false;
 
@@ -859,6 +860,7 @@ static BOOL harvest_lumber_selecttarget(LPEDICT clent, LPEDICT target) {
     return issued;
 }
 
+/* Enter lumber target mode or return carried lumber through the owning ability. */
 static void harvest_lumber_command(LPEDICT clent) {
     LPEDICT selected;
 
