@@ -2276,6 +2276,8 @@ void S_GoldMineReleaseWorker(LPEDICT);
 BOOL S_MineOverlayBind(LPEDICT, LPEDICT);
 void S_MineOverlayBindPreplaced(void);
 void S_MineOverlayRelease(LPEDICT);
+LPEDICT S_CreateBlightedGoldmine(DWORD, LPCVECTOR2, FLOAT);
+void S_GoldMineSetResourceAmount(LPEDICT, DWORD);
 BOOL S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
 void S_AcolyteHarvestRelease(LPEDICT);
 BOOL S_AcolyteHarvestIsActive(LPCEDICT);

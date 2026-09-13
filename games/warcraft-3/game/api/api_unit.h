@@ -954,7 +954,7 @@ DWORD IssueBuildOrderById(LPJASS j) {
 DWORD SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG amount = jass_checkinteger(j, 2);
-    if (whichUnit) whichUnit->resources = amount;
+    if (whichUnit) S_GoldMineSetResourceAmount(whichUnit, MAX(0, amount));
     return 0;
 }
 DWORD AddResourceAmount(LPJASS j) {
@@ -1067,9 +1067,12 @@ DWORD CreateCorpse(LPJASS j) {
     return jass_pushnullhandle(j, "unit");
 }
 DWORD CreateBlightedGoldmine(LPJASS j) {
-    //HANDLE id = jass_checkhandle(j, 1, "player");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT face = jass_checknumber(j, 4);
-    return jass_pushnullhandle(j, "unit");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    VECTOR2 origin = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    FLOAT facing = jass_checknumber(j, 4);
+    LPEDICT mine;
+
+    if (!player || !(mine = S_CreateBlightedGoldmine(PLAYER_NUM(player), &origin, facing)))
+        return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, mine, "unit");
 }

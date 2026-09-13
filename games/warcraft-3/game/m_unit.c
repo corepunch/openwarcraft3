@@ -587,14 +587,44 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
 
 BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
                             BOOL queue, DWORD issuer_player) {
-    if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) return false;
-    if (M_IsDead(self)) return false;
+#ifdef WC3_DEBUG_MINING
+    if (order && !strcmp(order, "harvest"))
+        fprintf(stderr, "WC3_MINING target-order unit=%ld id=%.4s target=%ld target_id=%.4s queue=%d issuer=%u\n",
+                self ? (long)(self - globals.edicts) : -1L, self ? (LPCSTR)&self->class_id : "????",
+                target ? (long)(target - globals.edicts) : -1L, target ? (LPCSTR)&target->class_id : "????",
+                queue, (unsigned)issuer_player);
+#endif
+    if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
+#ifdef WC3_DEBUG_MINING
+        if (order && !strcmp(order, "harvest"))
+            fprintf(stderr, "WC3_MINING target-order-rejected reason=invalid-order-or-handle\n");
+#endif
+        return false;
+    }
+    if (M_IsDead(self)) {
+#ifdef WC3_DEBUG_MINING
+        if (!strcmp(order, "harvest")) fprintf(stderr, "WC3_MINING target-order-rejected reason=worker-dead\n");
+#endif
+        return false;
+    }
     /* Rally is producer metadata rather than an interruptible unit behavior. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         if (!queue) G_ClearUnitOrderQueue(self);
         return G_SetRallyEntity(self, target);
     }
-    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (S_GoldMineWorkerIsInside(self)) {
+#ifdef WC3_DEBUG_MINING
+        if (!strcmp(order, "harvest")) fprintf(stderr, "WC3_MINING target-order-rejected reason=worker-inside-mine\n");
+#endif
+        return false;
+    }
+    if (!strcmp(order, "harvest")) {
+        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
+            return S_AcolyteHarvestOrder(self, target);
+        if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+            return harvest_gold_order(self, target);
+        return false;
+    }
     {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
@@ -610,7 +640,13 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         }
     }
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
-        strcmp(order, "repair") && strcmp(order, "militia") && strcmp(order, "militiaoff")) return false;
+        strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
+#ifdef WC3_DEBUG_MINING
+        if (!strcmp(order, "harvest"))
+            fprintf(stderr, "WC3_MINING target-order-rejected reason=target-order-not-dispatched\n");
+#endif
+        return false;
+    }
 
     if (queue && unit_has_active_order(self)) {
         BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,
