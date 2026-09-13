@@ -52,7 +52,10 @@ BOOL S_HarvestCanLumber(LPCEDICT ent) {
 
     if (!alias) return false;
     data = G_AbilityData(alias);
-    return data->id == alias && data->level[0].data[1].number > 0.0f;
+    if (data->id == alias) return data->level[0].data[1].number > 0.0f;
+    /* Ahar predates per-worker tuning; legacy order callers may only need its
+     * authored presence because their harvesting profile is initialized later. */
+    return G_AbilityCode(alias) == MAKEFOURCC('A','h','a','r');
 }
 
 /* Confirm that the worker has authoritative gold-harvest data with capacity. */
@@ -62,7 +65,10 @@ BOOL S_HarvestCanGold(LPCEDICT ent) {
 
     if (!alias) return false;
     data = G_AbilityData(alias);
-    return data->id == alias && data->level[0].data[2].number > 0.0f;
+    if (data->id == alias) return data->level[0].data[2].number > 0.0f;
+    /* Ahar predates per-worker tuning; legacy order callers may only need its
+     * authored presence because their harvesting profile is initialized later. */
+    return G_AbilityCode(alias) == MAKEFOURCC('A','h','a','r');
 }
 
 /* Collect per-worker lumber tuning from the resolved ability instead of globals. */
