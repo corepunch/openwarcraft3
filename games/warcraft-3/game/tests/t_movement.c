@@ -3475,7 +3475,10 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     T_ASSERT(!S_AcolyteHarvestIsActive(first));
     T_ASSERT(S_AcolyteHarvestIsActive(second));
     /* Actual destruction releases the overlay relationship before the death
-     * animation; the original mine must immediately become usable again. */
+     * animation; the original mine must immediately become usable again. The
+     * parent is restored by its bound identity, not by reclassifying abilities
+     * during teardown. */
+    parent->data.UnitAbilities = NULL;
     unit_die(haunted, NULL);
     T_ASSERT(M_IsDead(haunted));
     T_ASSERT(!S_AcolyteHarvestIsActive(second));

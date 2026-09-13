@@ -616,6 +616,17 @@ static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     return parent;
 }
 
+/* Resolve the stored parent for teardown without requiring its abilities to
+ * remain classified as Agld; the overlay owns the hide/pause state until it
+ * dies, so destruction must restore that exact live edict. */
+static LPEDICT mineoverlay_release_parent(LPEDICT overlay) {
+    LPEDICT parent;
+
+    if (!overlay || !(parent = overlay->mineoverlay.parent) || !parent->inuse ||
+        parent->spawn_time != overlay->mineoverlay.parent_spawn_time || M_IsDead(parent)) return NULL;
+    return parent;
+}
+
 static BOOL mineoverlay_parent_in_use(LPEDICT parent, LPEDICT except) {
     if (!parent) return false;
     FILTER_EDICTS(ent, ent != except && ent->inuse && ent->mineoverlay.parent == parent &&
@@ -676,7 +687,9 @@ void S_MineOverlayRelease(LPEDICT overlay) {
             unit_stand(worker);
     }
 
-    parent = mineoverlay_parent(overlay);
+    /* Teardown restores the bound edict by identity. Runtime mining validation
+     * above must not discard the parent before its hidden/paused state is undone. */
+    parent = mineoverlay_release_parent(overlay);
     overlay->mineoverlay.parent = NULL;
     overlay->mineoverlay.parent_spawn_time = 0;
     overlay->mineoverlay.income_time = 0;
