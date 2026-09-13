@@ -140,7 +140,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup. */
     if (self->construction.active) G_StopConstruction(self);
-    if (self->mineoverlay.parent) S_MineOverlayRelease(self);
+    if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
     S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);

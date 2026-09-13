@@ -76,6 +76,10 @@ The following existing abilities now use the common resolver rather than owning 
 - Natural Neutral Hostile creep sleep: persistent hidden `ACsp` `WC3_EFFECT_TARGET`
   attached at `overhead`; wake/behavior replacement destroys the effect through
   the same independent-effect lifecycle.  See [Neutral Creep Sleep](creep-sleep.md).
+- Haunted Gold Mine (`Abgm`): one persistent `WC3_EFFECT_EFFECT` is placed at
+  each authored Acolyte mining-ring slot using the slot's radial facing. The
+  effect edicts are owned by the mine and destroyed through the normal effect
+  death lifecycle when the Haunted Mine dies or is removed.
 - Thunder Bolt / Fire Bolt: `WC3_EFFECT_MISSILE` supplies the existing projectile edict's model; projectile speed, tracking, damage, stun, and impact lifecycle remain in `s_thunderbolt.c`.
 - supported immediate item abilities in `s_item.c`: `WC3_EFFECT_TARGET` after a successful gameplay effect.
 - Scroll of Protection (`spro` / `AIda`): the item ability applies its authored
@@ -171,6 +175,7 @@ Relevant in-engine tests are:
 
 - `wc3_slk.ability_buff_ui_columns_decode`
 - `wc3_effects.ability_effect_art_selects_requested_entry_and_last_fallback`
+- `wc3_movement.haunted_mine_uses_acolyte_ring_slots_and_parent_gold`
 - `wc3_api.effect_natives_return_independent_handles`
 - `wc3_items.perishable_success_consumes_charge_and_removes_at_zero`
 - `wc3_items.nonperishable_use_decrements_charges_but_keeps_item_at_zero`

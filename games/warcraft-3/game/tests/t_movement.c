@@ -303,6 +303,16 @@ static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out
     return G_SetSLKRows("AbilityData", rows);
 }
 
+static DWORD count_haunted_ring_effects(LPCEDICT mine) {
+    DWORD count = 0;
+    FILTER_EDICTS(effect, effect->inuse && effect->owner == mine &&
+                  effect->summon_ability == MAKEFOURCC('A','b','g','m') &&
+                  effect->resources > 0 && (effect->s.flags & EF_NOT_SELECTABLE)) {
+        count++;
+    }
+    return count;
+}
+
 static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_goldmine_test_data);
     *rows_out = rows;
@@ -3465,6 +3475,7 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     level.time = 1999;
     blight_mine_think(haunted);
+    T_EQ(count_haunted_ring_effects(haunted), 5);
     T_EQ(parent->resources, 100);
     level.time = 2000;
     blight_mine_think(haunted);

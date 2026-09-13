@@ -170,14 +170,76 @@ static void G_PlayCommandErrorSound(LPEDICT clent, LPCSTR error_key) {
     G_PlayUISoundForPlayer(clent, alias);
 }
 
+/* CommandStrings [Errors] owns Warcraft's player-facing command failures.
+ * Most entries are a single localized string; the handful of race-specific
+ * entries (notably Nofood) store Human, Orc, Undead, Night Elf variants as a
+ * comma-separated value. Keep simulation callers on the external error key so
+ * text and the matching <Key>Sound skin lookup cannot drift apart. */
+static DWORD G_CommandErrorRaceIndex(LPCGAMECLIENT client) {
+    if (!client) return 0;
+    switch (client->ps.race) {
+    case kPlayerRaceHuman: return 0;
+    case kPlayerRaceOrc: return 1;
+    case kPlayerRaceUndead: return 2;
+    case kPlayerRaceNightElf: return 3;
+    default: return 0;
+    }
+}
+
+static LPCSTR G_CommandErrorString(LPCGAMECLIENT client, LPCSTR error_key) {
+    static char selected[4][MAX_GAMECACHE_STRING];
+    static DWORD cursor;
+    char *out = selected[cursor++ & 3];
+    LPCSTR value;
+    DWORD wanted, index = 0;
+
+    if (!error_key || !error_key[0]) return NULL;
+    value = FindConfigValue("Errors", error_key);
+    if (!value || !value[0]) return NULL;
+    if (!strchr(value, ',')) return G_LevelString(value);
+
+    wanted = G_CommandErrorRaceIndex(client);
+    while (*value) {
+        LPCSTR begin, end;
+        size_t length;
+        while (*value == ',' || isspace((unsigned char)*value)) value++;
+        begin = value;
+        while (*value && *value != ',') value++;
+        end = value;
+        while (end > begin && isspace((unsigned char)end[-1])) end--;
+        if (index++ == wanted) {
+            length = MIN((size_t)(end - begin), sizeof(selected[0]) - 1);
+            memcpy(out, begin, length);
+            out[length] = '\0';
+            return G_LevelString(out);
+        }
+        if (*value == ',') value++;
+    }
+    return NULL;
+}
+
+void G_ShowCommandErrorKey(LPEDICT clent, LPCSTR error_key, LPCSTR fallback) {
+    LPCSTR text;
+
+    if (!clent || !clent->client || !error_key || !error_key[0]) return;
+    text = G_CommandErrorString(clent->client, error_key);
+    if (!text || !text[0]) text = fallback;
+    if (text && text[0])
+        UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    G_PlayCommandErrorSound(clent, error_key);
+}
+
 void G_ShowCommandErrorText(LPEDICT clent, LPCSTR text) {
     LPCSTR key;
 
     if (!clent || !text || !text[0]) return;
-    UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
     key = G_CommandErrorKeyForText(text);
-    if (key) G_PlayCommandErrorSound(clent, key);
-    else G_PlayUISoundForPlayer(clent, "InterfaceError");
+    if (key) {
+        G_ShowCommandErrorKey(clent, key, text);
+        return;
+    }
+    UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    G_PlayUISoundForPlayer(clent, "InterfaceError");
 }
 
 void G_QueueReadySound(LPEDICT ent) {

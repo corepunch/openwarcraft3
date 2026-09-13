@@ -105,8 +105,7 @@ construction completes.
 `mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
 and the associated scalar timing/index/slot state.
 
-Known parity gaps within this implemented model are the Haunted ring spell-effect visuals, localized full/invalid-mine command errors,
-and remaining Entangle cast/icon/effect presentation. Wisp lumber remains separate from Entangled gold cargo.
+Haunted Mine ring `EffectArt` now follows the same deterministic slot positions/facing as Warsmash and is removed with the overlay; Acolyte wrong-target, wrong-owner, and full-ring failures use Warcraft `CommandStrings` error keys. Known remaining gaps are primarily Entangle cast/icon/effect presentation and broader retail visual verification. Wisp lumber remains separate from Entangled gold cargo.
 
 ## Moon Well replenish
 

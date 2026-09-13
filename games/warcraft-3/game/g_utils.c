@@ -19,7 +19,7 @@ void G_FreeEdict(LPEDICT ent) {
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     /* Direct JASS RemoveUnit must release construction workers before the building edict is cleared. */
     if (ent->construction.active) G_StopConstruction(ent);
-    if (ent->mineoverlay.parent) S_MineOverlayRelease(ent);
+    if (ent->mineoverlay.parent || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);
     if (ent->cargo.count > 0) cargo_drop_all(ent);

@@ -665,13 +665,22 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
 
 /* ---- Acolyte harvest: target blighted gold mine ------------------------- */
 static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
+    BOOL issued = false;
+
+    if (!clent || !clent->client) return false;
     if (!target || !G_ActorHasSkill(target, "Abgm")) {
+        G_ShowCommandErrorKey(clent, "Targetblightedmine", "Must target a Haunted Gold Mine.");
+        return false;
+    }
+    if (target->s.player != clent->client->ps.number) {
+        G_ShowCommandErrorKey(clent, "Nototherplayersmine",
+                              "Unable to use a mine controlled by another player.");
         return false;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        S_AcolyteHarvestOrder(ent, target);
+        if (S_AcolyteHarvestOrder(ent, target)) issued = true;
     }
-    return true;
+    return issued;
 }
 
 BZ_COMMAND_PROC(AbilityAcolyteHarvest) {
@@ -694,10 +703,20 @@ BZ_COMMAND_PROC(AbilityReturn) {
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (G_ActorHasSkill(target, "Abgm")) {
-        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-            if (G_ActorHasSkill(ent, "Aaha")) S_AcolyteHarvestOrder(ent, target);
+    if (target && G_ActorHasSkill(target, "Abgm")) {
+        BOOL has_acolyte = false;
+        if (target->s.player != clent->client->ps.number) {
+            G_ShowCommandErrorKey(clent, "Nototherplayersmine",
+                                  "Unable to use a mine controlled by another player.");
+            return false;
         }
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+            if (G_ActorHasSkill(ent, "Aaha")) {
+                has_acolyte = true;
+                S_AcolyteHarvestOrder(ent, target);
+            }
+        }
+        if (!has_acolyte) return false;
     } else if (S_GoldMineCanHarvest(target)) {
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_order(ent, target);

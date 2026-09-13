@@ -607,6 +607,8 @@ BZ_ABILITY_PROC(CAbilityGoldMine) {
 
 /* ---- Racial Gold Mine overlays ------------------------------------------ */
 
+static void haunted_mine_remove_effects(LPEDICT mine);
+
 static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     LPEDICT parent;
 
@@ -753,6 +755,10 @@ void S_MineOverlayRelease(LPEDICT overlay) {
     LPEDICT parent;
 
     if (!overlay) return;
+    /* Warsmash removes the persistent Abgm EffectArt ring on both ability
+     * removal and mine death. Do this before clearing the overlay identity so
+     * the effect-owner markers remain available to the cleanup scan. */
+    haunted_mine_remove_effects(overlay);
     /* A Haunted Mine owns fixed Acolyte relationships. Retiring the mine must
      * free those slots before its edict can be reused. */
     FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == overlay &&
@@ -820,6 +826,70 @@ static void haunted_mine_slot_position(LPEDICT mine, DWORD slot, DWORD capacity,
     radius = haunted_mine_ring_radius(mine);
     out->x = mine->s.origin2.x + (FLOAT)cos(angle) * radius;
     out->y = mine->s.origin2.y + (FLOAT)sin(angle) * radius;
+}
+
+/* CAbilityBlightedGoldMine.onAdd() creates one persistent EFFECT render
+ * component at every authored Acolyte ring slot and faces it radially. Point
+ * effects are ordinary edicts in OpenRealm, so tag them with their owning mine,
+ * ability alias, and one-based slot number. That gives teardown/save-load a
+ * stable identity without adding another serialized pointer array. */
+static BOOL haunted_ring_effect_matches(LPCEDICT effect, LPCEDICT mine, DWORD alias, DWORD slot) {
+    return effect && effect->inuse && effect->owner == mine &&
+           effect->summon_ability == alias && effect->resources == slot + 1 &&
+           (effect->s.flags & EF_NOT_SELECTABLE);
+}
+
+static LPEDICT haunted_ring_effect(LPEDICT mine, DWORD alias, DWORD slot) {
+    FILTER_EDICTS(effect, haunted_ring_effect_matches(effect, mine, alias, slot)) {
+        return effect;
+    }
+    return NULL;
+}
+
+static void haunted_mine_ensure_effects(LPEDICT mine) {
+    DWORD alias, capacity;
+
+    if (!mine || !mine->inuse || M_IsDead(mine) ||
+        !(alias = haunted_mine_alias(mine)) ||
+        !(capacity = haunted_mine_max_miners(mine))) return;
+
+    FOR_LOOP(i, capacity) {
+        VECTOR2 point;
+        LPEDICT effect;
+        double angle;
+
+        if (haunted_ring_effect(mine, alias, i)) continue;
+        haunted_mine_slot_position(mine, i, capacity, &point);
+        effect = G_SpawnAbilityEffectAtPoint(alias, WC3_EFFECT_EFFECT, 0, &point, false);
+        if (!effect) continue;
+
+        angle = ((M_PI * 2.0) / (double)capacity) * (double)i + (M_PI / 2.0);
+        effect->owner = mine;
+        effect->summon_ability = alias;
+        effect->resources = i + 1;
+        effect->s.angle = (FLOAT)(angle * (180.0 / M_PI));
+        gi.LinkEntity(effect);
+    }
+}
+
+static void haunted_mine_remove_effects(LPEDICT mine) {
+    DWORD const base = MAKEFOURCC('A','b','g','m');
+
+    if (!mine) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT effect = g_edicts + i;
+        if (effect->inuse && effect->owner == mine && effect->summon_ability &&
+            (effect->summon_ability == base || G_AbilityCode(effect->summon_ability) == base) &&
+            effect->resources > 0 && (effect->s.flags & EF_NOT_SELECTABLE)) {
+            /* A render component may keep playing its Death sequence after the
+             * mine edict is released; do not leave a serialized owner pointer
+             * aimed at an edict slot that can be reused meanwhile. */
+            effect->owner = NULL;
+            effect->summon_ability = 0;
+            effect->resources = 0;
+            G_DestroyEffect(effect);
+        }
+    }
 }
 
 static BOOL haunted_slot_occupied(LPEDICT mine, LONG slot) {
@@ -916,6 +986,10 @@ static void ai_acolyte_harvest_walk(LPEDICT worker) {
     }
     if (acolyte_in_harvest_range(worker, mine)) {
         if (!acolyte_claim_slot(worker, mine)) {
+            LPEDICT clent = G_GetPlayerEntityByNumber(worker->s.player);
+            if (clent && clent->client)
+                G_ShowCommandErrorKey(clent, "Blightringfull",
+                                      "That gold mine can't support any more Acolytes.");
             unit_stand(worker);
             return;
         }
@@ -967,8 +1041,13 @@ void blight_mine_think(LPEDICT mine) {
     LPPLAYER player;
 
     monster_think(mine);
-    if (!mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
-        !(alias = haunted_mine_alias(mine))) return;
+    if (!mine || !mine->inuse || M_IsDead(mine)) return;
+    /* Warsmash creates the Abgm ring render components in onAdd(), so they are
+     * visible during construction as well as after completion. Lazy ensure on
+     * the authoritative mine thinker gives preplaced, constructed, and loaded
+     * mines the same presentation without a second unit-lifecycle hook. */
+    haunted_mine_ensure_effects(mine);
+    if (mine->construction.active || !(alias = haunted_mine_alias(mine))) return;
     parent = mineoverlay_parent(mine);
     player = G_GetPlayerByNumber(mine->s.player);
     maximum = haunted_mine_max_miners(mine);
