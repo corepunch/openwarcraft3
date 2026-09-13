@@ -13,7 +13,9 @@ void setup_test_world(void);
 
 static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
-static UnitAbilities_t const bot_mine_abilities = { .abilList = "Abgm" };
+/* Natural ngol fixtures use the finite Agld ability; Abgm denotes a racial
+ * overlay and is intentionally excluded from ordinary worker harvesting. */
+static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
 
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     LONG values[] = {12, -3, 7};

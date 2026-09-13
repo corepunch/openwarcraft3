@@ -31,6 +31,12 @@ void unit_setmove(LPEDICT self, umove_t *move) {
         move->proc != CAbilityMilitia) {
         S_CancelMilitiaPairing(self);
     }
+    /* Acolyte mine slots belong to the harvesting order and must be released
+     * when any other movement ability replaces it. */
+    if (self->currentmove && self->currentmove->proc == CAbilityAcolyteHarvest &&
+        move->proc != CAbilityAcolyteHarvest) {
+        S_AcolyteHarvestRelease(self);
+    }
     /* A point-drop keeps the exact carried item separately from its waypoint.
      * Replacing that behavior must abandon the pending drop just like replacing
      * any other unit order; otherwise a stale item pointer would survive while

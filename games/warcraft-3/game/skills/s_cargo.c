@@ -59,6 +59,25 @@ BOOL S_CargoIsBurrow(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
 }
 
+static BOOL cargo_is_entangled_mine(LPEDICT transport) {
+    return cargo_actor_ability_alias(transport, MAKEFOURCC('A','e','g','m')) != 0;
+}
+
+static LPCSTR cargo_count_animation_tag(DWORD count) {
+    static LPCSTR const tags[] = { NULL, "first", "second", "third", "fourth", "fifth" };
+    return count < sizeof(tags) / sizeof(tags[0]) ? tags[count] : NULL;
+}
+
+static void cargo_update_entangled_animation(LPEDICT transport, DWORD old_count) {
+    LPCSTR old_tag, new_tag;
+
+    if (!transport || !cargo_is_entangled_mine(transport)) return;
+    old_tag = cargo_count_animation_tag(old_count);
+    new_tag = cargo_count_animation_tag(transport->cargo.count);
+    if (old_tag) G_AddUnitAnimationProperties(transport, old_tag, false);
+    if (new_tag) G_AddUnitAnimationProperties(transport, new_tag, true);
+}
+
 BOOL S_CargoAttacksEnabled(LPCEDICT ent) {
     if (!ent) return false;
     if (!S_CargoIsBurrow((LPEDICT)ent)) return true;
@@ -79,14 +98,19 @@ static void cargo_update_burrow_attacks(LPEDICT transport) {
 }
 
 void S_CargoInitUnit(LPEDICT unit) {
-    if (!unit || !S_CargoIsBurrow(unit)) return;
+    if (!unit) return;
     /* Empty Burrows retain authored weapon data for HUD/upgrades but combat
      * gates attacks through S_CargoAttacksEnabled(). */
     if (unit->cargo.count > 0) cargo_update_burrow_attacks(unit);
+    if (cargo_is_entangled_mine(unit) && unit->cargo.count > 0)
+        cargo_update_entangled_animation(unit, 0);
 }
 
 static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
+    DWORD old_count;
+
     if (!transport || !unit || !cargo_has_capacity(transport, 1)) return;
+    old_count = transport->cargo.count;
     transport->cargo.units[transport->cargo.count++] = unit;
     G_ClearUnitOrderQueue(unit);
     unit->goalentity = NULL;
@@ -96,6 +120,7 @@ static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
     unit->paused = true;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
+    cargo_update_entangled_animation(transport, old_count);
     G_InvalidateUnitInfoPanel(transport);
     /* The selected-unit portrait is serialized on its own layer. Cargo
      * transitions replace only the stat subsection, so explicitly redraw the
@@ -118,8 +143,10 @@ static void cargo_place_unloaded_unit(LPEDICT transport, LPEDICT unit) {
 
 static LPEDICT cargo_drop_unit(LPEDICT transport, DWORD index) {
     LPEDICT unit;
+    DWORD old_count;
 
     if (!transport || index >= transport->cargo.count) return NULL;
+    old_count = transport->cargo.count;
     unit = transport->cargo.units[index];
     for (DWORD i = index; i < transport->cargo.count - 1; i++)
         transport->cargo.units[i] = transport->cargo.units[i + 1];
@@ -132,6 +159,7 @@ static LPEDICT cargo_drop_unit(LPEDICT transport, DWORD index) {
     unit->paused = false;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
+    cargo_update_entangled_animation(transport, old_count);
     G_InvalidateUnitInfoPanel(transport);
     /* The selected-unit portrait is serialized on its own layer. Cargo
      * transitions replace only the stat subsection, so explicitly redraw the

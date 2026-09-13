@@ -518,12 +518,6 @@ DWORD TriggerWaitForSound(LPJASS j) {
 DWORD TriggerEvaluate(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     BOOL result = jass_evaluatetrigger(j, whichTrigger, NULL);
-#ifdef WC3_DEBUG_BUILD
-    fprintf(stderr, "WC3_DEBUG_BUILD trigger evaluate trigger=%ld caller=\"%s\" disabled=%d result=%d\n",
-            (long)QuestPeonStageTriggerOrdinal(whichTrigger),
-            jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)",
-            whichTrigger ? (int)whichTrigger->disabled : -1, result);
-#endif
     if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
         LPCJASSCONTEXT ctx = jass_getcontext(j);
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;
@@ -551,12 +545,6 @@ DWORD TriggerEvaluate(LPJASS j) {
 }
 DWORD TriggerExecute(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-#ifdef WC3_DEBUG_BUILD
-    fprintf(stderr, "WC3_DEBUG_BUILD trigger execute trigger=%ld caller=\"%s\" disabled=%d\n",
-            (long)QuestPeonStageTriggerOrdinal(whichTrigger),
-            jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)",
-            whichTrigger ? (int)whichTrigger->disabled : -1);
-#endif
     if (QuestPeonStageDebugEnabled() && QuestPeonStageTrigger(whichTrigger)) {
         LPCJASSCONTEXT ctx = jass_getcontext(j);
         LPCSTR caller = ctx ? jass_functionname(ctx->func) : NULL;

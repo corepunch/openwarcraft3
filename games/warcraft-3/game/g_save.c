@@ -325,6 +325,16 @@ static field_t const goldmine_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const mineoverlay_fields[] = {
+    TF(edictMineOverlay_s, parent, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const acolyte_mine_fields[] = {
+    TF(edictAcolyteMine_s, mine, F_EDICT, 0, FIELD_NONE),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const item_fields[] = {
     TF(edictItem_s, carrier, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
@@ -449,6 +459,8 @@ field_t edict_fields[] = {
     F(edict_s, revival, F_STRUCT, 1, revival_fields),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, goldmine, F_STRUCT, 1, goldmine_fields),
+    F(edict_s, mineoverlay, F_STRUCT, 1, mineoverlay_fields),
+    F(edict_s, acolyte_mine, F_STRUCT, 1, acolyte_mine_fields),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
     F(edict_s, cargo, F_STRUCT, 1, cargo_fields),
     F(edict_s, item, F_STRUCT, 1, item_fields),
