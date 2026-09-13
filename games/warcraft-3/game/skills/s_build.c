@@ -266,12 +266,6 @@ void build_build(LPEDICT ent) {
         }
     }
     if (construction_started) {
-#ifdef WC3_DEBUG_CONSTRUCTION
-        fprintf(stderr, "WC3_CONSTRUCTION dispatch worker=%ld race=%d building=%ld type=%d active=%d paused=%d building-anim=%s frame=%u\n",
-                (long)(ent - globals.edicts), race, (long)(building - globals.edicts),
-                building->construction.type, building->construction.active, building->construction.paused,
-                building->animation ? building->animation->name : "<none>", building->s.frame);
-#endif
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
          * structure while the paying client and authored cost are still known. */

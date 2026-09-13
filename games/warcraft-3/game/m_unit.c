@@ -209,13 +209,6 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
 }
 
 void unit_birth(LPEDICT self) {
-#ifdef WC3_DEBUG_CONSTRUCTION
-    fprintf(stderr, "WC3_CONSTRUCTION birth unit=%ld id=%.4s active=%d type=%d old-move=%s old-anim=%s\n",
-            self ? (long)(self - globals.edicts) : -1L, self ? (LPCSTR)&self->class_id : "????",
-            self ? self->construction.active : 0, self ? self->construction.type : CONSTRUCTION_NONE,
-            self && self->currentmove ? self->currentmove->animation : "<none>",
-            self && self->animation ? self->animation->name : "<none>");
-#endif
     unit_setmove(self, &unit_move_birth);
     self->wait = self->data.UnitBalance->buildTime;
     self->s.renderfx |= RF_NO_UBERSPLAT;
@@ -587,24 +580,10 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
 
 BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
                             BOOL queue, DWORD issuer_player) {
-#ifdef WC3_DEBUG_MINING
-    if (order && !strcmp(order, "harvest"))
-        fprintf(stderr, "WC3_MINING target-order unit=%ld id=%.4s target=%ld target_id=%.4s queue=%d issuer=%u\n",
-                self ? (long)(self - globals.edicts) : -1L, self ? (LPCSTR)&self->class_id : "????",
-                target ? (long)(target - globals.edicts) : -1L, target ? (LPCSTR)&target->class_id : "????",
-                queue, (unsigned)issuer_player);
-#endif
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
-#ifdef WC3_DEBUG_MINING
-        if (order && !strcmp(order, "harvest"))
-            fprintf(stderr, "WC3_MINING target-order-rejected reason=invalid-order-or-handle\n");
-#endif
         return false;
     }
     if (M_IsDead(self)) {
-#ifdef WC3_DEBUG_MINING
-        if (!strcmp(order, "harvest")) fprintf(stderr, "WC3_MINING target-order-rejected reason=worker-dead\n");
-#endif
         return false;
     }
     /* Rally is producer metadata rather than an interruptible unit behavior. */
@@ -613,9 +592,6 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self)) {
-#ifdef WC3_DEBUG_MINING
-        if (!strcmp(order, "harvest")) fprintf(stderr, "WC3_MINING target-order-rejected reason=worker-inside-mine\n");
-#endif
         return false;
     }
     if (!strcmp(order, "harvest")) {
@@ -641,10 +617,6 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
     }
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
-#ifdef WC3_DEBUG_MINING
-        if (!strcmp(order, "harvest"))
-            fprintf(stderr, "WC3_MINING target-order-rejected reason=target-order-not-dispatched\n");
-#endif
         return false;
     }
 

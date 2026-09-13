@@ -742,10 +742,6 @@ LPEDICT S_CreateBlightedGoldmine(DWORD player, LPCVECTOR2 origin, FLOAT facing) 
     FILTER_EDICTS(existing, existing->inuse && existing->s.player == player &&
                   S_GoldMineIsOverlay(existing) && Vector2_distance(&existing->s.origin2, origin) <= 1.0f) {
         existing->s.angle = facing;
-#ifdef WC3_DEBUG_MINING
-        fprintf(stderr, "WC3_MINING blighted-create-reuse overlay=%ld player=%u origin=(%.1f,%.1f)\n",
-                (long)(existing - globals.edicts), (unsigned)player, origin->x, origin->y);
-#endif
         return existing;
     }
     overlay = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), player, origin);
@@ -753,18 +749,9 @@ LPEDICT S_CreateBlightedGoldmine(DWORD player, LPCVECTOR2 origin, FLOAT facing) 
     overlay->s.angle = facing;
     S_MineOverlayBindPreplaced();
     if (!overlay->mineoverlay.parent) {
-#ifdef WC3_DEBUG_MINING
-        fprintf(stderr, "WC3_MINING blighted-create-unbound overlay=%ld player=%u origin=(%.1f,%.1f)\n",
-                (long)(overlay - globals.edicts), (unsigned)player, origin->x, origin->y);
-#endif
         G_FreeEdict(overlay);
         return NULL;
     }
-#ifdef WC3_DEBUG_MINING
-    fprintf(stderr, "WC3_MINING blighted-create overlay=%ld parent=%ld player=%u origin=(%.1f,%.1f)\n",
-            (long)(overlay - globals.edicts), (long)(overlay->mineoverlay.parent - globals.edicts),
-            (unsigned)player, origin->x, origin->y);
-#endif
     return overlay;
 }
 
@@ -1058,20 +1045,9 @@ static void ai_acolyte_harvest_work(LPEDICT worker) {
 BOOL S_AcolyteHarvestOrder(LPEDICT worker, LPEDICT mine) {
     if (!worker || !mine || !goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a')) ||
         !haunted_mine_valid_for(worker, mine)) {
-#ifdef WC3_DEBUG_MINING
-        fprintf(stderr, "WC3_MINING acolyte-order rejected worker=%ld mine=%ld worker_id=%.4s mine_id=%.4s has_ability=%d valid=%d\n",
-                worker ? (long)(worker - globals.edicts) : -1L, mine ? (long)(mine - globals.edicts) : -1L,
-                worker ? (LPCSTR)&worker->class_id : "????", mine ? (LPCSTR)&mine->class_id : "????",
-                worker && goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a')),
-                worker && mine && haunted_mine_valid_for(worker, mine));
-#endif
         return false;
     }
     if (S_GoldMineWorkerIsInside(worker) || S_CargoTransportForUnit(worker)) {
-#ifdef WC3_DEBUG_MINING
-        fprintf(stderr, "WC3_MINING acolyte-order rejected worker=%ld reason=%s\n",
-                (long)(worker - globals.edicts), S_GoldMineWorkerIsInside(worker) ? "inside-mine" : "cargo");
-#endif
         return false;
     }
 
@@ -1087,12 +1063,6 @@ BOOL S_AcolyteHarvestOrder(LPEDICT worker, LPEDICT mine) {
     worker->secondarygoal = mine;
     move_reset_progress(worker);
     unit_setmove(worker, &acolyte_harvest_move_walk);
-#ifdef WC3_DEBUG_MINING
-    fprintf(stderr, "WC3_MINING acolyte-order accepted worker=%ld mine=%ld goal=%ld move=%s\n",
-            (long)(worker - globals.edicts), (long)(mine - globals.edicts),
-            worker->goalentity ? (long)(worker->goalentity - globals.edicts) : -1L,
-            worker->currentmove ? worker->currentmove->animation : "<none>");
-#endif
     return true;
 }
 
