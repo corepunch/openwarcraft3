@@ -77,11 +77,39 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     VECTOR2 snapped;
     LPEDICT waypoint;
 
-    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player)) ||
-        G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE ||
-        G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) return false;
+    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING issue-build rejected reason=invalid-input builder=%ld building=%.4s\n",
+                builder ? (long)(builder - globals.edicts) : -1L, (LPCSTR)&building_id);
+#endif
+        return false;
+    }
+    if (G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING issue-build rejected reason=command-state builder=%ld building=%.4s\n",
+                (long)(builder - globals.edicts), (LPCSTR)&building_id);
+#endif
+        return false;
+    }
+    if (G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING issue-build rejected reason=placement builder=%ld building=%.4s requested=(%.1f,%.1f)\n",
+                (long)(builder - globals.edicts), (LPCSTR)&building_id, location->x, location->y);
+#endif
+        return false;
+    }
     waypoint = Waypoint_add(&snapped);
-    if (!waypoint) return false;
+    if (!waypoint) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING issue-build rejected reason=waypoint builder=%ld building=%.4s point=(%.1f,%.1f)\n",
+                (long)(builder - globals.edicts), (LPCSTR)&building_id, snapped.x, snapped.y);
+#endif
+        return false;
+    }
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING issue-build accepted builder=%ld building=%.4s point=(%.1f,%.1f)\n",
+            (long)(builder - globals.edicts), (LPCSTR)&building_id, snapped.x, snapped.y);
+#endif
     /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
     S_GoldMineReleaseWorker(builder);
     builder->goalentity = waypoint;
@@ -136,6 +164,7 @@ void build_build(LPEDICT ent) {
     buildPlacementResult_t placement;
     buildCommandState_t state;
     LPEDICT building;
+    LPEDICT build_on = NULL;
     DWORD building_id;
     BOOL construction_started = false;
     unitRace_t race;
@@ -196,6 +225,20 @@ void build_build(LPEDICT ent) {
      * its historical no-resource-cost behavior. */
     if (!G_BuildAllEnabled()) G_SetUnitFoodUsed(building, building->data.UnitBalance->foodUsed);
     ent->build_project = 0;
+
+    /* Build-on-mine structures retain the original Agld entity as the shared
+     * finite resource reservoir. Placement already proved the parent exists;
+     * bind before baking pathing so the hidden parent drops out as the overlay
+     * footprint becomes authoritative. */
+    if (!G_FindBuildOnTarget(building_id, &snapped, &build_on) ||
+        (build_on && (G_ActorHasSkill(building, "Agl2") || G_ActorHasSkill(building, "Abgm") ||
+                      G_ActorHasSkill(building, "Aegm")) &&
+         !S_MineOverlayBind(building, build_on))) {
+        G_FreeEdict(building);
+        G_RefundBuilding(client, building_id);
+        ent->stand(ent);
+        return;
+    }
 
     /* The structure blocks pathing as soon as construction starts. Bake its
      * authored footprint before relocating the worker so the egress search
@@ -265,24 +308,57 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     buildCommandState_t state;
     char reason[128];
 
-    if (!clent || !clent->client || !location || !clent->build_project) return false;
+    if (!clent || !clent->client || !location || !clent->build_project) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING build-click rejected reason=invalid-placement-state client=%ld\n",
+                clent ? (long)(clent - globals.edicts) : -1L);
+#endif
+        return false;
+    }
     builder = G_GetMainSelectedUnit(clent->client);
     owner = builder ? G_GetPlayerClientByNumber(builder->s.player) : NULL;
-    if (!owner || owner->ps.number != builder->s.player) return false;
+    if (!owner || owner->ps.number != builder->s.player) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING build-click rejected reason=invalid-owner client=%ld builder=%ld building=%.4s\n",
+                (long)(clent - globals.edicts), builder ? (long)(builder - globals.edicts) : -1L,
+                (LPCSTR)&clent->build_project);
+#endif
+        return false;
+    }
 
     state = G_GetBuildCommandState(owner, builder, clent->build_project, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING build-click rejected reason=command-state client=%ld builder=%ld building=%.4s state=%d text=%s\n",
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (LPCSTR)&clent->build_project,
+                state, reason[0] ? reason : "(none)");
+#endif
         G_BuildError(clent, reason[0] ? reason : "Unable to build that structure.");
         return false;
     }
     placement = G_EvaluateBuildPlacement(builder, clent->build_project, location, &snapped);
     if (placement != PLACE_OK) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING build-click rejected reason=placement client=%ld builder=%ld building=%.4s result=%d point=(%.1f,%.1f)\n",
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (LPCSTR)&clent->build_project,
+                placement, location->x, location->y);
+#endif
         G_BuildPlacementError(clent);
         return false;
     }
 
-    if (!G_IssueBuildOrder(builder, clent->build_project, &snapped)) return false;
+    if (!G_IssueBuildOrder(builder, clent->build_project, &snapped)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING build-click rejected reason=issue-order client=%ld builder=%ld building=%.4s\n",
+                (long)(clent - globals.edicts), (long)(builder - globals.edicts), (LPCSTR)&clent->build_project);
+#endif
+        return false;
+    }
     G_PlayUISoundForPlayer(clent, "PlaceBuildingDefault");
+    /* A successful point click consumes placement mode; leaving this callback
+     * armed after build_project is cleared makes later Select commands look
+     * like stale building placement. */
+    clent->client->menu.on_location_selected = NULL;
     G_ClearBuildPlacementCursor(clent);
     return true;
 }

@@ -1514,6 +1514,18 @@ TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
     T_EQ(gc->message_log.count, 0);
 }
 
+TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
+    LPGAMECLIENT gc = &game.clients[0];
+    EDICT ent = { .client = gc };
+
+    gc->ps.race = kPlayerRaceUndead;
+    G_ShowCommandErrorKey(&ent, "Blightringfull", "fallback");
+    T_STREQ(gc->message.text, "That gold mine can't support any more Acolytes.");
+
+    G_ShowCommandErrorKey(&ent, "Nofood", "fallback");
+    T_STREQ(gc->message.text, "Summon more Ziggurats to continue unit production.");
+}
+
 TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {
     LPGAMECLIENT gc = &game.clients[0];
     EDICT ent = { .client = gc };

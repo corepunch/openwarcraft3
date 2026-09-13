@@ -19,6 +19,7 @@ static BOOL unit_is_active_repair_move(LPEDICT self) {
 void unit_setmove(LPEDICT self, umove_t *move) {
     BOOL was_idle = G_UnitIsIdleWorker(self);
 
+
     /* buildwork.ability is staged before Repair switches from the worker's
      * existing stand/move behavior. Only an OLD Repair move means this
      * transition is actually leaving Repair; otherwise cancelling here erases
@@ -30,6 +31,12 @@ void unit_setmove(LPEDICT self, umove_t *move) {
     if (self->currentmove && self->currentmove->proc == CAbilityMilitia &&
         move->proc != CAbilityMilitia) {
         S_CancelMilitiaPairing(self);
+    }
+    /* Acolyte mine slots belong to the harvesting order and must be released
+     * when any other movement ability replaces it. */
+    if (self->currentmove && self->currentmove->proc == CAbilityAcolyteHarvest &&
+        move->proc != CAbilityAcolyteHarvest) {
+        S_AcolyteHarvestRelease(self);
     }
     /* A point-drop keeps the exact carried item separately from its waypoint.
      * Replacing that behavior must abandon the pending drop just like replacing

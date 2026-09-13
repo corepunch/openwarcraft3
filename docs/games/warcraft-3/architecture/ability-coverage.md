@@ -146,24 +146,24 @@ generic `Button` command path rather than by a registered ability code.
 | `Abtl` | Battle Stations | Partial | OpenRealm uses its data-driven AoE, busy-unit flag, and allowed unit type to choose the nearest eligible workers up to remaining cargo capacity; selected workers path to the Burrow and load on arrival. The bundled Warsmash source defines the order/error keys but has no `Abtl` implementation, so this auto-call flow is retail/data-derived rather than source-confirmed Warsmash behavior. Needs localized no-Peons command feedback and broader custom-map validation. |
 | `Astd` | Stand Down | Partial | Occupied Burrows synthesize the stock Stand Down command even when the unit ability list omits `Astd`; empty Burrows hide it. Activation first applies normal Stop semantics so any persistent Burrow attack/order is retired, then unloads all occupants through the shared unstuck/unpause path. Needs explicit reference-style remembered-resource Back-to-Work state and remaining presentation parity. |
 | `AEim` | Immolation | Stub | Toggle status exists; needs mana drain, periodic area damage, and caster buff art/rules. |
-| `Aenc` | Entangled mine cargo hold | TODO | Requires entangled mine cargo behavior. |
-| `Aent` | Entangle Gold Mine | TODO | Needs gold mine transform/ownership behavior and target checks. |
-| `Aegm` | Entangled Mine | TODO | Needs entangled mine simulation behavior. |
+| `Aenc` | Entangled mine cargo hold | Partial | Reuses generic cargo capacity/Smart boarding, hides+pauses loaded Wisps, rejects loading while the mine is under construction, and drives first-through-fifth occupancy animation tags. Needs remaining retail presentation/target-error verification. |
+| `Aent` | Entangle Gold Mine | Partial | Validates an ordinary live Gold Mine, spawns the authored UnitID overlay at the same location, hides/pauses the parent mine, and starts autonomous Night Elf construction without consuming a Wisp. Needs spell-effect/caster-state polish and localized failure feedback. |
+| `Aegm` | Entangled Mine | Partial | Uses `Aenc` cargo occupancy, Warsmash-style round-robin income slots, the parent mine's finite gold pool, direct player income, depletion death, Wisp ejection, and parent restoration. Needs remaining presentation parity. |
 | `Aeat` | Eat Tree | Partial | Tree target, self-heal, mana/cooldown, and tree removal exist. Needs rip/eat timing and buff art. |
 | `Ambt` | Moon Well | Partial | Manual friendly replenish restores life first and then mana from the well pool using authored DataB/DataA ratios. Needs autocast, night-only regeneration, and water-level presentation. |
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |
 | `ANfl` | Forked Lightning | Partial | Unit-target bounce spell; starts at the selected unit, applies constant authored `DataA` damage to up to `DataB` alive enemy targets, and selects subsequent unvisited targets within `Area`. Projectile presentation and exact retail target ordering remain. The test fixture marks synthetic targets with `SVF_MONSTER`. |
-| `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite resource depletion, waiting workers, inside-miner protection, and partial final trips are implemented; full variant/overlay behavior remains. |
-| `Agl2` | Overlayed Gold Mine | TODO | Needs overlay/minable mine variant. |
-| `Abgm` | Blighted Gold Mine | TODO | Needs undead mine variant. |
+| `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite depletion, waiting workers, inside-miner protection, partial final trips, WORK occupancy animation, and shared Haunted/Entangled parent-resource ownership are implemented. Remaining gaps are mostly feedback/presentation parity. |
+| `Agl2` | Overlayed Gold Mine | Partial | Shared parent-mine relationship keeps the underlying `Agld` entity as the sole finite resource pool, hides/pauses it while overlaid, and restores it on overlay death/removal. Exact visual/effect parity remains. |
+| `Abgm` | Blighted Gold Mine | Partial | Build-on-mine overlays retain the parent resource pool; fixed Acolyte ring slots, miner-count-dependent direct income, teardown, finite-gold deduction, and Warsmash-style persistent `EffectArt` at each ring slot are implemented. Exact retail effect/model presentation beyond those authored effects remains. |
 | `Abli` | Blight | TODO | Needs blight placement/spread and terrain interaction. |
-| `Aaha` | Acolyte Harvest | TODO | Needs undead gold harvesting behavior. |
+| `Aaha` | Acolyte Harvest | Partial | Gather/Smart orders walk to an owned completed Haunted Mine, claim the nearest free authored ring slot, remain visible in Stand Work, unregister on retask/death/removal, and use Warcraft `CommandStrings` keys for wrong-owner/wrong-target/full-ring feedback. Remaining gaps are minor presentation/edge-case parity. |
 | `Artn` | Return Resources | Partial | Drop-off eligibility is ability-driven (`Argd`/`Arlm`/`Argl` plus `Artn`-derived data), with nearest compatible selection, destroyed-target retargeting, explicit Smart-click return, and no-target return through the worker Harvest command; carried-resource state still lives in the harvest state machines. |
 | `Ahar` | Harvest | Partial | Human worker harvest/return gameplay exists, including capacity clamping and same-forest resume after a dead remembered tree, but not as the same split data model as the ability data; command-card art/text does not yet model the carried-state presentation separately. |
 | `Awha` | Wisp Harvest | TODO | Needs wisp-specific gather behavior. |
-| `Ahrl` | Harvest Lumber | Partial | Local lumber harvest is under `Ahar`; `Ahrl` is not registered. |
+| `Ahrl` | Harvest Lumber | Partial | Shares the lumber harvest/return state machine with `Ahar`, but remains lumber-only: Smart, the Harvest command, and `autoharvestlumber` target trees; `DataA`/`DataB`/`Rng`/`Dur` are resolved from the worker's actual `Ahrl` (including derived aliases), and gold mining is rejected. Remaining parity is mostly exact target-error/presentation behavior and Undead tree-blight marking. |
 | `ANcl` | Channel test | Stub | Opens cancel mode as a generic channel scaffold. |
 | `AUcs` | Carrion Swarm dummy | Partial | Simple point-area enemy damage exists. Needs missile/line travel and art. |
 | `AInv` | Inventory | Partial | Inventory storage and item use exist, but no `AInv` ability type/capacity/drop rules. |
@@ -207,7 +207,7 @@ generic `Button` command path rather than by a registered ability code.
    implementation with target validation and healing.
 4. Add no-target summon spells (`AHwe`, `AOsf`) once timed-life units are
    available.
-5. Finish Repair target-category coverage and destructible/naval behavior, expand generic autocast beyond Repair's nearest-valid policy, and then generalize remaining harvest variants (`Ahrl`, `Awha`, `Aaha`).
+5. Finish Repair target-category coverage and destructible/naval behavior, expand generic autocast beyond Repair's nearest-valid policy, and then generalize the remaining Wisp harvest variant (`Awha`).
 6. Defer cargo, shops, inventory item modifiers, root/entangle mine, and passive
    autocast abilities until the underlying status, item, and transform systems
    exist.

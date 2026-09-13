@@ -140,6 +140,9 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     /* Construction owns Repair workers and a self-linked HUD queue marker.
      * Tear that state down before generic production/revival death cleanup. */
     if (self->construction.active) G_StopConstruction(self);
+    if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
+    if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
+    S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
@@ -488,19 +491,22 @@ static BOOL unit_issuetargetorder_now(LPEDICT self, LPCSTR order, LPEDICT target
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
         }
-        if (G_ActorHasSkill(self, "Ahar")) {
-            if (S_GoldMineIsMine(target)) {
-                return harvest_gold_order(self, target);
-            }
-            if (target->targtype == TARG_TREE) {
-                harvest_start(self, target);
-                return true;
-            }
-            if (self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
-                return true;
-            if (self->harvested_gold > 0 && harvest_gold_return_to(self, target))
-                return true;
+        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
+            return S_AcolyteHarvestOrder(self, target);
         }
+        if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
+            return harvest_gold_order(self, target);
+        }
+        if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE) {
+            harvest_start(self, target);
+            return true;
+        }
+        if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
+            self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
+            return true;
+        if ((S_HarvestCanLumber(self) || S_HarvestCanGold(self)) &&
+            self->harvested_gold > 0 && harvest_gold_return_to(self, target))
+            return true;
         /* Smart/right-click only force-attacks ordinary breakable debris.
          * Other destructable classes require the explicit Attack command, and
          * every destructable must be allowed by the unit weapon target mask. */
@@ -574,14 +580,27 @@ static BOOL unit_issueorder_now(LPEDICT self, LPCSTR order, LPCVECTOR2 point, FL
 
 BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
                             BOOL queue, DWORD issuer_player) {
-    if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) return false;
-    if (M_IsDead(self)) return false;
+    if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
+        return false;
+    }
+    if (M_IsDead(self)) {
+        return false;
+    }
     /* Rally is producer metadata rather than an interruptible unit behavior. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         if (!queue) G_ClearUnitOrderQueue(self);
         return G_SetRallyEntity(self, target);
     }
-    if (S_GoldMineWorkerIsInside(self)) return false;
+    if (S_GoldMineWorkerIsInside(self)) {
+        return false;
+    }
+    if (!strcmp(order, "harvest")) {
+        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
+            return S_AcolyteHarvestOrder(self, target);
+        if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+            return harvest_gold_order(self, target);
+        return false;
+    }
     {
         DWORD const spell_code = unit_spell_code_for_order(self, order);
         if (spell_code) {
@@ -597,7 +616,9 @@ BOOL G_IssueUnitTargetOrder(LPEDICT self, LPCSTR order, LPEDICT target,
         }
     }
     if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
-        strcmp(order, "repair") && strcmp(order, "militia") && strcmp(order, "militiaoff")) return false;
+        strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
+        return false;
+    }
 
     if (queue && unit_has_active_order(self)) {
         BOOL const accepted = unit_queue_push(self, order, UNIT_ORDER_TARGET_ENTITY, NULL, target,

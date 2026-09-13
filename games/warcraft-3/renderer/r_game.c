@@ -66,6 +66,83 @@ typedef struct {
 
 static model_texture_cache_t model_texture_cache = { 0 };
 
+typedef struct {
+    LPMODEL model;
+    PATHSTR path;
+} wc3AttachmentModel_t;
+
+static wc3AttachmentModel_t wc3_attachment_models[32];
+static DWORD wc3_attachment_model_count;
+
+/* Cache authored MDX attachment children because they can be visited every frame while a unit animates. */
+static LPMODEL R_W3AttachmentModel(LPCSTR path) {
+    if (!path || !*path) return NULL;
+    FOR_LOOP(i, wc3_attachment_model_count)
+        if (!strcasecmp(wc3_attachment_models[i].path, path)) return wc3_attachment_models[i].model;
+    if (wc3_attachment_model_count >= sizeof(wc3_attachment_models) / sizeof(*wc3_attachment_models)) {
+        fprintf(stderr, "WC3 renderer: attachment model cache full for %s\n", path);
+        return NULL;
+    }
+    wc3_attachment_models[wc3_attachment_model_count].model = R_LoadRegisteredModel(path);
+    if (!wc3_attachment_models[wc3_attachment_model_count].model ||
+        wc3_attachment_models[wc3_attachment_model_count].model->modeltype != ID_MDLX) {
+        fprintf(stderr, "WC3 renderer: unable to load MDX attachment model %s\n", path);
+        wc3_attachment_models[wc3_attachment_model_count].model = NULL;
+    }
+    strlcpy(wc3_attachment_models[wc3_attachment_model_count].path, path,
+            sizeof(wc3_attachment_models[wc3_attachment_model_count].path));
+    wc3_attachment_model_count++;
+    return wc3_attachment_models[wc3_attachment_model_count - 1].model;
+}
+
+static mdxSequence_t const *R_W3AttachmentSequence(mdxModel_t const *model, LPCSTR name) {
+    mdxSequence_t const *seq;
+    if (!model || !name) return NULL;
+    seq = MDLX_FindSequenceByName(model, name);
+    if (seq) return seq;
+    FOR_LOOP(i, model->num_sequences)
+        if (!strcasecmp(model->sequences[i].name, name)) return &model->sequences[i];
+    return NULL;
+}
+
+/* Map the parent's authored Birth progress into a child Birth sequence with independent timing. */
+static DWORD R_W3AttachmentFrame(mdxModel_t const *parent, mdxModel_t const *child, DWORD frame) {
+    mdxSequence_t const *src = R_W3AttachmentSequence(parent, "Birth");
+    mdxSequence_t const *dst = R_W3AttachmentSequence(child, "Birth");
+    FLOAT ratio;
+    DWORD span;
+
+    if (!src || !dst) return frame;
+    span = MAX(1, src->interval[1] - src->interval[0]);
+    ratio = MAX(0.0f, MIN(1.0f, (FLOAT)(frame - src->interval[0]) / (FLOAT)span));
+    span = MAX(1, dst->interval[1] - dst->interval[0]);
+    return dst->interval[0] + MIN(span - 1, (DWORD)(ratio * (FLOAT)span));
+}
+
+static void R_W3RenderAttachmentModels(renderEntity_t const *entity, LPCMATRIX4 transform) {
+    mdxAttachmentPosition_t attachments[32];
+    DWORD count;
+
+    if (!entity || !entity->model || !entity->model->mdx || !transform) return;
+    count = MDLX_CollectAttachmentPositions(entity->model->mdx, transform, entity->frame,
+                                             entity->oldframe, NULL, attachments,
+                                             sizeof(attachments) / sizeof(*attachments));
+    FOR_LOOP(i, count) {
+        renderEntity_t child = *entity;
+        LPMODEL model;
+
+        if (!attachments[i].path[0]) continue;
+        model = R_W3AttachmentModel(attachments[i].path);
+        if (!model) continue;
+        child.model = model;
+        child.effect_model = NULL;
+        child.frame = R_W3AttachmentFrame(entity->model->mdx, model->mdx, entity->frame);
+        child.oldframe = R_W3AttachmentFrame(entity->model->mdx, model->mdx, entity->oldframe);
+        child.flags |= RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_UBERSPLAT;
+        MDX_RenderModel(&child, model->mdx, &attachments[i].transform);
+    }
+}
+
 static BOOL R_W3PathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
     size_t extLen;
@@ -121,6 +198,8 @@ void R_Shutdown(void) {
     memset(&preview, 0, sizeof(preview));
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
+    memset(wc3_attachment_models, 0, sizeof(wc3_attachment_models));
+    wc3_attachment_model_count = 0;
     FS_SLKFreeIndex(&g_terrain_idx);
     FS_SLKFreeRows(terrain_schema, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
     g_terrain_rows = NULL; g_terrain_count = 0;
@@ -415,6 +494,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
     R_GetEntityMatrix(entity, &transform);
     MDX_RenderModel(entity, entity->model->mdx, &transform);
+    R_W3RenderAttachmentModels(entity, &transform);
 
     if ((entity->effect_flags & EFX_MODEL) && (entity->effect_flags & EFX_ATTACH_SLOTS) &&
         entity->effect_model && tr.render_phase != RENDER_PHASE_LIGHTS) {

@@ -168,6 +168,5 @@ BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
  * Ubertip="This unit cannot be damaged."
  */
 
-/* Harvest Lumber and Couple Instant: non-spell abilities with stub command handlers. */
-BZ_COMMAND_PROC(AbilityHarvestLumber) { UI_AddCancelButton(clent); }
+/* Couple Instant remains a non-spell ability with a stub command handler. */
 BZ_COMMAND_PROC(AbilityCoupleInstant) { UI_AddCancelButton(clent); }

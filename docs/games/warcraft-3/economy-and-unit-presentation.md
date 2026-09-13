@@ -2,12 +2,13 @@
 
 ## Gathering Contract
 
-`unit_issuetargetorder(..., "smart", target)` routes workers with `Ahar` to gold or lumber in `m_unit.c`.
+`unit_issuetargetorder(..., "smart", target)` routes `Ahar` workers to gold or lumber and `Ahrl` workers (stock Ghouls) to lumber only in `m_unit.c`.
 The same Smart resolver is also the post-production action layer for producer Rally; Rally stores a target but does not duplicate harvest/repair/item logic. See [rally-points.md](rally-points.md).
-The Gather command reaches the same state machines through `harvest_menu_selecttarget`.
+The Gather command reaches the same state machines through `harvest_menu_selecttarget`; `Ahrl` has its own tree-only target callback but enters the same lumber walk/chop/return behavior.
 
 - Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.
 - Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree. Successful chops clamp carried lumber to `HARVEST_LUMBER_CAPACITY`; a tree that cannot take damage (for example an invulnerable destructible) does not award lumber.
+  `Ahrl` resolves its own authored `DataA` tree damage, `DataB` lumber capacity, cast range, and duration from the harvesting unit rather than inheriting process-global `Ahar` tuning; like Warsmash's `CAbilityTypeHarvestLumber`, its gold capacity is zero.
 - Carried resources are mutually exclusive presentation/gameplay state: collecting gold clears stale carried lumber and its `RF_HAS_LUMBER` tag; collecting lumber clears stale carried gold and `RF_HAS_GOLD`. Depositing clears both carry counters/tags, so a worker carrying nothing uses its ordinary animation set rather than retaining a lumber/gold carry model.
 - Smart/right-click resource switching preserves the current carry until the replacement resource is actually collected. With no carry, a tree starts lumber harvesting and a Gold Mine starts mining. Partial lumber plus a tree resumes that lumber trip; partial lumber plus a Gold Mine keeps the lumber while approaching/mining and replaces it only when gold is obtained. Gold plus a tree keeps the gold while approaching and replaces it only on the first successful chop. Gold plus a Gold Mine first approaches the clicked mine; on reaching its interaction boundary the worker does not mine another load, returns the existing gold to the nearest valid gold drop-off, then resumes the clicked mine after deposit.
 - If an explicitly clicked live tree is buried behind other trees, routing remains responsible only for reaching the best legal approach.  Once that route is exhausted outside `HARVEST_RANGE`, Harvest selects a reachable replacement tree and continues lumber work, matching retail behavior.  See [WC3 Pathfinding And Harvest Reachability](pathfinding.md).
@@ -26,8 +27,8 @@ worker+mine collision+step formula remains a fallback when no path texture is av
 Gold-mine tuning is no longer copied into process-wide globals. `s_goldmine.c` resolves the mine entity's own `UnitAbilities.slk`
 list, follows `AbilityData.slk:code` to the `Agld` base ability, and reads Data1/Data2/Data3 as maximum gold, mining duration, and
 internal mining capacity. This is required for custom maps where two `Agld`-derived abilities can configure different capacities or
-durations in the same simulation. `Agl2` remains a separate marker until its overlay behavior is implemented; it cannot overwrite
-`Agld` mining data.
+durations in the same simulation. Racial mine overlays do not copy those values: the hidden original `Agld` entity remains the sole
+finite resource reservoir and `Agl2` records only the overlay/parent relationship.
 
 ### Gold Mine Capacity And Occupancy
 
@@ -48,6 +49,36 @@ ability's maximum-gold field; map/JASS `SetResourceAmount` can then override tha
 `min(mine->resources, HARVEST_GOLD_CAPACITY)` to the worker and subtracts exactly that amount from the mine. A partial final trip is
 therefore possible. When the remaining amount reaches zero, the mine enters its death/depleted state before waiting workers are
 woken, so none can enter an empty mine. A worker that deposits the final trip does not resume walking back to the depleted mine.
+
+### Race-Specific Gold Mining
+
+Human and Orc workers use the conventional carry/return state machine above. Entering the mine increments `peonsinside`, hides and
+temporarily protects the worker, and now adds the mine's `work` animation property while at least one worker is inside. The last exit
+removes that property.
+
+Undead and Night Elf gold mining deliberately do **not** reuse that state machine. `edict.mineoverlay` points from a Haunted or
+Entangled Mine to the original live `Agld` entity and stores the parent's spawn generation. Binding an overlay hides and pauses the
+parent; destroying/removing the overlay restores and relinks it. The parent `resources` value remains authoritative for JASS resource
+amounts and for both racial income paths. Build-on-mine Undead structures acquire this parent from the same placement lookup that
+validated `UnitData.isBuildOn`. Save format 21 persists the parent relationship.
+
+`Aaha` Acolytes target completed same-owner `Abgm` mines. `Abgm` DataC supplies the maximum miner count and DataD the mining-ring
+radius. Slots are evenly distributed at `(2*pi/N)*slot + pi/2`; an arriving Acolyte claims the nearest free slot, snaps to it, remains
+visible in `stand work`, and stores the mine pointer/spawn generation plus slot on the worker. Replacing the harvest behavior, worker
+death/removal, or mine teardown releases that relationship. The Haunted Mine scans those active relationships for income. DataA is
+gold per interval and DataB is the base interval; to match current Warsmash source the interval multiplier uses integer division
+`maxMiners / activeMiners`. Income is credited directly by the mine and deducted from the parent's finite `resources`; zero miners
+produce nothing, and exhausting the parent stops Haunted income without automatically killing the Haunted structure.
+
+`Aent` now creates the authored resulting UnitID as a distinct overlay instead of transferring ownership of the neutral mine. The
+original mine is hidden/paused, the new structure begins the existing autonomous Night Elf construction clock without a construction
+Wisp, and `Aegm` becomes active after completion. Entangled mining reuses generic `Aenc` cargo: Smart boarding hides/pauses Wisps and
+cargo teardown restores them. DataA is gold per payout and DataB the interval. Each interval advances
+`active_interval_index = (index + 1) % capacity` before testing occupancy; a payout occurs only when that index is below the current
+cargo count. This reproduces Warsmash's proportional five-slot cadence without a second worker list. Parent depletion kills the
+Entangled overlay; ordinary death teardown unloads its Wisps and restores the original depleted mine.
+
+Haunted Mines now create the Warsmash-style persistent ability `EffectArt` at each authored Acolyte ring slot, using the same radial angle as the slot itself; teardown removes those components through the normal effect death path. Acolyte targeting/full-ring failures use the Warcraft `Targetblightedmine`, `Nototherplayersmine`, and `Blightringfull` command-error keys so mounted `CommandStrings` and race-skin sound data own their presentation. Remaining mine gaps are primarily Entangle cast/icon polish and broader retail visual verification. Wisp lumber (`Awha`) is still a separate gap.
 
 ### Resource Return Drop-Offs
 
@@ -71,17 +102,17 @@ Hall for lumber return and wins when it is geometrically closer, while a Lumber 
 
 Return completion is footprint-aware for buildings that expose an authored pathing texture. The worker deposits when its collision radius plus one simulation step reaches the building's no-walk footprint; the older worker+building collision+step test remains the fallback when no path texture is available. This prevents a Peasant carrying gold from stopping at a Town Hall corner while still outside the scalar centre-circle threshold. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off. If none exists, the worker stands while preserving the carried resource and carry visual.
 
-A worker carrying lumber or gold may explicitly Smart/right-click a compatible return building; that exact clicked building becomes the initial return target rather than being replaced immediately by the nearest candidate. Activating the stock worker `Ahar` command while the main selected worker is carrying resources performs the same no-target Return Resources action instead of entering Harvest target-selection mode. While any targeted command callback is armed, a Smart/right-click command cancels that target mode and restores the normal command card before considering movement or an entity Smart order. This prevents a later left-click from being consumed by a stale Harvest callback and retasking the worker group that originally entered target mode.
+A worker carrying lumber or gold may explicitly Smart/right-click a compatible return building; that exact clicked building becomes the initial return target rather than being replaced immediately by the nearest candidate. Activating the stock worker `Ahar` command while the main selected worker is carrying resources performs the same no-target Return Resources action instead of entering Harvest target-selection mode. `Ahrl` follows the same toggle for carried lumber, but remains tree-only when empty. While any targeted command callback is armed, a Smart/right-click command cancels that target mode and restores the normal command card before considering movement or an entity Smart order. This prevents a later left-click from being consumed by a stale Harvest callback and retasking the worker group that originally entered target mode.
 
 ### Gather / Return Resources Command Button
 
 Warsmash models `CAbilityHarvest` as one toggled ability rather than two unrelated command-card abilities. `isToggleOn()` is true exactly when the carried-resource amount is positive; while false the command uses the ordinary `Art`, `Buttonpos`, `Tip`, `Ubertip`, and `Hotkey` fields and the Harvest base order, while true the command card uses `Unart`, `UnButtonpos`, `Untip`, `Unubertip`, and `Unhotkey` and the no-target Return Resources base order (`852020`). The resource type does not choose the UI state: carried gold and carried lumber both select the same Return Resources presentation.
 
-OpenRealm mirrors that ownership without adding a second visible `Artn` button. `ability_t::is_toggle_on` exposes dynamic ability presentation to `G_BuildCommandButton()`; `Ahar` reports true when either `edict_t::harvested_gold` or `edict_t::harvested_lumber` is positive. The button keeps `Ahar` as its client command string so `CMD_Button` continues through the existing authoritative Harvest handler, which dispatches to no-target return while carrying. `Artn` remains the base handler/capability used by resource-return structures and aliases rather than becoming a second Peasant command-card entry.
+OpenRealm mirrors that ownership without adding a second visible `Artn` button. `ability_t::is_toggle_on` exposes dynamic ability presentation to `G_BuildCommandButton()`; `Ahar` reports true when either `edict_t::harvested_gold` or `edict_t::harvested_lumber` is positive, while `Ahrl` reports the same carried-state toggle for its lumber-only worker. Each button keeps its authored ability alias as the client command string, and both authoritative Harvest handlers dispatch to no-target return while carrying. `Artn` remains the base handler/capability used by resource-return structures and aliases rather than becoming a second Peasant command-card entry.
 
 `S_SetCarriedResource()` is the transition owner for the two carry counters and `RF_HAS_GOLD`/`RF_HAS_LUMBER`. When its empty/non-empty state flips for a selected worker, it invalidates that viewer's command card so the next server-frame refresh changes Gather to Return Resources after the first resource is acquired and changes it back after deposit. Increasing a positive carried amount or switching directly between positive lumber/gold amounts does not force a redundant command-card rebuild because the toggle state is unchanged.
 
-The in-engine regression coverage is `wc3_movement.harvest_command_button_toggles_to_return_resources_ui` plus `wc3_movement.carried_resource_toggle_invalidates_selected_command_card`. Their synthetic WC3 ability UI data lives at the real archive paths `Units/HumanAbilityFunc.txt` and `Units/HumanAbilityStrings.txt` under `games/warcraft-3/tests/resources-src`, per the fixture rules in `CONTRIBUTING.md`.
+The in-engine regression coverage includes `wc3_movement.harvest_command_button_toggles_to_return_resources_ui`, `wc3_movement.carried_resource_toggle_invalidates_selected_command_card`, `wc3_movement.ghoul_ahrl_smart_uses_lumber_only_harvest_data`, and `wc3_movement.ghoul_ahrl_command_targets_tree_and_autoharvests_lumber`. Their synthetic WC3 ability UI data lives at the real archive paths `Units/HumanAbilityFunc.txt` and `Units/HumanAbilityStrings.txt` under `games/warcraft-3/tests/resources-src`, per the fixture rules in `CONTRIBUTING.md`.
 
 ### Target Mode And Worker Selection
 

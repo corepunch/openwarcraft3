@@ -162,7 +162,9 @@ typedef struct mdxAttachment_s {
 
 typedef struct mdxAttachmentPosition_s {
     LPCSTR name;
+    LPCSTR path;
     VECTOR3 origin;
+    MATRIX4 transform;
 } mdxAttachmentPosition_t;
 
 typedef enum {

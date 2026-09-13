@@ -292,7 +292,9 @@ DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_
             local = Matrix4_multiply_vector3(&node_matrices[node->node_id], &pivot);
         }
         positions[count].name = node->name;
+        positions[count].path = attachment->path;
         positions[count].origin = Matrix4_multiply_vector3(model_matrix, &local);
+        Matrix4_multiply(model_matrix, &node_matrices[node->node_id], &positions[count].transform);
         count++;
         if (count == max_positions) {
             break;

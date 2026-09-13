@@ -4,7 +4,7 @@
 #define WC3_BUILD_GRID_SIZE 64.0f
 #define WC3_BUILD_START_LIFE 0.10f
 #define WC3_BUILD_CANCEL_REFUND_PERCENT 75 // percent; base construction-cancel refund
-#define WC3_UNDEAD_BUILD_WORK_MS 2267 // Warsmash CBehaviorUndeadBuild summon-work window
+#define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
@@ -646,17 +646,28 @@ static BOOL G_PathCellUsed(pathTex_t const *pathtex, DWORD x, DWORD y) {
     return pathtex->map[x + y * pathtex->width].b != 0;
 }
 
-static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
+BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
     FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->data.UnitData->canBuildOn) {
-        if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_CELL_SIZE &&
-            fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_CELL_SIZE) {
+        /* Build-on targets may be off the placement lattice; accept the whole
+         * snap cell so clicking a mine does not fail after the ghost moves. */
+        if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_GRID_SIZE &&
+            fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_GRID_SIZE) {
             if (out) *out = ent;
+#ifdef WC3_DEBUG_MINING
+            fprintf(stderr, "WC3_MINING build-target building=%.4s parent=%ld id=%.4s parent=(%.1f,%.1f) point=(%.1f,%.1f)\n",
+                    (LPCSTR)&building_id, (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                    ent->s.origin2.x, ent->s.origin2.y, point->x, point->y);
+#endif
             return true;
         }
     }
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING build-target-missing building=%.4s point=(%.1f,%.1f)\n",
+            (LPCSTR)&building_id, point ? point->x : 0.0f, point ? point->y : 0.0f);
+#endif
     return false;
 }
 
@@ -734,15 +745,34 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     BOX2 footprint;
     VECTOR2 point;
 
-    if (!requested || !G_UnitIsBuilding(building_id)) return PLACE_INVALID_BUILDING;
+    if (!requested || !G_UnitIsBuilding(building_id)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=invalid-building building=%.4s\n",
+                PLACE_INVALID_BUILDING, (LPCSTR)&building_id);
+#endif
+        return PLACE_INVALID_BUILDING;
+    }
     G_GetBuildPlacementPathingFlags(building_id, &prevented, &required);
     point = *requested;
     G_SnapBuildingPoint(building_id, &point);
-    if (snapped) *snapped = point;
 
-    if (!G_FindBuildOnTarget(building_id, &point, &build_on)) return PLACE_REQUIRED_PARENT_MISSING;
+    if (!G_FindBuildOnTarget(building_id, &point, &build_on)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=parent-missing building=%.4s requested=(%.1f,%.1f) snapped=(%.1f,%.1f)\n",
+                PLACE_REQUIRED_PARENT_MISSING, (LPCSTR)&building_id, requested->x, requested->y, point.x, point.y);
+#endif
+        return PLACE_REQUIRED_PARENT_MISSING;
+    }
+    /* Build-on structures inherit the parent's authored center; the grid is
+     * only for cursor placement and must not offset the mine overlay. */
+    if (build_on) point = build_on->s.origin2;
+    if (snapped) *snapped = point;
     pathtex = M_LoadPathTex(data->pathingTexture);
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
+ #ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=pathing-texture building=%.4s point=(%.1f,%.1f)\n",
+                PLACE_INVALID_BUILDING, (LPCSTR)&building_id, point.x, point.y);
+ #endif
         return PLACE_INVALID_BUILDING;
     }
     if (pathtex) {
@@ -764,21 +794,45 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
                 sample.y = point.y + ((FLOAT)y + 0.5f - (FLOAT)height * 0.5f) * WC3_BUILD_CELL_SIZE;
                 if (!CM_GetPathingFlagsAt(&sample, &flags)) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=out-of-bounds building=%.4s sample=(%.1f,%.1f)\n",
+                            PLACE_OUT_OF_BOUNDS, (LPCSTR)&building_id, sample.x, sample.y);
+ #endif
                     return PLACE_OUT_OF_BOUNDS;
                 }
                 if (flags & prevented) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",
+                            PLACE_TERRAIN_BLOCKED, (LPCSTR)&building_id, sample.x, sample.y, flags, prevented);
+ #endif
                     return PLACE_TERRAIN_BLOCKED;
                 }
                 if ((flags & required) != required) {
                     if (pathtex) gi.MemFree(pathtex);
+ #ifdef WC3_DEBUG_MINING
+                    fprintf(stderr, "WC3_MINING placement result=%d reason=required-pathing building=%.4s sample=(%.1f,%.1f) flags=0x%x required=0x%x\n",
+                            PLACE_REQUIRED_PATHING_MISSING, (LPCSTR)&building_id, sample.x, sample.y, flags, required);
+ #endif
                     return PLACE_REQUIRED_PATHING_MISSING;
                 }
             }
         }
     }
     if (pathtex) gi.MemFree(pathtex);
-    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) return PLACE_UNIT_BLOCKED;
+    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING placement result=%d reason=unit-blocked building=%.4s point=(%.1f,%.1f) parent=%ld\n",
+                PLACE_UNIT_BLOCKED, (LPCSTR)&building_id, point.x, point.y,
+                build_on ? (long)(build_on - globals.edicts) : -1L);
+#endif
+        return PLACE_UNIT_BLOCKED;
+    }
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING placement result=%d reason=ok building=%.4s point=(%.1f,%.1f) parent=%ld\n",
+            PLACE_OK, (LPCSTR)&building_id, point.x, point.y,
+            build_on ? (long)(build_on - globals.edicts) : -1L);
+#endif
     return PLACE_OK;
 }
 
@@ -836,11 +890,10 @@ static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
     return false;
 }
 
-static BOOL G_StartConstruction(LPEDICT builder, LPEDICT building,
-                                constructionType_t type, BOOL paused) {
+static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL paused) {
     edictStat_s *hp;
 
-    if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
+    if (!building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
     building->construction.paused = paused;
@@ -885,26 +938,26 @@ static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL in
 }
 
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
     building->construction.primary_builder = builder;
     return true;
 }
 
 BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_ORC, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
 BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
 BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
-    if (!G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
         building->construction.consumes_worker = true;
@@ -913,6 +966,12 @@ BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
         G_SetUnitFoodUsed(builder, 0);
     }
     return true;
+}
+
+/* Entangle Gold Mine creates a Night Elf building without consuming/owning a
+ * Wisp. It still uses the same authoritative autonomous construction clock. */
+BOOL G_StartNightElfOverlayConstruction(LPEDICT building) {
+    return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
 }
 
 static LPEDICT G_ConstructionWorker(LPEDICT building) {

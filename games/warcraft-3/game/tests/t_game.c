@@ -2976,12 +2976,53 @@ TEST(wc3_save, construction_payment_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, racial_gold_mine_state_round_trip) {
+    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-racial-gold-mine.bin";
+    LPEDICT parent, overlay, acolyte;
+
+    reset_entities();
+    parent = alloc_test_unit(MAKEFOURCC('n', 'g', 'o', 'l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
+    acolyte = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
+    parent->resources = 7777;
+    overlay->mineoverlay.parent = parent;
+    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay.income_time = 12345;
+    overlay->mineoverlay.active_interval_index = 3;
+    acolyte->acolyte_mine.mine = overlay;
+    acolyte->acolyte_mine.mine_spawn_time = overlay->spawn_time;
+    acolyte->acolyte_mine.slot = 4;
+
+    T_ASSERT(WriteGame(filename));
+    overlay->mineoverlay.parent = NULL;
+    overlay->mineoverlay.parent_spawn_time = 0;
+    overlay->mineoverlay.income_time = 0;
+    overlay->mineoverlay.active_interval_index = 0;
+    acolyte->acolyte_mine.mine = NULL;
+    acolyte->acolyte_mine.mine_spawn_time = 0;
+    acolyte->acolyte_mine.slot = -1;
+    parent->resources = 0;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(overlay->mineoverlay.parent == parent);
+    T_EQ(overlay->mineoverlay.parent_spawn_time, parent->spawn_time);
+    T_EQ(overlay->mineoverlay.income_time, 12345);
+    T_EQ(overlay->mineoverlay.active_interval_index, 3);
+    T_ASSERT(acolyte->acolyte_mine.mine == overlay);
+    T_EQ(acolyte->acolyte_mine.mine_spawn_time, overlay->spawn_time);
+    T_EQ(acolyte->acolyte_mine.slot, 4);
+    T_EQ(parent->resources, 7777);
+    remove(filename);
+}
+
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction.worker", construction.worker, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally.entity", rally.entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival.producer", revival.producer, 0)
 SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", revival.queue_next, 0)
 SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay.parent", mineoverlay.parent, 0)
+SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine.mine", acolyte_mine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
 SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_CARGO)
 SAVE_PTR_FIELD_TEST(field_item_carrier_round_trip, "item.carrier", item.carrier, 0)

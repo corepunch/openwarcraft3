@@ -917,6 +917,11 @@ DWORD IssueTargetOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
+
+    /* The numeric argument is an order id, not a unit rawcode. Build-on-mine
+     * placement uses IssueBuildOrderById; routing this API through the build
+     * path misclassifies an unrelated order whose integer happens to match a
+     * building rawcode. */
     return jass_pushboolean(j, unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget));
 }
 DWORD IssueInstantTargetOrder(LPJASS j) {
@@ -934,23 +939,21 @@ DWORD IssueInstantTargetOrderById(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IssueBuildOrder(LPJASS j) {
-    //HANDLE whichPeon = jass_checkhandle(j, 1, "unit");
-    //LPCSTR unitToBuild = jass_checkstring(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
     return jass_pushboolean(j, 0);
 }
 DWORD IssueBuildOrderById(LPJASS j) {
     LPEDICT whichPeon = jass_checkhandle(j, 1, "unit");
     DWORD unitId = (DWORD)jass_checkinteger(j, 2);
     VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    BOOL accepted;
 
-    return jass_pushboolean(j, G_IssueBuildOrder(whichPeon, unitId, &point));
+    accepted = G_IssueBuildOrder(whichPeon, unitId, &point);
+    return jass_pushboolean(j, accepted);
 }
 DWORD SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG amount = jass_checkinteger(j, 2);
-    if (whichUnit) whichUnit->resources = amount;
+    if (whichUnit) S_GoldMineSetResourceAmount(whichUnit, MAX(0, amount));
     return 0;
 }
 DWORD AddResourceAmount(LPJASS j) {
@@ -1063,9 +1066,12 @@ DWORD CreateCorpse(LPJASS j) {
     return jass_pushnullhandle(j, "unit");
 }
 DWORD CreateBlightedGoldmine(LPJASS j) {
-    //HANDLE id = jass_checkhandle(j, 1, "player");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT face = jass_checknumber(j, 4);
-    return jass_pushnullhandle(j, "unit");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    VECTOR2 origin = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    FLOAT facing = jass_checknumber(j, 4);
+    LPEDICT mine;
+
+    if (!player || !(mine = S_CreateBlightedGoldmine(PLAYER_NUM(player), &origin, facing)))
+        return jass_pushnullhandle(j, "unit");
+    return jass_pushlighthandle(j, mine, "unit");
 }
