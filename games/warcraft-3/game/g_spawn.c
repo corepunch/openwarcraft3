@@ -708,7 +708,8 @@ void G_SpawnEntities(void) {
     level.started = true;
 }
  
-LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+/* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */
+static LPEDICT SP_SpawnAtLocationInternal(DWORD class_id, DWORD player, LPCVECTOR2 location, BOOL play_birth) {
     LPEDICT ent = G_Spawn();
     LPGAMECLIENT client;
     if (!ent) {
@@ -733,7 +734,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     if (G_UnitIsHero(ent)) {
         G_HeroInitializeProgression(ent);
     }
-    if (ent->birth) {
+    if (play_birth && ent->birth) {
         ent->birth(ent);
     }
     client = G_GetPlayerClientByNumber(player);
@@ -742,6 +743,14 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
         G_InvalidateUnitShortcutsForUnit(ent);
     }
     return ent;
+}
+
+LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+    return SP_SpawnAtLocationInternal(class_id, player, location, true);
+}
+
+LPEDICT SP_SpawnAtLocationNoBirth(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+    return SP_SpawnAtLocationInternal(class_id, player, location, false);
 }
 
 static BOOL bind_map_destructables = false;

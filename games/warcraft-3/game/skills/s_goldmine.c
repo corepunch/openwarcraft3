@@ -710,7 +710,9 @@ void S_MineOverlayBindPreplaced(void) {
             S_MineOverlayBind(overlay, best);
             continue;
         }
-        best = SP_SpawnAtLocation(MAKEFOURCC('n','g','o','l'), PLAYER_NEUTRAL_PASSIVE, &overlay->s.origin2);
+        /* Retail's pre-placed parent is already in its stand state; creating the
+         * missing map parent must not replay its birth animation. */
+        best = SP_SpawnAtLocationNoBirth(MAKEFOURCC('n','g','o','l'), PLAYER_NEUTRAL_PASSIVE, &overlay->s.origin2);
         if (best) {
             best->resources = overlay->resources ? overlay->resources : S_GoldMineMaximumGold(best);
             S_MineOverlayBind(overlay, best);
