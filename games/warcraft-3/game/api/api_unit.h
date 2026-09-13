@@ -917,13 +917,12 @@ DWORD IssueTargetOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
-    BOOL accepted;
 
-    if (G_UnitIsBuilding(order) && targetWidget)
-        accepted = G_IssueBuildOrder(whichUnit, order, &targetWidget->s.origin2);
-    else
-        accepted = unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget);
-    return jass_pushboolean(j, accepted);
+    /* The numeric argument is an order id, not a unit rawcode. Build-on-mine
+     * placement uses IssueBuildOrderById; routing this API through the build
+     * path misclassifies an unrelated order whose integer happens to match a
+     * building rawcode. */
+    return jass_pushboolean(j, unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget));
 }
 DWORD IssueInstantTargetOrder(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
