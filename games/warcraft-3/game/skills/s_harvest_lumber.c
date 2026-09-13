@@ -15,6 +15,7 @@ typedef struct harvestLumberTuning_s {
     FLOAT search_range;
 } harvestLumberTuning_t;
 
+/* Resolve the worker's authored harvest alias, including runtime-added aliases. */
 static DWORD harvest_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
     char alias_name[5] = {0};
 
@@ -38,29 +39,33 @@ static DWORD harvest_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
     return 0;
 }
 
+/* Prefer the lumber-only ability and otherwise use the shared Harvest ability. */
 static DWORD harvest_lumber_alias(LPCEDICT ent) {
     DWORD alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','r','l'));
     return alias ? alias : harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
 }
 
+/* Confirm that the worker has authoritative lumber-harvest data with capacity. */
 BOOL S_HarvestCanLumber(LPCEDICT ent) {
     DWORD const alias = harvest_lumber_alias(ent);
     AbilityData_t const *data;
 
     if (!alias) return false;
     data = G_AbilityData(alias);
-    return data->id != alias || data->level[0].data[1].number > 0.0f;
+    return data->id == alias && data->level[0].data[1].number > 0.0f;
 }
 
+/* Confirm that the worker has authoritative gold-harvest data with capacity. */
 BOOL S_HarvestCanGold(LPCEDICT ent) {
     DWORD const alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
     AbilityData_t const *data;
 
     if (!alias) return false;
     data = G_AbilityData(alias);
-    return data->id != alias || data->level[0].data[2].number > 0.0f;
+    return data->id == alias && data->level[0].data[2].number > 0.0f;
 }
 
+/* Collect per-worker lumber tuning from the resolved ability instead of globals. */
 static harvestLumberTuning_t harvest_lumber_tuning(LPCEDICT ent) {
     harvestLumberTuning_t tuning = {
         .tree_damage = HARVEST_TREE_DAMAGE,
