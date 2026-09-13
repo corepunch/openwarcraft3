@@ -1056,6 +1056,12 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
 
 static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
     FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD trigger action trigger=%p func=\"%s\" unit=%ld\n",
+                (void *)params->trigger,
+                action->func ? jass_functionname(action->func) : "(anonymous)",
+                params->unit ? (long)params->unit->s.number : -1L);
+#endif
         LPPLAYER player = jass_eventplayer(params->unit);
         LPJASSCOROUTINE co = jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = params->trigger,

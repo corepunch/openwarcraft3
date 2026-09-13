@@ -917,7 +917,25 @@ DWORD IssueTargetOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     DWORD order = (DWORD)jass_checkinteger(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
-    return jass_pushboolean(j, unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget));
+    BOOL accepted;
+
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD JASS IssueTargetOrderById caller=\"%s\" worker=%ld worker_id=%.4s order=%.4s target=%ld target_id=%.4s\n",
+            jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)",
+            whichUnit ? (long)(whichUnit - g_edicts) : -1L,
+            whichUnit ? (LPCSTR)&whichUnit->class_id : "????", (LPCSTR)&order,
+            targetWidget ? (long)(targetWidget - g_edicts) : -1L,
+            targetWidget ? (LPCSTR)&targetWidget->class_id : "????");
+#endif
+    if (G_UnitIsBuilding(order) && targetWidget)
+        accepted = G_IssueBuildOrder(whichUnit, order, &targetWidget->s.origin2);
+    else
+        accepted = unit_issuetargetorder(whichUnit, G_OrderId2String(order), targetWidget);
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD JASS IssueTargetOrderById result=%d routed_to_build=%d order=%.4s\n",
+            accepted, G_UnitIsBuilding(order), (LPCSTR)&order);
+#endif
+    return jass_pushboolean(j, accepted);
 }
 DWORD IssueInstantTargetOrder(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -934,18 +952,30 @@ DWORD IssueInstantTargetOrderById(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IssueBuildOrder(LPJASS j) {
-    //HANDLE whichPeon = jass_checkhandle(j, 1, "unit");
-    //LPCSTR unitToBuild = jass_checkstring(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD JASS IssueBuildOrder string native is unimplemented caller=\"%s\"\n",
+            jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)");
+#endif
     return jass_pushboolean(j, 0);
 }
 DWORD IssueBuildOrderById(LPJASS j) {
     LPEDICT whichPeon = jass_checkhandle(j, 1, "unit");
     DWORD unitId = (DWORD)jass_checkinteger(j, 2);
     VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    BOOL accepted;
 
-    return jass_pushboolean(j, G_IssueBuildOrder(whichPeon, unitId, &point));
+ #ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD JASS IssueBuildOrderById caller=\"%s\" worker=%ld worker_id=%.4s building=%.4s point=(%.1f,%.1f)\n",
+            jass_currentfunctionname(j) ? jass_currentfunctionname(j) : "(root)",
+            whichPeon ? (long)(whichPeon - g_edicts) : -1L,
+            whichPeon ? (LPCSTR)&whichPeon->class_id : "????", (LPCSTR)&unitId, point.x, point.y);
+ #endif
+    accepted = G_IssueBuildOrder(whichPeon, unitId, &point);
+ #ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD JASS IssueBuildOrderById result=%d worker=%ld building=%.4s\n",
+            accepted, whichPeon ? (long)(whichPeon - g_edicts) : -1L, (LPCSTR)&unitId);
+ #endif
+    return jass_pushboolean(j, accepted);
 }
 DWORD SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

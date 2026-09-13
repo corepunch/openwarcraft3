@@ -898,22 +898,87 @@ BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
 static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
     LPEDICT caster, entangled;
     DWORD alias, resulting_type;
+    BOOL bound, started;
 
-    if (!clent || !clent->client || !target || !target->inuse || M_IsDead(target) ||
-        !S_GoldMineIsMine(target) || goldmine_is_overlay_type(target) ||
-        (target->s.renderfx & RF_HIDDEN) || mineoverlay_parent_in_use(target, NULL)) return false;
+    if (!clent || !clent->client) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: no client\n");
+#endif
+        return false;
+    }
+    if (!target || !target->inuse || M_IsDead(target)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: invalid target\n");
+#endif
+        return false;
+    }
+    if (!S_GoldMineIsMine(target)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: target=%ld id=%.4s is not a gold mine\n",
+                (long)(target - g_edicts), (LPCSTR)&target->class_id);
+#endif
+        return false;
+    }
+    if (goldmine_is_overlay_type(target) || (target->s.renderfx & RF_HIDDEN) ||
+        mineoverlay_parent_in_use(target, NULL)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: target=%ld id=%.4s overlay=%d hidden=%d occupied=%d\n",
+                (long)(target - g_edicts), (LPCSTR)&target->class_id,
+                goldmine_is_overlay_type(target), (target->s.renderfx & RF_HIDDEN) != 0,
+                mineoverlay_parent_in_use(target, NULL));
+#endif
+        return false;
+    }
     caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster || !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+    if (!caster || !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: caster=%ld has no Aent\n",
+                caster ? (long)(caster - g_edicts) : -1L);
+#endif
+        return false;
+    }
     resulting_type = G_AbilityLevel(alias, 1)->unitID;
-    if (!resulting_type || !G_UnitIsBuilding(resulting_type)) return false;
+    if (!resulting_type || !G_UnitIsBuilding(resulting_type)) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: caster=%ld alias=%.4s resulting_type=%.4s not building\n",
+                (long)(caster - g_edicts), (LPCSTR)&alias, (LPCSTR)&resulting_type);
+#endif
+        return false;
+    }
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD entangle attempt caster=%ld caster_id=%.4s target=%ld target_id=%.4s alias=%.4s result=%.4s\n",
+            (long)(caster - g_edicts), (LPCSTR)&caster->class_id, (long)(target - g_edicts),
+            (LPCSTR)&target->class_id, (LPCSTR)&alias, (LPCSTR)&resulting_type);
+#endif
 
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
-    if (!entangled) return false;
-    if (!S_MineOverlayBind(entangled, target) || !G_StartNightElfOverlayConstruction(entangled)) {
+    if (!entangled) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: spawn failed result=%.4s player=%u\n",
+                (LPCSTR)&resulting_type, (unsigned)caster->s.player);
+#endif
+        return false;
+    }
+    bound = S_MineOverlayBind(entangled, target);
+    started = bound && G_StartNightElfOverlayConstruction(entangled);
+    if (!started) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD entangle rejected: bind=%d start=%d overlay=%ld overlay_id=%.4s target=%ld bind_parent=%ld active=%d\n",
+                bound, started,
+                (long)(entangled - g_edicts), (LPCSTR)&entangled->class_id, (long)(target - g_edicts),
+                entangled->mineoverlay.parent ? (long)(entangled->mineoverlay.parent - g_edicts) : -1L,
+                entangled->construction.active);
+#endif
         S_MineOverlayRelease(entangled);
         G_FreeEdict(entangled);
         return false;
     }
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD entangle started overlay=%ld target=%ld build_time=%d health=%.1f/%.1f\n",
+            (long)(entangled - g_edicts), (long)(target - g_edicts),
+            entangled->data.UnitBalance ? entangled->data.UnitBalance->buildTime : 0,
+            entangled->health.value, entangled->health.max_value);
+#endif
     G_SetUnitFoodUsed(entangled, entangled->data.UnitBalance ? entangled->data.UnitBalance->foodUsed : 0);
     entangled->build = entangled;
     CM_BakeStaticObstacles();

@@ -77,11 +77,36 @@ BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) 
     VECTOR2 snapped;
     LPEDICT waypoint;
 
-    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player)) ||
-        G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE ||
-        G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) return false;
+    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD order rejected: missing builder/location/client builder=%ld id=%.4s\n",
+                builder ? (long)(builder - g_edicts) : -1L, (LPCSTR)&building_id);
+#endif
+        return false;
+    }
+    if (G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD order rejected: command unavailable builder=%ld builder_id=%.4s building=%.4s\n",
+                (long)(builder - g_edicts), (LPCSTR)&builder->class_id, (LPCSTR)&building_id);
+#endif
+        return false;
+    }
+    if (G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD order rejected: placement invalid builder=%ld builder_id=%.4s building=%.4s x=%.1f y=%.1f\n",
+                (long)(builder - g_edicts), (LPCSTR)&builder->class_id, (LPCSTR)&building_id,
+                location->x, location->y);
+#endif
+        return false;
+    }
     waypoint = Waypoint_add(&snapped);
-    if (!waypoint) return false;
+    if (!waypoint) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD order rejected: waypoint allocation failed builder=%ld building=%.4s\n",
+                (long)(builder - g_edicts), (LPCSTR)&building_id);
+#endif
+        return false;
+    }
     /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
     S_GoldMineReleaseWorker(builder);
     builder->goalentity = waypoint;
@@ -154,6 +179,10 @@ void build_build(LPEDICT ent) {
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s placement=%d\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project, placement);
 #endif
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD arrival rejected worker=%ld worker_id=%.4s building=%.4s placement=%d\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->class_id, (LPCSTR)&ent->build_project, placement);
+#endif
         G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player));
         ent->build_project = 0;
         ent->stand(ent);
@@ -163,6 +192,10 @@ void build_build(LPEDICT ent) {
 #ifdef WC3_DEBUG_AI
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s state=%d\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project, state);
+#endif
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD arrival rejected worker=%ld worker_id=%.4s building=%.4s state=%d\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->class_id, (LPCSTR)&ent->build_project, state);
 #endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
         ent->build_project = 0;
@@ -174,6 +207,10 @@ void build_build(LPEDICT ent) {
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s payment\n",
             (long)(ent - g_edicts), (LPCSTR)&ent->build_project);
 #endif
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD arrival rejected worker=%ld worker_id=%.4s building=%.4s payment\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->class_id, (LPCSTR)&ent->build_project);
+#endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Not enough resources.");
         ent->build_project = 0;
         ent->stand(ent);
@@ -182,6 +219,10 @@ void build_build(LPEDICT ent) {
 
     building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
     if (!building) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD arrival rejected: spawn failed worker=%ld building=%.4s\n",
+                (long)(ent - g_edicts), (LPCSTR)&ent->build_project);
+#endif
         G_RefundBuilding(client, building_id);
         ent->build_project = 0;
         ent->stand(ent);
@@ -206,6 +247,11 @@ void build_build(LPEDICT ent) {
         (build_on && (G_ActorHasSkill(building, "Agl2") || G_ActorHasSkill(building, "Abgm") ||
                       G_ActorHasSkill(building, "Aegm")) &&
          !S_MineOverlayBind(building, build_on))) {
+#ifdef WC3_DEBUG_BUILD
+        fprintf(stderr, "WC3_DEBUG_BUILD arrival rejected: mine bind failed worker=%ld building=%ld id=%.4s parent=%ld\n",
+                (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building_id,
+                build_on ? (long)(build_on - g_edicts) : -1L);
+#endif
         G_FreeEdict(building);
         G_RefundBuilding(client, building_id);
         ent->stand(ent);
@@ -237,6 +283,11 @@ void build_build(LPEDICT ent) {
         default: break;
         }
     }
+#ifdef WC3_DEBUG_BUILD
+    fprintf(stderr, "WC3_DEBUG_BUILD construction dispatch worker=%ld worker_id=%.4s building=%ld building_id=%.4s race=%d started=%d type=%d\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->class_id, (long)(building - g_edicts),
+            (LPCSTR)&building->class_id, race, construction_started, building->construction.type);
+#endif
     if (construction_started) {
         /* Cancellation refunds the exact base construction payment, not later
          * power-build Repair spending. Record that transaction on the spawned
