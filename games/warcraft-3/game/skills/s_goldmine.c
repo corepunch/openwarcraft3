@@ -143,7 +143,7 @@ static BOOL gold_find_nearest_footprint_approach(LPEDICT worker, LPEDICT target,
         target, &worker->s.origin2, route_band, worker->collision, out);
 }
 
-
+/* Resolve an authored or runtime ability alias while preserving race-specific aliases. */
 static DWORD goldmine_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
     char token_code[5] = {0};
 
@@ -167,6 +167,7 @@ static DWORD goldmine_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
     return 0;
 }
 
+/* Classify overlay mines separately so they cannot be harvested as neutral mines. */
 static BOOL goldmine_is_overlay_type(LPCEDICT mine) {
     return mine && (mine->mineoverlay.parent || G_ActorHasSkill(mine, "Agl2") ||
                     G_ActorHasSkill(mine, "Abgm") || G_ActorHasSkill(mine, "Aegm"));
@@ -609,6 +610,7 @@ BZ_ABILITY_PROC(CAbilityGoldMine) {
 
 static void haunted_mine_remove_effects(LPEDICT mine);
 
+/* Validate and return a mine's live parent, clearing stale saved relationships. */
 static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     LPEDICT parent;
 
@@ -630,8 +632,7 @@ static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     return parent;
 }
 
-/* Resolve the stored parent for teardown without reclassifying or testing its
- * health; Warsmash restores the bound unit directly from onDeath(). */
+/* Resolve a parent for teardown without requiring it to remain a valid gold mine. */
 static LPEDICT mineoverlay_release_parent(LPEDICT overlay) {
     LPEDICT parent;
 
@@ -640,6 +641,7 @@ static LPEDICT mineoverlay_release_parent(LPEDICT overlay) {
     return parent;
 }
 
+/* Check whether another overlay already owns the candidate parent mine. */
 static BOOL mineoverlay_parent_in_use(LPEDICT parent, LPEDICT except) {
     if (!parent) return false;
     FILTER_EDICTS(ent, ent != except && ent->inuse && ent->mineoverlay.parent == parent &&
@@ -830,10 +832,12 @@ void S_MineOverlayRelease(LPEDICT overlay) {
  * below own their worker and income state. */
 /* ---- Haunted Gold Mine / Acolyte Harvest -------------------------------- */
 
+/* Return the authored Haunted Mine ability alias active on this unit. */
 static DWORD haunted_mine_alias(LPEDICT mine) {
     return goldmine_actor_ability_alias(mine, MAKEFOURCC('A','b','g','m'));
 }
 
+/* Read the authored maximum number of Acolytes supported by the Haunted Mine. */
 static DWORD haunted_mine_max_miners(LPEDICT mine) {
     DWORD alias = haunted_mine_alias(mine);
     FLOAT value = alias ? G_AbilityLevel(alias, 1)->data[2].number : 0.0f;
@@ -841,11 +845,13 @@ static DWORD haunted_mine_max_miners(LPEDICT mine) {
     return (DWORD)value;
 }
 
+/* Read the authored radius used to position the Acolyte mining ring. */
 static FLOAT haunted_mine_ring_radius(LPEDICT mine) {
     DWORD alias = haunted_mine_alias(mine);
     return alias ? MAX(0.0f, G_AbilityLevel(alias, 1)->data[3].number) : 0.0f;
 }
 
+/* Convert a fixed mining-ring slot into the world position used by the worker. */
 static void haunted_mine_slot_position(LPEDICT mine, DWORD slot, DWORD capacity, LPVECTOR2 out) {
     double angle;
     FLOAT radius;
@@ -920,6 +926,7 @@ static void haunted_mine_remove_effects(LPEDICT mine) {
     }
 }
 
+/* Test whether an Acolyte already owns a particular mining-ring slot. */
 static BOOL haunted_slot_occupied(LPEDICT mine, LONG slot) {
     FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == mine &&
                   worker->acolyte_mine.mine_spawn_time == mine->spawn_time &&
@@ -929,6 +936,7 @@ static BOOL haunted_slot_occupied(LPEDICT mine, LONG slot) {
     return false;
 }
 
+/* Count live Acolytes currently assigned to this Haunted Mine. */
 static DWORD haunted_active_miners(LPEDICT mine) {
     DWORD count = 0;
     if (!mine) return 0;
@@ -940,6 +948,7 @@ static DWORD haunted_active_miners(LPEDICT mine) {
     return count;
 }
 
+/* Validate ownership, construction state, parent lifetime, and remaining gold for a worker order. */
 static BOOL haunted_mine_valid_for(LPEDICT worker, LPEDICT mine) {
     LPEDICT parent;
     if (!worker || !mine || !mine->inuse || M_IsDead(mine) || mine->construction.active ||
@@ -948,6 +957,7 @@ static BOOL haunted_mine_valid_for(LPEDICT worker, LPEDICT mine) {
     return parent && parent->resources > 0;
 }
 
+/* Determine whether the worker has reached the mine's authored interaction range. */
 static BOOL acolyte_in_harvest_range(LPEDICT worker, LPEDICT mine) {
     DWORD alias = goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a'));
     FLOAT const range = alias ? MAX(0.0f, G_AbilityLevel(alias, 1)->range) : 0.0f;
@@ -959,6 +969,7 @@ static BOOL acolyte_in_harvest_range(LPEDICT worker, LPEDICT mine) {
            worker->collision + mine->collision + range;
 }
 
+/* Claim the nearest unoccupied authored ring slot for an Acolyte. */
 static BOOL acolyte_claim_slot(LPEDICT worker, LPEDICT mine) {
     DWORD const capacity = haunted_mine_max_miners(mine);
     LONG best = -1;
@@ -986,6 +997,7 @@ static BOOL acolyte_claim_slot(LPEDICT worker, LPEDICT mine) {
     return true;
 }
 
+/* Snap an active Acolyte to its persistent ring slot and terrain height. */
 static void acolyte_snap_to_slot(LPEDICT worker) {
     LPEDICT mine;
     DWORD capacity;
@@ -1006,6 +1018,7 @@ static void ai_acolyte_harvest_work(LPEDICT worker);
 static umove_t acolyte_harvest_move_walk = { "walk", ai_acolyte_harvest_walk, NULL, CAbilityAcolyteHarvest };
 static umove_t acolyte_harvest_move_work = { "stand work", ai_acolyte_harvest_work, NULL, CAbilityAcolyteHarvest };
 
+/* Advance an Acolyte toward its assigned Haunted Mine and claim its slot on arrival. */
 static void ai_acolyte_harvest_walk(LPEDICT worker) {
     LPEDICT mine = worker ? worker->goalentity : NULL;
     if (!haunted_mine_valid_for(worker, mine)) {
@@ -1033,6 +1046,7 @@ static void ai_acolyte_harvest_walk(LPEDICT worker) {
     unit_moveindirection_ignore_units(worker);
 }
 
+/* Maintain the Acolyte's position while it is working in the Haunted Mine ring. */
 static void ai_acolyte_harvest_work(LPEDICT worker) {
     LPEDICT mine = worker ? worker->acolyte_mine.mine : NULL;
     if (!haunted_mine_valid_for(worker, mine) || !S_AcolyteHarvestIsActive(worker)) {
@@ -1183,13 +1197,13 @@ void S_EntangledMineTick(LPEDICT mine) {
     interval_ms = (DWORD)(MAX(0.0f, G_AbilityLevel(alias, 1)->data[1].number) * 1000.0f);
     mine->mineoverlay.income_time = now + MAX(1u, interval_ms);
 
-    index = (mine->mineoverlay.active_interval_index + 1) % capacity;
-    mine->mineoverlay.active_interval_index = index;
-    if (index >= mine->cargo.count) return;
     if (parent->resources == 0) {
         unit_die(mine, NULL);
         return;
     }
+    index = (mine->mineoverlay.active_interval_index + 1) % capacity;
+    mine->mineoverlay.active_interval_index = index;
+    if (index >= mine->cargo.count) return;
 
     gold_per_interval = (LONG)MAX(0.0f, G_AbilityLevel(alias, 1)->data[0].number);
     gold = MIN((LONG)parent->resources, gold_per_interval);

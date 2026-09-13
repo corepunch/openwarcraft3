@@ -59,15 +59,18 @@ BOOL S_CargoIsBurrow(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
 }
 
+/* Identify Entangled Mines so their cargo count can drive the authored model animation. */
 static BOOL cargo_is_entangled_mine(LPEDICT transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','e','g','m')) != 0;
 }
 
+/* Map the occupied Wisp count to the Required Animation Name used by the mine model. */
 static LPCSTR cargo_count_animation_tag(DWORD count) {
     static LPCSTR const tags[] = { NULL, "first", "second", "third", "fourth", "fifth" };
     return count < sizeof(tags) / sizeof(tags[0]) ? tags[count] : NULL;
 }
 
+/* Replace the previous cargo-count animation tag after a Wisp enters or leaves. */
 static void cargo_update_entangled_animation(LPEDICT transport, DWORD old_count) {
     LPCSTR old_tag, new_tag;
 
@@ -194,6 +197,7 @@ LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
     return NULL;
 }
 
+/* Release a worker from its transport before the worker edict is removed or retasked. */
 void S_CargoReleaseUnit(LPEDICT unit) {
     LPEDICT transport;
 

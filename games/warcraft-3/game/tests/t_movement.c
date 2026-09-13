@@ -3557,6 +3557,31 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     free_slk_rows(rows);
 }
 
+/* Depletion must retire an Entangled Mine even when every Wisp has already left it. */
+TEST(wc3_movement, empty_entangled_mine_dies_when_parent_is_depleted) {
+    slkTestData_t *rows, *old_abilities;
+    LPEDICT parent, mine;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    setup_test_goldmine(parent, &test_goldmine_stock, 0);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    T_ASSERT(S_MineOverlayBind(mine, parent));
+
+    level.time = 0;
+    S_EntangledMineTick(mine);
+    T_ASSERT(M_IsDead(mine));
+    T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent->paused);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_cargo) {
     static UnitAbilities_t const burrow_abilities = {
         .id = MAKEFOURCC('o','b','u','r'),
