@@ -133,17 +133,49 @@ void SV_BuildClientFrame(LPCLIENT client) {
     frame->first_entity = svs.next_client_entities;
     for (int index = first_entity; index < ge->num_edicts; index++) {
         edict_t *edict = EDICT_NUM(index);
+#ifdef WC3_DEBUG_MINING
+        BOOL const mining_entity = edict->s.class_id == MAKEFOURCC('n','g','o','l');
+#endif
         if (!edict->inuse)
             continue;
-        if (edict->svflags & SVF_NOCLIENT)
+        if (edict->svflags & SVF_NOCLIENT) {
+#ifdef WC3_DEBUG_MINING
+            if (mining_entity) fprintf(stderr, "WC3_MINING snapshot-skip client=%d ent=%d reason=noclient "
+                                           "hidden=%d model=%d flags=%u\n", client->edict->client->ps.number, index,
+                                           !!(edict->s.renderfx & RF_HIDDEN), !!edict->s.model,
+                                           (unsigned)edict->s.flags);
+#endif
             continue;
+        }
         /* Owner-only entities are private snapshot state, unlike ordinary owned units. */
         if ((edict->svflags & SVF_OWNER_ONLY) && edict->s.player != clent->client->ps.number)
             continue;
-        if (!edict->s.model && !edict->s.sound && !edict->s.event)
+        if (!edict->s.model && !edict->s.sound && !edict->s.event) {
+#ifdef WC3_DEBUG_MINING
+            if (mining_entity) fprintf(stderr, "WC3_MINING snapshot-skip client=%d ent=%d reason=no-presentation "
+                                           "hidden=%d noclient=%d\n", client->edict->client->ps.number, index,
+                                           !!(edict->s.renderfx & RF_HIDDEN),
+                                           !!(edict->svflags & SVF_NOCLIENT));
+#endif
             continue;
-        if (!SV_CanClientSeeEntity(client, edict) && index > ge->max_clients)
+        }
+        if (!SV_CanClientSeeEntity(client, edict) && index > ge->max_clients) {
+#ifdef WC3_DEBUG_MINING
+            if (mining_entity) fprintf(stderr, "WC3_MINING snapshot-skip client=%d ent=%d reason=out-of-view "
+                                           "origin=(%.1f,%.1f) camera=(%.1f,%.1f) hidden=%d model=%d\n",
+                                           client->edict->client->ps.number, index, edict->s.origin.x, edict->s.origin.y,
+                                           clent->client->ps.vieworigin.x, clent->client->ps.vieworigin.y,
+                                           !!(edict->s.renderfx & RF_HIDDEN), !!edict->s.model);
+#endif
             continue;
+        }
+#ifdef WC3_DEBUG_MINING
+        if (mining_entity) fprintf(stderr, "WC3_MINING snapshot-add client=%d ent=%d hidden=%d "
+                                       "noclient=%d model=%d origin=(%.1f,%.1f)\n", client->edict->client->ps.number, index,
+                                       !!(edict->s.renderfx & RF_HIDDEN),
+                                       !!(edict->svflags & SVF_NOCLIENT), !!edict->s.model,
+                                       edict->s.origin.x, edict->s.origin.y);
+#endif
         SV_AddVisibleEntityCandidate(candidates,
                                      &num_candidates,
                                      edict,

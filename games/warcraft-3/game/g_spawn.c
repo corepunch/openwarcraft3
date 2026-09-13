@@ -691,6 +691,7 @@ void G_SpawnEntities(void) {
         }
         gi.LinkEntity(ent);
     }
+    S_MineOverlayBindPreplaced();
     SP_worldspawn(NULL);
     
     jass_dofile(level.vm, "Scripts\\common.j");

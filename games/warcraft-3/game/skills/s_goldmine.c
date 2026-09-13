@@ -2,6 +2,8 @@
 
 extern FLOAT HARVEST_GOLD_CAPACITY;
 
+#define WC3_MINE_OVERLAY_MATCH_RADIUS 8.0f // world units; map placement tolerance for pairing an overlay with its parent mine
+
 void harvestgold_walkback(LPEDICT ent);
 void harvestgold_walk(LPEDICT ent);
 void harvestgold_wait(LPEDICT ent);
@@ -609,6 +611,14 @@ static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     if (!overlay || !(parent = overlay->mineoverlay.parent)) return NULL;
     if (!parent->inuse || parent->spawn_time != overlay->mineoverlay.parent_spawn_time ||
         M_IsDead(parent) || !S_GoldMineIsMine(parent)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING parent-invalid overlay=%ld parent=%ld parent_inuse=%d "
+                "spawn=%u/%u dead=%d goldmine=%d hidden=%d noclient=%d model=%d gold=%u\n",
+                (long)(overlay - globals.edicts), (long)(parent - globals.edicts), parent->inuse,
+                (unsigned)parent->spawn_time, (unsigned)overlay->mineoverlay.parent_spawn_time,
+                M_IsDead(parent), S_GoldMineIsMine(parent), !!(parent->s.renderfx & RF_HIDDEN),
+                !!(parent->svflags & SVF_NOCLIENT), !!parent->s.model, (unsigned)parent->resources);
+#endif
         overlay->mineoverlay.parent = NULL;
         overlay->mineoverlay.parent_spawn_time = 0;
         return NULL;
@@ -639,6 +649,16 @@ BOOL S_MineOverlayBind(LPEDICT overlay, LPEDICT parent) {
     if (!overlay || !parent || overlay == parent || !overlay->inuse || !parent->inuse ||
         M_IsDead(overlay) || M_IsDead(parent) || !S_GoldMineIsMine(parent) ||
         goldmine_is_overlay_type(parent) || mineoverlay_parent_in_use(parent, overlay)) {
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING bind-rejected overlay=%ld parent=%ld overlay_ok=%d parent_ok=%d "
+                "overlay_dead=%d parent_dead=%d parent_goldmine=%d parent_overlay=%d parent_bound=%d\n",
+                overlay ? (long)(overlay - globals.edicts) : -1L,
+                parent ? (long)(parent - globals.edicts) : -1L,
+                overlay && overlay->inuse, parent && parent->inuse,
+                overlay && M_IsDead(overlay), parent && M_IsDead(parent),
+                parent && S_GoldMineIsMine(parent), parent && goldmine_is_overlay_type(parent),
+                parent && mineoverlay_parent_in_use(parent, overlay));
+#endif
         return false;
     }
 
@@ -652,7 +672,48 @@ BOOL S_MineOverlayBind(LPEDICT overlay, LPEDICT parent) {
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(parent);
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING bound overlay=%ld id=%.4s parent=%ld id=%.4s spawn=%u "
+            "parent_spawn=%u hidden=%d paused=%d noclient=%d model=%d gold=%u\n",
+            (long)(overlay - globals.edicts), (LPCSTR)&overlay->class_id,
+            (long)(parent - globals.edicts), (LPCSTR)&parent->class_id,
+            (unsigned)overlay->spawn_time, (unsigned)parent->spawn_time,
+            !!(parent->s.renderfx & RF_HIDDEN), parent->paused,
+            !!(parent->svflags & SVF_NOCLIENT), !!parent->s.model, (unsigned)parent->resources);
+#endif
     return true;
+}
+
+/* Pair map-placed overlay units with the neutral mine loaded at the same
+ * location; construction performs this binding itself, but map units have no
+ * builder callback to establish the relationship. */
+void S_MineOverlayBindPreplaced(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT overlay = &globals.edicts[i];
+        LPEDICT best = NULL;
+        FLOAT best_distance = FLT_MAX;
+
+        if (!overlay->inuse || !goldmine_is_overlay_type(overlay) || overlay->mineoverlay.parent) continue;
+        FOR_LOOP(j, globals.num_edicts) {
+            LPEDICT parent = &globals.edicts[j];
+            FLOAT distance;
+            if (parent == overlay || !parent->inuse || !S_GoldMineIsMine(parent) ||
+                goldmine_is_overlay_type(parent) || parent->s.player != PLAYER_NEUTRAL_PASSIVE) continue;
+            distance = Vector2_distance(&overlay->s.origin2, &parent->s.origin2);
+            if (distance > WC3_MINE_OVERLAY_MATCH_RADIUS || distance >= best_distance) continue;
+            best = parent;
+            best_distance = distance;
+        }
+        if (best) {
+            S_MineOverlayBind(overlay, best);
+            continue;
+        }
+#ifdef WC3_DEBUG_MINING
+        fprintf(stderr, "WC3_MINING preplaced-unbound overlay=%ld id=%.4s origin=(%.1f,%.1f)\n",
+                (long)(overlay - globals.edicts), (LPCSTR)&overlay->class_id,
+                overlay->s.origin2.x, overlay->s.origin2.y);
+#endif
+    }
 }
 
 BOOL S_AcolyteHarvestIsActive(LPCEDICT worker) {
@@ -689,6 +750,14 @@ void S_MineOverlayRelease(LPEDICT overlay) {
     /* Teardown restores the bound edict by identity. Runtime mining validation
      * above must not discard the parent before its hidden/paused state is undone. */
     parent = mineoverlay_release_parent(overlay);
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING release overlay=%ld id=%.4s parent=%ld result=%ld "
+            "parent_spawn=%u/%u\n", (long)(overlay - globals.edicts), (LPCSTR)&overlay->class_id,
+            overlay->mineoverlay.parent ? (long)(overlay->mineoverlay.parent - globals.edicts) : -1L,
+            parent ? (long)(parent - globals.edicts) : -1L,
+            parent ? (unsigned)parent->spawn_time : 0u,
+            (unsigned)overlay->mineoverlay.parent_spawn_time);
+#endif
     overlay->mineoverlay.parent = NULL;
     overlay->mineoverlay.parent_spawn_time = 0;
     overlay->mineoverlay.income_time = 0;
@@ -699,6 +768,13 @@ void S_MineOverlayRelease(LPEDICT overlay) {
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(parent);
+#ifdef WC3_DEBUG_MINING
+    fprintf(stderr, "WC3_MINING restored parent=%ld id=%.4s hidden=%d paused=%d noclient=%d "
+            "model=%d dead=%d gold=%u\n", (long)(parent - globals.edicts), (LPCSTR)&parent->class_id,
+            !!(parent->s.renderfx & RF_HIDDEN), parent->paused,
+            !!(parent->svflags & SVF_NOCLIENT), !!parent->s.model, M_IsDead(parent),
+            (unsigned)parent->resources);
+#endif
 }
 
 /* Agl2 owns only the shared overlay relationship. The racial mine abilities

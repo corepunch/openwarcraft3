@@ -2270,6 +2270,7 @@ void S_MilitiaExpire(LPEDICT);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
 BOOL S_MineOverlayBind(LPEDICT, LPEDICT);
+void S_MineOverlayBindPreplaced(void);
 void S_MineOverlayRelease(LPEDICT);
 BOOL S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
 void S_AcolyteHarvestRelease(LPEDICT);
