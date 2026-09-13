@@ -46,6 +46,9 @@ endif
 ifeq ($(WC3_DEBUG_MINING),1)
 	CFLAGS += -DWC3_DEBUG_MINING
 endif
+ifeq ($(WC3_DEBUG_CONSTRUCTION),1)
+	CFLAGS += -DWC3_DEBUG_CONSTRUCTION
+endif
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------

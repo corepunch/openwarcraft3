@@ -850,8 +850,21 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     FLOAT duration, fraction;
     DWORD first, last, span, frame;
 
-    if (!building || !building->construction.active || !building->data.UnitBalance) return;
-    if (building->data.UnitBalance->buildTime <= 0) return;
+    if (!building || !building->construction.active || !building->data.UnitBalance) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        fprintf(stderr, "WC3_CONSTRUCTION anim-skip building=%ld reason=missing-state\n",
+                building ? (long)(building - globals.edicts) : -1L);
+#endif
+        return;
+    }
+    if (building->data.UnitBalance->buildTime <= 0) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        fprintf(stderr, "WC3_CONSTRUCTION anim-skip building=%ld id=%.4s reason=build-time=%d\n",
+                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                building->data.UnitBalance->buildTime);
+#endif
+        return;
+    }
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -859,7 +872,15 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     anim = building->animation;
     if (!G_AnimationHasPrimary(anim, "birth"))
         anim = G_GetUnitAnimation(building, "birth");
-    if (!anim || anim->interval[1] <= anim->interval[0]) return;
+    if (!anim || anim->interval[1] <= anim->interval[0]) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        fprintf(stderr, "WC3_CONSTRUCTION anim-skip building=%ld id=%.4s requested=%s reason=birth-unresolved current=%s\n",
+                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                building->animation_request[0] ? building->animation_request : "<none>",
+                building->animation ? building->animation->name : "<none>");
+#endif
+        return;
+    }
     building->animation = anim;
 
     duration = (FLOAT)building->data.UnitBalance->buildTime * 1000.0f;
@@ -870,6 +891,11 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     frame = first + (DWORD)((FLOAT)span * fraction);
     if (frame >= last) frame = last - 1;
     building->s.frame = frame;
+#ifdef WC3_DEBUG_CONSTRUCTION
+    fprintf(stderr, "WC3_CONSTRUCTION anim building=%ld id=%.4s anim=%s interval=%u-%u progress=%.0f/%.0f frame=%u flags=0x%x\n",
+            (long)(building - globals.edicts), (LPCSTR)&building->class_id, anim->name,
+            first, last, building->construction.progress, duration, frame, building->aiflags);
+#endif
 }
 
 static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
@@ -950,9 +976,24 @@ BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
 }
 
 BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
+    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        fprintf(stderr, "WC3_CONSTRUCTION start-fail race=undead builder=%ld building=%ld\n",
+                builder ? (long)(builder - globals.edicts) : -1L,
+                building ? (long)(building - globals.edicts) : -1L);
+#endif
+        return false;
+    }
     G_AssignConstructionWorker(building, builder, false);
     building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
+#ifdef WC3_DEBUG_CONSTRUCTION
+    fprintf(stderr, "WC3_CONSTRUCTION start race=undead builder=%ld builder_id=%.4s building=%ld id=%.4s move=%s anim=%s frame=%u release=%u\n",
+            (long)(builder - globals.edicts), (LPCSTR)&builder->class_id,
+            (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+            building->currentmove ? building->currentmove->animation : "<none>",
+            building->animation ? building->animation->name : "<none>", building->s.frame,
+            building->construction.worker_release_time);
+#endif
     return true;
 }
 
@@ -1000,7 +1041,17 @@ static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
     building->construction.worker_spawn_time = 0;
     building->construction.worker_inside = false;
     building->construction.worker_release_time = 0;
-    if (!worker) return;
+    if (!worker) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        fprintf(stderr, "WC3_CONSTRUCTION worker-release building=%ld completed=%d worker=<none>\n",
+                (long)(building - globals.edicts), completed);
+#endif
+        return;
+    }
+#ifdef WC3_DEBUG_CONSTRUCTION
+    fprintf(stderr, "WC3_CONSTRUCTION worker-release building=%ld worker=%ld completed=%d inside=%d consumes=%d\n",
+            (long)(building - globals.edicts), (long)(worker - globals.edicts), completed, inside, consumes);
+#endif
 
     if (completed && consumes) {
         /* The Wisp was already removed from Food Used at construction start. */
@@ -1035,7 +1086,15 @@ void G_RunConstructionFrame(LPEDICT building) {
     edictStat_s *hp;
 
     if (!building || !building->construction.active || building->construction.paused ||
-        building->paused || !building->data.UnitBalance) return;
+        building->paused || !building->data.UnitBalance) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+        if (building && building->construction.type == CONSTRUCTION_UNDEAD)
+            fprintf(stderr, "WC3_CONSTRUCTION frame-skip building=%ld active=%d paused=%d unit-paused=%d balance=%d\n",
+                    (long)(building - globals.edicts), building->construction.active,
+                    building->construction.paused, building->paused, building->data.UnitBalance != NULL);
+#endif
+        return;
+    }
     if (building->construction.type != CONSTRUCTION_ORC &&
         building->construction.type != CONSTRUCTION_UNDEAD &&
         building->construction.type != CONSTRUCTION_NIGHTELF) return;
@@ -1053,6 +1112,14 @@ void G_RunConstructionFrame(LPEDICT building) {
               ((FLOAT)FRAMETIME / duration);
     hp->value = MIN(hp->max_value, hp->value + MAX(0.0f, hp_gain));
     G_UpdateConstructionAnimation(building);
+#ifdef WC3_DEBUG_CONSTRUCTION
+    if (building->construction.type == CONSTRUCTION_UNDEAD)
+        fprintf(stderr, "WC3_CONSTRUCTION frame building=%ld progress=%.0f/%.0f health=%.1f/%.1f worker=%ld anim=%s frame=%u\n",
+                (long)(building - globals.edicts), building->construction.progress, duration,
+                hp->value, hp->max_value,
+                building->construction.worker ? (long)(building->construction.worker - globals.edicts) : -1L,
+                building->animation ? building->animation->name : "<none>", building->s.frame);
+#endif
     if (building->construction.progress >= duration) G_CompleteConstruction(building);
 }
 
@@ -1141,6 +1208,12 @@ void G_CompleteConstruction(LPEDICT building) {
      * completion grants supply and publishes CONSTRUCT_FINISH exactly once. */
     legacy = building->build == building;
     if (!building->construction.active && !legacy) return;
+#ifdef WC3_DEBUG_CONSTRUCTION
+    fprintf(stderr, "WC3_CONSTRUCTION complete building=%ld id=%.4s type=%d progress=%.0f health=%.1f/%.1f anim=%s frame=%u\n",
+            (long)(building - globals.edicts), (LPCSTR)&building->class_id, building->construction.type,
+            building->construction.progress, building->health.value, building->health.max_value,
+            building->animation ? building->animation->name : "<none>", building->s.frame);
+#endif
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",

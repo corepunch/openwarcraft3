@@ -209,6 +209,13 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
 }
 
 void unit_birth(LPEDICT self) {
+#ifdef WC3_DEBUG_CONSTRUCTION
+    fprintf(stderr, "WC3_CONSTRUCTION birth unit=%ld id=%.4s active=%d type=%d old-move=%s old-anim=%s\n",
+            self ? (long)(self - globals.edicts) : -1L, self ? (LPCSTR)&self->class_id : "????",
+            self ? self->construction.active : 0, self ? self->construction.type : CONSTRUCTION_NONE,
+            self && self->currentmove ? self->currentmove->animation : "<none>",
+            self && self->animation ? self->animation->name : "<none>");
+#endif
     unit_setmove(self, &unit_move_birth);
     self->wait = self->data.UnitBalance->buildTime;
     self->s.renderfx |= RF_NO_UBERSPLAT;
