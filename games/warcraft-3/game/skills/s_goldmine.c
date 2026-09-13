@@ -616,14 +616,13 @@ static LPEDICT mineoverlay_parent(LPEDICT overlay) {
     return parent;
 }
 
-/* Resolve the stored parent for teardown without requiring its abilities to
- * remain classified as Agld; the overlay owns the hide/pause state until it
- * dies, so destruction must restore that exact live edict. */
+/* Resolve the stored parent for teardown without reclassifying or testing its
+ * health; Warsmash restores the bound unit directly from onDeath(). */
 static LPEDICT mineoverlay_release_parent(LPEDICT overlay) {
     LPEDICT parent;
 
     if (!overlay || !(parent = overlay->mineoverlay.parent) || !parent->inuse ||
-        parent->spawn_time != overlay->mineoverlay.parent_spawn_time || M_IsDead(parent)) return NULL;
+        parent->spawn_time != overlay->mineoverlay.parent_spawn_time) return NULL;
     return parent;
 }
 
